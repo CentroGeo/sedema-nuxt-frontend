@@ -65,8 +65,11 @@ jobs:
       needs: build-and-push
       runs-on: [self-hosted, deploy-release]
       steps:
+        - name: Login to GHCR
+          run: echo "${{ secrets.GHCR_GEOINTSIGIC_PAT }}" | docker login ghcr.io -u geointsigic --password-stdin
+
         - name: Pull and restart frontend
           run: |
-            cd ~/opt/sigic-bundle
-            docker compose pull frontend-admin frontend-pub
-            docker compose up -d frontend-admin frontend-pub
+            cd /opt/sigic-bundle
+            docker compose pull frontend-admin frontend-app
+            docker compose up -d frontend-admin frontend-app
