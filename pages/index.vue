@@ -63,7 +63,7 @@ watch(
         <div class="portada-degradado">
           <div class="portada-cuerpo">
             <h1 class="portada-titulo">
-              Sistema Integral de Gestión de Información Científica (SIGIC)
+              Plataforma Geoespacial de SEDEMA
             </h1>
             <strong class="portada-subtitulo">
               Integra, visualiza y aprovecha el conocimiento científico de México
