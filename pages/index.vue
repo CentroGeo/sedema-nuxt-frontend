@@ -63,7 +63,7 @@ watch(
         <div class="portada-degradado">
           <div class="portada-cuerpo">
             <h1 class="portada-titulo">
-              Plataforma Geoespacial de SEDEMA
+              Plataforma Geoespacial de SEDEMA probar Fer
             </h1>
             <strong class="portada-subtitulo">
               Integra, visualiza y aprovecha el conocimiento científico de México
