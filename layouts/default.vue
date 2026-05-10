@@ -1,7 +1,7 @@
 <script setup>
-import SisdaiMenuAccesibilidad from '@centrogeomx/sisdai-componentes/src/componentes/menu-accesibilidad/SisdaiMenuAccesibilidad.vue';
-import SisdaiNavegacionGobMx from '@centrogeomx/sisdai-componentes/src/componentes/navegacion-gob-mx/SisdaiNavegacionGobMx.vue';
-import SisdaiPiePaginaGobMx from '@centrogeomx/sisdai-componentes/src/componentes/pie-pagina-gob-mx/SisdaiPiePaginaGobMx.vue';
+import TopbarGobMx from '~/components/base/TopbarGobMx.vue';
+import MenuAccesibilidad from '~/components/base/MenuAccesibilidad.vue';
+import PiePaginaGobMx from '~/components/base/PiePaginaGobMx.vue';
 import MainNavegacion from '~/components/base/MainNavegacion.vue';
 import { useAccesibilidadStore } from '~/stores/accesibilidad';
 
@@ -14,13 +14,27 @@ useHead(() => ({
     { property: 'og:url', content: currentPath.value, key: 'og-url' },
     { name: 'twitter:url', content: currentPath.value, key: 'twitter-url' },
   ],
+  link: [
+    { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+    { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
+    {
+      rel: 'stylesheet',
+      href: 'https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap',
+    },
+    {
+      rel: 'stylesheet',
+      href: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css',
+      crossorigin: 'anonymous',
+      referrerpolicy: 'no-referrer',
+    },
+  ],
 }));
 </script>
 
 <template>
   <div>
     <a href="#principal" class="ir-contenido-principal"> Ir a contenido principal </a>
-    <SisdaiNavegacionGobMx />
+    <TopbarGobMx />
 
     <MainNavegacion />
 
@@ -28,11 +42,10 @@ useHead(() => ({
       <slot />
     </div>
 
-    <!-- parece que botón flotante agrega un id al elemento html que no
-    coincide al hacer server side rendering -->
     <client-only>
-      <SisdaiMenuAccesibilidad :objeto-store="accesibilidadStore" perfil-color="sigic" />
+      <MenuAccesibilidad :objeto-store="accesibilidadStore" />
     </client-only>
-    <SisdaiPiePaginaGobMx />
+
+    <PiePaginaGobMx />
   </div>
 </template>
