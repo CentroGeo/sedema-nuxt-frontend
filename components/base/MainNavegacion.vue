@@ -130,7 +130,7 @@ const esActiva = (path) => route.path === path;
 }
 .mainnav-accent {
   height: 1px;
-  background: rgba(159, 34, 65, 0.15);
+  background: rgba(6, 70, 53, 0.15);
 }
 .mainnav-container {
   width: min(calc(100% - 48px), 1280px);
@@ -155,7 +155,7 @@ const esActiva = (path) => route.path === path;
 }
 .mainnav-separator {
   height: 6px;
-  background-color: #9f2241;
+  background-color: #064635;
 }
 .menu {
   display: flex;
@@ -170,7 +170,7 @@ const esActiva = (path) => route.path === path;
   justify-content: center;
   padding: 0 18px;
   border-radius: 12px;
-  color: #9f2241;
+  color: #064635;
   font-size: 15px;
   font-weight: 700;
   font-family: inherit;
@@ -183,22 +183,22 @@ const esActiva = (path) => route.path === path;
 .menu a:hover,
 .menu a.is-active,
 .menu button:hover {
-  background: rgba(159, 34, 65, 0.08);
+  background: rgba(6, 70, 53, 0.08);
 }
 .menu__btn {
-  border: 1px solid rgba(159, 34, 65, 0.35);
+  border: 1px solid rgba(6, 70, 53, 0.35);
   background: rgba(255, 255, 255, 0.45);
 }
 .menu__btn:hover {
-  background: #9f2241 !important;
+  background: #064635 !important;
   color: #fff !important;
-  border-color: #9f2241;
+  border-color: #064635;
 }
 .nav-toggle {
   display: none;
   width: 46px;
   height: 46px;
-  border: 1px solid rgba(159, 34, 65, 0.2);
+  border: 1px solid rgba(6, 70, 53, 0.2);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.6);
   padding: 10px;
@@ -207,7 +207,7 @@ const esActiva = (path) => route.path === path;
 .nav-toggle span {
   display: block;
   height: 2px;
-  background: #9f2241;
+  background: #064635;
   margin: 5px 0;
   border-radius: 10px;
   transition: 0.25s ease;
@@ -229,7 +229,7 @@ const esActiva = (path) => route.path === path;
     right: 0;
     width: min(320px, calc(100vw - 32px));
     background: rgba(252, 248, 227, 0.98);
-    border: 1px solid rgba(159, 34, 65, 0.12);
+    border: 1px solid rgba(6, 70, 53, 0.12);
     border-radius: 18px;
     box-shadow: 0 22px 40px rgba(0, 0, 0, 0.12);
     padding: 12px;

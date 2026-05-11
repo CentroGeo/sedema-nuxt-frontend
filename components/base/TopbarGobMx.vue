@@ -82,7 +82,7 @@ const config = useRuntimeConfig();
   transition: transform 0.25s ease;
 }
 .topbar__links a:hover {
-  color: #9f2241;
+  color: #064635;
 }
 .topbar__links a:hover::after {
   transform: scaleX(1);

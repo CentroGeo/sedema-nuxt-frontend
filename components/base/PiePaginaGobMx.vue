@@ -41,7 +41,7 @@ const anio = new Date().getFullYear();
             <i class="fab fa-x-twitter" />
           </a>
           <a
-            href="https://www.youtube.com/@SedemaCDMX"
+            href="https://www.youtube.com/@sedema-ciudaddemexico8374"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="YouTube"
@@ -248,7 +248,7 @@ const anio = new Date().getFullYear();
 }
 .footer-block h3 {
   margin: 0 0 18px;
-  color: #9f2241;
+  color: #064635;
   font-size: 1.02rem;
 }
 .footer-block p,
@@ -278,7 +278,7 @@ const anio = new Date().getFullYear();
   font-size: 12px;
 }
 .footer-block a:hover {
-  color: #9f2241;
+  color: #064635;
 }
 .footer-block--brand p {
   margin: 0 0 16px;
@@ -293,7 +293,7 @@ const anio = new Date().getFullYear();
   height: 56px;
   display: grid;
   place-items: center;
-  background: #9f2241;
+  background: #064635;
   color: #fff;
   font-size: 1.45rem;
   transition:
@@ -302,7 +302,7 @@ const anio = new Date().getFullYear();
 }
 .socials a:hover {
   transform: translateY(-3px);
-  background: #7f1b35;
+  background: #519171;
 }
 .footer-block--banners {
   display: flex;

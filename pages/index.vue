@@ -214,9 +214,9 @@ const features = [
     ),
     linear-gradient(
       90deg,
-      rgba(159, 34, 65, 0.18) 0%,
-      rgba(159, 34, 65, 0.04) 45%,
-      rgba(159, 34, 65, 0.14) 100%
+      rgba(6, 70, 53, 0.18) 0%,
+      rgba(6, 70, 53, 0.04) 45%,
+      rgba(6, 70, 53, 0.14) 100%
     );
 }
 .hero__glow {
@@ -293,12 +293,12 @@ const features = [
   transform: translateY(-2px);
 }
 .btn--primary {
-  background: #9f2241;
+  background: #064635;
   color: #fff !important;
-  box-shadow: 0 12px 24px rgba(159, 34, 65, 0.25);
+  box-shadow: 0 12px 24px rgba(6, 70, 53, 0.25);
 }
 .btn--primary:hover {
-  background: #7f1b35;
+  background: #519171;
 }
 
 /* Features */
@@ -316,7 +316,7 @@ const features = [
 }
 .section-heading__kicker {
   display: inline-block;
-  color: #9f2241;
+  color: #064635;
   font-weight: 800;
   font-size: 12px;
   letter-spacing: 0.14em;
@@ -342,7 +342,7 @@ const features = [
 }
 .card {
   background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(159, 34, 65, 0.08);
+  border: 1px solid rgba(6, 70, 53, 0.08);
   border-radius: 24px;
   padding: 28px 24px 24px;
   box-shadow: 0 14px 40px rgba(62, 37, 45, 0.1);
@@ -354,7 +354,7 @@ const features = [
 .card:hover {
   transform: translateY(-6px);
   box-shadow: 0 18px 48px rgba(62, 37, 45, 0.14);
-  border-color: rgba(159, 34, 65, 0.18);
+  border-color: rgba(6, 70, 53, 0.18);
 }
 .card__icon {
   width: 58px;
@@ -362,14 +362,14 @@ const features = [
   border-radius: 16px;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, rgba(159, 34, 65, 0.12), rgba(179, 142, 93, 0.14));
-  color: #9f2241;
+  background: linear-gradient(135deg, rgba(6, 70, 53, 0.12), rgba(179, 142, 93, 0.14));
+  color: #064635;
   font-size: 22px;
   margin-bottom: 18px;
 }
 .card h3 {
   margin: 0 0 10px;
-  color: #9f2241;
+  color: #064635;
   font-size: 1.12rem;
 }
 .card p {
@@ -461,14 +461,14 @@ const features = [
   text-decoration: none;
   font-size: 14px;
   font-weight: 600;
-  color: #9f2241;
-  border: 1px solid #9f2241;
+  color: #064635;
+  border: 1px solid #064635;
   padding: 8px 16px;
   border-radius: 6px;
   transition: 0.2s;
 }
 .btn-explorar:hover {
-  background: #9f2241;
+  background: #064635;
   color: #fff !important;
 }
 
