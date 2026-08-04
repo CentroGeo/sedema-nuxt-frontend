@@ -141,6 +141,32 @@ export const useLevantamientoStore = defineStore('levantamiento', () => {
         body: { id_levantamiento: id },
       });
     },
+    async descargarAporte(id, format, email) {
+      const response = await fetch(
+        `${apiUrl}/raising/${id}/export?format=${encodeURIComponent(format)}&email=${encodeURIComponent(email)}&t=${Date.now()}`,
+        { cache: 'no-store' }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const error = new Error(errorData.message || 'No fue posible descargar el aporte');
+        error.data = errorData;
+        throw error;
+      }
+
+      const disposition = response.headers.get('content-disposition') || '';
+      const fileName = disposition.match(/filename="([^"]+)"/i)?.[1] || `aporte_${id}.${format}`;
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = downloadUrl;
+      anchor.download = fileName;
+      anchor.style.display = 'none';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(downloadUrl);
+    },
     async obtenerAportesPorEstado(email, status) {
       const data = await $fetch(`${apiUrl}/raising/user/list`, {
         method: 'POST',
@@ -148,6 +174,20 @@ export const useLevantamientoStore = defineStore('levantamiento', () => {
       });
 
       return data.levantamientos || [];
+    },
+    // El panel administrativo usa un endpoint separado para aplicar permisos
+    // de propietario, administración y revisión sin mezclar aportes personales.
+    async obtenerAportesRevision(email, status, page = 1) {
+      const data = await $fetch(`${apiUrl}/raising/reviewer/list`, {
+        method: 'POST',
+        query: { page },
+        body: { email, status },
+      });
+
+      return {
+        aportes: data?.levantamientos || [],
+        pagination: data?.pagination || { page, total: 0, totalPages: 1 },
+      };
     },
     async obtenerMensajesAporte(id) {
       return $fetch(`${apiUrl}/raising/chat/list`, {
@@ -162,6 +202,18 @@ export const useLevantamientoStore = defineStore('levantamiento', () => {
     },
     obtenerTotalDescargasAprobadas() {
       return this.descargasAprobadas.length;
+    },
+
+    async obtenerDescargasUsuario(email, status, page = 1) {
+      const data = await $fetch(`${apiUrl}/downloads/user/list`, {
+        method: 'POST',
+        query: { page },
+        body: { email, status },
+      });
+      return {
+        descargas: data?.descargas || [],
+        pagination: data?.pagination || { page, total: 0, totalPages: 1 },
+      };
     },
 
     async obtenerDescargasAportesRevision(email, status, page = 1) {
@@ -185,7 +237,7 @@ export const useLevantamientoStore = defineStore('levantamiento', () => {
     async actualizarStatusAporte(payload, idAporte) {
       try {
         const response = await fetch(`${apiUrl}/raising/reviewer/status/${idAporte}`, {
-          method: 'POST', 
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
@@ -210,15 +262,7 @@ export const useLevantamientoStore = defineStore('levantamiento', () => {
 
     async obtenerTotalDescargasEnRevision(user_id) {
       try {
-        const response = await $fetch(`${apiUrl}/downloads/user/list`, {
-          method: 'POST',
-          body: {
-            email: user_id,
-            page: 1,
-            limit: 10,
-            status: 'NO REVISADO',
-          },
-        });
+        const response = await this.obtenerDescargasUsuario(user_id, 'NO REVISADO');
 
         this.descargasEnRevision = response;
         this.existenDescargasEnRevision = response?.descargas?.length > 0;
@@ -229,6 +273,33 @@ export const useLevantamientoStore = defineStore('levantamiento', () => {
         console.error('Error:', error);
         throw error;
       }
+    },
+    async descargarArchivoDescarga(id, email) {
+      const response = await fetch(
+        `${apiUrl}/downloads/user/${id}/file?email=${encodeURIComponent(email)}`
+      );
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const error = new Error(errorData.message || 'No fue posible descargar el archivo');
+        error.data = errorData;
+        throw error;
+      }
+
+      const blob = await response.blob();
+      const disposition = response.headers.get('content-disposition') || '';
+      const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+      const simpleName = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+      const fileName = encodedName
+        ? decodeURIComponent(encodedName)
+        : simpleName || 'resultados.zip';
+      const downloadUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = downloadUrl;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(downloadUrl);
     },
 
     async eliminarDescargaEnRevision(id, usr) {
@@ -257,12 +328,11 @@ export const useLevantamientoStore = defineStore('levantamiento', () => {
             project_name: formData.get('project_name'),
             descriptionFileToExport: formData.get('descriptionFileToExport'),
             project_id: formData.get('project_id'),
+            format: formData.get('format') || 'xlsx',
+            include_media: true,
           },
         });
-
-        console.log(response);
-
-        console.log('Descarga solicitada:', response);
+        return response;
       } catch (error) {
         console.error('Error:', error);
         throw error;

@@ -28,17 +28,31 @@ const modalDetalle = ref(null);
 const modalAprobar = ref(null);
 const modalRechazar = ref(null);
 
-const estadoVisual = computed(() => ({
-  APROBADO: { texto: 'Aprobada', clases: 'fondo-color-confirmacion texto-color-confirmacion borde-color-confirmacion' },
-  'NO REVISADO': { texto: 'En revisión', clases: 'fondo-color-alerta texto-color-alerta borde-color-alerta' },
-  RECHAZADO: { texto: 'Rechazada', clases: 'fondo-color-error texto-color-error borde-color-error' },
-}[props.estado]));
+const estadoVisual = computed(
+  () =>
+    ({
+      APROBADO: {
+        texto: 'Aprobada',
+        clases: 'fondo-color-confirmacion texto-color-confirmacion borde-color-confirmacion',
+      },
+      'NO REVISADO': {
+        texto: 'En revisión',
+        clases: 'fondo-color-alerta texto-color-alerta borde-color-alerta',
+      },
+      RECHAZADO: {
+        texto: 'Rechazada',
+        clases: 'fondo-color-error texto-color-error borde-color-error',
+      },
+    })[props.estado]
+);
 
-const descargasOrdenadas = computed(() => [...filtradas.value].sort((a, b) => {
-  const fechaA = new Date(a.fecha_solicitud || 0).getTime();
-  const fechaB = new Date(b.fecha_solicitud || 0).getTime();
-  return orden.value === 'recientes' ? fechaB - fechaA : fechaA - fechaB;
-}));
+const descargasOrdenadas = computed(() =>
+  [...filtradas.value].sort((a, b) => {
+    const fechaA = new Date(a.fecha_solicitud || 0).getTime();
+    const fechaB = new Date(b.fecha_solicitud || 0).getTime();
+    return orden.value === 'recientes' ? fechaB - fechaA : fechaA - fechaB;
+  })
+);
 
 function formatearFecha(fecha) {
   if (!fecha) return 'Sin fecha registrada';
@@ -105,9 +119,10 @@ async function cambiarEstado(status) {
     });
     modalAprobar.value?.cerrarModal();
     modalRechazar.value?.cerrarModal();
-    mensajeExito.value = status === 'APROBADO'
-      ? 'La descarga fue aprobada y ya está disponible para la persona solicitante.'
-      : 'La solicitud fue rechazada y el motivo quedó registrado.';
+    mensajeExito.value =
+      status === 'APROBADO'
+        ? 'La descarga fue aprobada y ya está disponible para la persona solicitante.'
+        : 'La solicitud fue rechazada y el motivo quedó registrado.';
     await cargar(pagina.value);
   } catch (e) {
     error.value = e?.data?.message || 'No fue posible actualizar la descarga.';
@@ -116,7 +131,11 @@ async function cambiarEstado(status) {
   }
 }
 
-watch(() => data.value?.user?.email, (email) => email && cargar(), { immediate: true });
+watch(
+  () => data.value?.user?.email,
+  (email) => email && cargar(),
+  { immediate: true }
+);
 </script>
 
 <template>
@@ -138,7 +157,9 @@ watch(() => data.value?.user?.email, (email) => email && cargar(), { immediate: 
       aria-live="polite"
     >
       <div class="flex flex-contenido-separado">
-        <p class="m-y-0"><b>{{ mensajeExito }}</b></p>
+        <p class="m-y-0">
+          <b>{{ mensajeExito }}</b>
+        </p>
         <button
           type="button"
           class="boton-pictograma boton-sin-contenedor-secundario"
@@ -162,14 +183,27 @@ watch(() => data.value?.user?.email, (email) => email && cargar(), { immediate: 
       </button>
     </div>
 
-    <div v-if="cargando" class="estado-carga fondo-color-neutro borde-redondeado-8 p-3" aria-live="polite">
-      <span class="pictograma-archivo-descargar pictograma-grande texto-color-acento" aria-hidden="true" />
+    <div
+      v-if="cargando"
+      class="estado-carga fondo-color-neutro borde-redondeado-8 p-3"
+      aria-live="polite"
+    >
+      <span
+        class="pictograma-archivo-descargar pictograma-grande texto-color-acento"
+        aria-hidden="true"
+      />
       <p class="m-y-1">Cargando descargas de aportes…</p>
     </div>
 
-    <div v-else-if="!descargas.length" class="estado-vacio fondo-color-neutro borde borde-color-secundario borde-redondeado-20 p-3">
+    <div
+      v-else-if="!descargas.length"
+      class="estado-vacio fondo-color-neutro borde borde-color-secundario borde-redondeado-20 p-3"
+    >
       <div class="icono-estado-vacio fondo-color-acento borde-redondeado-16 m-b-2">
-        <span class="pictograma-archivo-descargar pictograma-grande texto-color-acento" aria-hidden="true" />
+        <span
+          class="pictograma-archivo-descargar pictograma-grande texto-color-acento"
+          aria-hidden="true"
+        />
       </div>
       <h3 class="m-y-1">No hay descargas de aportes</h3>
       <p class="texto-color-secundario m-y-0">{{ mensajeVacio }}</p>
@@ -204,44 +238,75 @@ watch(() => data.value?.user?.email, (email) => email && cargar(), { immediate: 
           class="columna-6 fondo-color-neutro borde borde-color-secundario p-3 borde-redondeado-20 tarjeta-descarga"
         >
           <div class="flex flex-contenido-separado encabezado-descarga m-b-3">
-            <span class="contenedor-pictograma fondo-color-acento borde-redondeado-8" aria-hidden="true">
+            <span
+              class="contenedor-pictograma fondo-color-acento borde-redondeado-8"
+              aria-hidden="true"
+            >
               <span class="pictograma-archivo-descargar pictograma-grande texto-color-acento" />
             </span>
-            <p class="etiqueta-estado borde borde-redondeado-12 p-x-1 p-y-minimo m-0" :class="estadoVisual.clases">{{ estadoVisual.texto }}</p>
+            <p
+              class="etiqueta-estado borde borde-redondeado-12 p-x-1 p-y-minimo m-0"
+              :class="estadoVisual.clases"
+            >
+              {{ estadoVisual.texto }}
+            </p>
           </div>
           <p class="texto-tamanio-1 texto-color-secundario m-y-0">APORTES DEL PROYECTO</p>
-          <h3 class="texto-tamanio-4 nombre-descarga m-t-minimo m-b-2">{{ descarga.nombre_descarga || 'Proyecto sin nombre' }}</h3>
-          <p v-if="estado === 'NO REVISADO'" class="texto-color-alerta texto-tamanio-1 m-t-0 m-b-1"><b>{{ antiguedad(descarga.fecha_solicitud) }}</b></p>
+          <h3 class="texto-tamanio-4 nombre-descarga m-t-minimo m-b-2">
+            {{ descarga.nombre_descarga || 'Proyecto sin nombre' }}
+          </h3>
+          <p v-if="estado === 'NO REVISADO'" class="texto-color-alerta texto-tamanio-1 m-t-0 m-b-1">
+            <b>{{ antiguedad(descarga.fecha_solicitud) }}</b>
+          </p>
           <dl class="datos-descarga texto-tamanio-2 m-b-3">
-            <div><dt>Solicitante</dt><dd>{{ descarga.usuario_id }}</dd></div>
-            <div><dt>Fecha de solicitud</dt><dd>{{ formatearFecha(descarga.fecha_solicitud) }}</dd></div>
-            <div><dt>Formato de entrega</dt><dd><b>Archivo ZIP</b></dd></div>
-            <div><dt>Aportes incluidos</dt><dd><b>{{ descarga.num_aportes ?? 'Por calcular' }}</b></dd></div>
+            <div>
+              <dt>Solicitante</dt>
+              <dd>{{ descarga.usuario_id }}</dd>
+            </div>
+            <div>
+              <dt>Fecha de solicitud</dt>
+              <dd>{{ formatearFecha(descarga.fecha_solicitud) }}</dd>
+            </div>
+            <div>
+              <dt>Formato de entrega</dt>
+              <dd><b>Archivo ZIP</b></dd>
+            </div>
+            <div>
+              <dt>Aportes incluidos</dt>
+              <dd>
+                <b>{{ descarga.num_aportes ?? 'Por calcular' }}</b>
+              </dd>
+            </div>
           </dl>
           <div class="acciones-tarjeta flex p-t-2 borde-t borde-color-secundario">
-            <button type="button" class="boton-secundario boton-chico" @click="verDetalle(descarga)">
+            <button
+              type="button"
+              class="boton-secundario boton-chico"
+              @click="verDetalle(descarga)"
+            >
               {{ estado === 'NO REVISADO' ? 'Revisar solicitud' : 'Ver detalle' }}
               <span class="pictograma-flecha-derecha" aria-hidden="true" />
-            </button>
-            <button
-              v-if="estado === 'APROBADO' && descarga.file_path"
-              type="button"
-              class="boton-primario boton-chico"
-              disabled
-              aria-disabled="true"
-              title="Descarga aún no disponible"
-            >
-              Descargar aportes
-              <span class="pictograma-archivo-descargar" aria-hidden="true" />
             </button>
           </div>
         </article>
       </div>
 
       <div v-if="totalPaginas > 1" class="flex paginacion m-t-3">
-        <button class="boton-secundario boton-chico" :disabled="pagina === 1" @click="cargar(pagina - 1)">Anterior</button>
+        <button
+          class="boton-secundario boton-chico"
+          :disabled="pagina === 1"
+          @click="cargar(pagina - 1)"
+        >
+          Anterior
+        </button>
         <span class="texto-color-secundario">Página {{ pagina }} de {{ totalPaginas }}</span>
-        <button class="boton-secundario boton-chico" :disabled="pagina === totalPaginas" @click="cargar(pagina + 1)">Siguiente</button>
+        <button
+          class="boton-secundario boton-chico"
+          :disabled="pagina === totalPaginas"
+          @click="cargar(pagina + 1)"
+        >
+          Siguiente
+        </button>
       </div>
     </template>
 
@@ -249,27 +314,49 @@ watch(() => data.value?.user?.email, (email) => email && cargar(), { immediate: 
       <SisdaiModal ref="modalDetalle">
         <template #encabezado><h3>Detalle de la descarga de aportes</h3></template>
         <template #cuerpo>
-          <div v-if="seleccionada" class="resumen-modal fondo-color-acento borde-redondeado-8 p-2 m-b-2">
+          <div
+            v-if="seleccionada"
+            class="resumen-modal fondo-color-acento borde-redondeado-8 p-2 m-b-2"
+          >
             <p class="texto-tamanio-1 texto-color-secundario m-y-0">APORTES DEL PROYECTO</p>
             <h4 class="m-t-minimo m-b-0">{{ seleccionada.nombre_descarga }}</h4>
           </div>
           <dl v-if="seleccionada" class="datos-modal m-y-0">
-            <dt>Proyecto</dt><dd>{{ seleccionada.nombre_descarga }}</dd>
-            <dt>Solicitante</dt><dd>{{ seleccionada.usuario_id }}</dd>
-            <dt>Fecha</dt><dd>{{ formatearFecha(seleccionada.fecha_solicitud) }}</dd>
-            <dt>Aportes aprobados incluidos</dt><dd>{{ seleccionada.num_aportes ?? 'Por calcular' }}</dd>
-            <dt>Formato de entrega</dt><dd>Archivo ZIP</dd>
-            <dt>Uso de los datos</dt><dd>{{ seleccionada.descripcion || 'Sin descripción' }}</dd>
+            <dt>Proyecto</dt>
+            <dd>{{ seleccionada.nombre_descarga }}</dd>
+            <dt>Solicitante</dt>
+            <dd>{{ seleccionada.usuario_id }}</dd>
+            <dt>Fecha</dt>
+            <dd>{{ formatearFecha(seleccionada.fecha_solicitud) }}</dd>
+            <dt>Aportes aprobados incluidos</dt>
+            <dd>{{ seleccionada.num_aportes ?? 'Por calcular' }}</dd>
+            <dt>Formato de entrega</dt>
+            <dd>Archivo ZIP</dd>
+            <dt>Uso de los datos</dt>
+            <dd>{{ seleccionada.descripcion || 'Sin descripción' }}</dd>
             <template v-if="seleccionada.comentario_curador">
-              <dt>Observaciones</dt><dd>{{ seleccionada.comentario_curador }}</dd>
+              <dt>Observaciones</dt>
+              <dd>{{ seleccionada.comentario_curador }}</dd>
             </template>
           </dl>
         </template>
         <template #pie>
-          <button class="boton-secundario boton-chico" @click="modalDetalle?.cerrarModal()">Cerrar</button>
+          <button class="boton-secundario boton-chico" @click="modalDetalle?.cerrarModal()">
+            Cerrar
+          </button>
           <template v-if="seleccionada?.status === 'NO REVISADO'">
-            <button class="boton-secundario boton-chico" @click="prepararRevision(seleccionada, 'rechazar')">Rechazar solicitud</button>
-            <button class="boton-primario boton-chico" @click="prepararRevision(seleccionada, 'aprobar')">Aprobar descarga</button>
+            <button
+              class="boton-secundario boton-chico"
+              @click="prepararRevision(seleccionada, 'rechazar')"
+            >
+              Rechazar solicitud
+            </button>
+            <button
+              class="boton-primario boton-chico"
+              @click="prepararRevision(seleccionada, 'aprobar')"
+            >
+              Aprobar descarga
+            </button>
           </template>
         </template>
       </SisdaiModal>
@@ -277,18 +364,26 @@ watch(() => data.value?.user?.email, (email) => email && cargar(), { immediate: 
       <SisdaiModal ref="modalAprobar">
         <template #encabezado><h3>Aprobar descarga de aportes</h3></template>
         <template #cuerpo>
-          <div class="fondo-color-confirmacion borde borde-color-confirmacion borde-redondeado-8 p-2">
+          <div
+            class="fondo-color-confirmacion borde borde-color-confirmacion borde-redondeado-8 p-2"
+          >
             <p class="m-y-0">
               ¿Deseas aprobar la descarga de
               <b>{{ seleccionada?.num_aportes ?? 'los' }} aportes</b> del proyecto
-              <b>{{ seleccionada?.nombre_descarga }}</b>? El archivo quedará disponible para
-              {{ seleccionada?.usuario_id }}.
+              <b>{{ seleccionada?.nombre_descarga }}</b
+              >? El archivo quedará disponible para {{ seleccionada?.usuario_id }}.
             </p>
           </div>
         </template>
         <template #pie>
-          <button class="boton-secundario boton-chico" @click="modalAprobar?.cerrarModal()">Cancelar</button>
-          <button class="boton-primario boton-chico" :disabled="procesando" @click="cambiarEstado('APROBADO')">
+          <button class="boton-secundario boton-chico" @click="modalAprobar?.cerrarModal()">
+            Cancelar
+          </button>
+          <button
+            class="boton-primario boton-chico"
+            :disabled="procesando"
+            @click="cambiarEstado('APROBADO')"
+          >
             {{ procesando ? 'Aprobando…' : 'Aprobar descarga' }}
           </button>
         </template>
@@ -307,8 +402,14 @@ watch(() => data.value?.user?.email, (email) => email && cargar(), { immediate: 
           />
         </template>
         <template #pie>
-          <button class="boton-secundario boton-chico" @click="modalRechazar?.cerrarModal()">Cancelar</button>
-          <button class="boton-primario boton-chico" :disabled="procesando || !motivo.trim()" @click="cambiarEstado('RECHAZADO')">
+          <button class="boton-secundario boton-chico" @click="modalRechazar?.cerrarModal()">
+            Cancelar
+          </button>
+          <button
+            class="boton-primario boton-chico"
+            :disabled="procesando || !motivo.trim()"
+            @click="cambiarEstado('RECHAZADO')"
+          >
             {{ procesando ? 'Rechazando…' : 'Rechazar solicitud' }}
           </button>
         </template>

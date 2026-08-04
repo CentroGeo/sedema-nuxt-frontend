@@ -25,29 +25,31 @@ onMounted(async () => {
 
   cargandoAportes.value = true;
   try {
-    const aportes = await storeLevantamiento.obtenerAportesPorEstado(email, 'NO REVISADO');
-    
+    const { aportes } = await storeLevantamiento.obtenerAportesRevision(email, 'NO REVISADO');
+
     aportesEnRevision.value = aportes.map((aporte, index) => {
       let fotosArray = [];
       try {
         fotosArray = aporte.media_array ? JSON.parse(aporte.media_array) : [];
-      } catch(error) {
+      } catch (error) {
         console.error('Error al obtener aportes de la base de datos:', error);
       }
 
       const fechaObj = new Date(aporte.fecha_guardado);
-      const fechaFormateada = isNaN(fechaObj) ? 'Fecha desconocida' : fechaObj.toLocaleString('es-MX');
+      const fechaFormateada = isNaN(fechaObj)
+        ? 'Fecha desconocida'
+        : fechaObj.toLocaleString('es-MX');
 
       return {
-        ...aporte, 
+        ...aporte,
         id: aporte.id || index + 1,
         titulo: aporte.title || aporte.nombre || `Aporte sin título ${index + 1}`,
         fecha: fechaFormateada,
         folio: `F-${aporte.id || index} NO REVISADO`,
         proyecto: aporte.nombre || 'Proyecto Desconocido',
-        estado: aporte.status || 'NO REVISADO', 
-        progreso: 50, 
-        registrante: aporte.usuario_id || 'Usuario Desconocido', 
+        estado: aporte.status || 'NO REVISADO',
+        progreso: 50,
+        registrante: aporte.usuario_id || 'Usuario Desconocido',
         latitud: aporte.latitud,
         longitud: aporte.longitud,
         fotos: fotosArray.length > 0 ? fotosArray : [],
@@ -60,15 +62,14 @@ onMounted(async () => {
           seleccionMultiple: 'N/A',
           colonia: 'Sin colonia',
           calle: 'Sin calle',
-          ciudad: 'Sin ciudad'
-        }
+          ciudad: 'Sin ciudad',
+        },
       };
     });
 
     if (aportesEnRevision.value.length > 0) {
       aporteSeleccionado.value = aportesEnRevision.value[0];
     }
-
   } catch (error) {
     console.error('Error al obtener aportes de la base de datos:', error);
   } finally {
@@ -92,26 +93,31 @@ async function cambiarEstadoAporte(idAporte, nuevoEstado) {
     };
 
     await storeLevantamiento.actualizarStatusAporte(payload, idAporte);
-    
+
     console.log(`El aporte ${idAporte} se actualizó con éxito a: ${nuevoEstado}`);
-    
-    aportesEnRevision.value = aportesEnRevision.value.filter(a => a.id !== idAporte);
-    
+
+    aportesEnRevision.value = aportesEnRevision.value.filter((a) => a.id !== idAporte);
+
     if (aportesEnRevision.value.length > 0) {
       aporteSeleccionado.value = aportesEnRevision.value[0];
     } else {
       aporteSeleccionado.value = null;
     }
-    
-    const accion = nuevoEstado === 'APROBADO' ? 'aprobado' : nuevoEstado === 'RECHAZADO' ? 'rechazado' : 'movido a revisión';
+
+    const accion =
+      nuevoEstado === 'APROBADO'
+        ? 'aprobado'
+        : nuevoEstado === 'RECHAZADO'
+          ? 'rechazado'
+          : 'movido a revisión';
     mensajeConfirmacion.value = `El aporte ha sido ${accion} correctamente.`;
     modalConfirmacion.value?.abrirModal();
-    
   } catch (error) {
     console.error('Error al intentar actualizar el estado en DB:', error);
-    
+
     // Mostramos el modal de error
-    mensajeConfirmacion.value = 'Ocurrió un error al conectar con el servidor. El estado no pudo actualizarse.';
+    mensajeConfirmacion.value =
+      'Ocurrió un error al conectar con el servidor. El estado no pudo actualizarse.';
     modalConfirmacion.value?.abrirModal();
   }
 }
@@ -125,7 +131,7 @@ const busqueda = ref('');
 
 const aportesFiltrados = computed(() => {
   if (!busqueda.value) return aportesEnRevision.value;
-  return aportesEnRevision.value.filter(aporte => 
+  return aportesEnRevision.value.filter((aporte) =>
     aporte.titulo?.toLowerCase().includes(busqueda.value.toLowerCase())
   );
 });
@@ -133,9 +139,7 @@ const aportesFiltrados = computed(() => {
 const paginaActual = ref(1);
 const itemsPorPagina = 5;
 
-const totalPaginas = computed(() => 
-  Math.ceil(aportesFiltrados.value.length / itemsPorPagina) || 1
-);
+const totalPaginas = computed(() => Math.ceil(aportesFiltrados.value.length / itemsPorPagina) || 1);
 
 const aportesPaginados = computed(() => {
   const inicio = (paginaActual.value - 1) * itemsPorPagina;
@@ -184,8 +188,8 @@ function cerrarMensajes() {
 //Lógica de los mapas Sisdai
 const coordenadasValidas = computed(() => {
   // Evitamos errores si aporteSeleccionado es null (al cargar la página)
-  if (!aporteSeleccionado.value) return false; 
-  
+  if (!aporteSeleccionado.value) return false;
+
   const lat = Number(aporteSeleccionado.value.latitud);
   const lng = Number(aporteSeleccionado.value.longitud);
   return Number.isFinite(lat) && Number.isFinite(lng);
@@ -193,9 +197,12 @@ const coordenadasValidas = computed(() => {
 
 const vistaMapa = computed(() =>
   coordenadasValidas.value
-    ? { 
-        centro: [Number(aporteSeleccionado.value.longitud), Number(aporteSeleccionado.value.latitud)], 
-        acercamiento: 17 
+    ? {
+        centro: [
+          Number(aporteSeleccionado.value.longitud),
+          Number(aporteSeleccionado.value.latitud),
+        ],
+        acercamiento: 17,
       }
     : { extension: '-118.3651,14.5321,-86.7104,32.7187' }
 );
@@ -209,7 +216,10 @@ const puntoSeleccionado = computed(() => ({
           properties: {},
           geometry: {
             type: 'Point',
-            coordinates: [Number(aporteSeleccionado.value.longitud), Number(aporteSeleccionado.value.latitud)],
+            coordinates: [
+              Number(aporteSeleccionado.value.longitud),
+              Number(aporteSeleccionado.value.latitud),
+            ],
           },
         },
       ]
@@ -229,56 +239,74 @@ const puntoSeleccionado = computed(() => ({
         <LevantamientoMenuSecundario
           :opciones="[
             { texto: 'Aprobados', ruta: '/levantamiento/revision-aportes' },
-            { texto: 'En revisión', ruta: '/levantamiento/revision-aportes/revision', notificacion: false },
-            { texto: 'Rechazados', ruta: '/levantamiento/revision-aportes/rechazados', notificacion: false },
+            {
+              texto: 'En revisión',
+              ruta: '/levantamiento/revision-aportes/revision',
+              notificacion: false,
+            },
+            {
+              texto: 'Rechazados',
+              ruta: '/levantamiento/revision-aportes/rechazados',
+              notificacion: false,
+            },
           ]"
         />
 
-        <div class="flex m-b-3" style="align-items: center; gap: 8px;">
+        <div class="flex m-b-3" style="align-items: center; gap: 8px">
           <h2>Revisión del estado de los aportes</h2>
           <UiNumeroElementos :numero="aportesFiltrados.length" />
         </div>
 
         <div class="grid">
-          
           <!-- Columna Izquierda -->
           <div class="columna-5 flex flex-columna">
             <div class="m-b-3">
-              <input 
-                v-model="busqueda" 
-                type="text" 
-                placeholder="Buscar por título de aporte..." 
-                class="ancho-completo p-1 form-input" 
-                style="background: white; border-color: #ccc; color: #333;"
+              <input
+                v-model="busqueda"
+                type="text"
+                placeholder="Buscar por título de aporte..."
+                class="ancho-completo p-1 form-input"
+                style="background: white; border-color: #ccc; color: #333"
               />
             </div>
 
             <!-- Lista de tarjetas iteradas -->
-            <div class="flex flex-columna" style="gap: 12px; flex-grow: 1;">
-              <div v-if="cargandoAportes" class="texto-centrado p-3" style="color: #888;">
+            <div class="flex flex-columna" style="gap: 12px; flex-grow: 1">
+              <div v-if="cargandoAportes" class="texto-centrado p-3" style="color: #888">
                 Cargando datos del servidor...
               </div>
 
-              <div 
+              <div
+                v-for="aporte in aportesPaginados"
                 v-else
-                v-for="aporte in aportesPaginados" 
                 :key="aporte.id"
                 class="tarjeta-aporte cursor-pointer p-2 borde borde-redondeado-8"
-                :class="{ 'seleccionada': aporteSeleccionado?.id === aporte.id }"
+                :class="{ seleccionada: aporteSeleccionado?.id === aporte.id }"
                 @click="verFichaAporte(aporte)"
               >
                 <div class="flex m-b-1">
-                  <div class="icono-doc m-r-2" style="font-size: 2rem; display: flex; align-items: center; justify-content: center; min-width: 40px;">
+                  <div
+                    class="icono-doc m-r-2"
+                    style="
+                      font-size: 2rem;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      min-width: 40px;
+                    "
+                  >
                     <span class="pictograma-documento" aria-hidden="true"></span>
                   </div>
-                  <div style="flex-grow: 1; overflow: hidden;">
-                    <p class="titulo m-0"><strong>{{ aporte.titulo }}</strong></p>
+                  <div style="flex-grow: 1; overflow: hidden">
+                    <p class="titulo m-0">
+                      <strong>{{ aporte.titulo }}</strong>
+                    </p>
                     <p class="texto-secundario m-0 text-chico">{{ aporte.fecha }}</p>
                     <p class="texto-secundario m-0 text-chico">{{ aporte.folio }}</p>
                     <p class="texto-secundario m-0 text-chico">{{ aporte.proyecto }}</p>
                   </div>
                 </div>
-                
+
                 <!-- La sección del porcentaje será activada en otro apetito (según el descubrimiento) -->
                 <!-- <div class="contenedor-progreso m-t-2">
                   <div class="flex" style="justify-content: space-between; align-items: center; margin-bottom: 4px;">
@@ -291,52 +319,80 @@ const puntoSeleccionado = computed(() => ({
                 </div> -->
               </div>
 
-              <div v-if="!cargandoAportes && aportesFiltrados.length === 0" class="texto-centrado p-3" style="color: #888;">
+              <div
+                v-if="!cargandoAportes && aportesFiltrados.length === 0"
+                class="texto-centrado p-3"
+                style="color: #888"
+              >
                 No se encontraron aportes pendientes de revisión.
               </div>
             </div>
 
             <!-- Controles de Paginación -->
-            <div class="paginacion flex m-t-3" v-if="totalPaginas > 1">
-              <button @click="irAPagina(paginaActual - 1)" :disabled="paginaActual === 1" class="btn-paginacion">&lt;</button>
-              <button 
-                v-for="pagina in totalPaginas" 
-                :key="pagina"
-                @click="irAPagina(pagina)"
+            <div v-if="totalPaginas > 1" class="paginacion flex m-t-3">
+              <button
+                :disabled="paginaActual === 1"
                 class="btn-paginacion"
-                :class="{ 'activa': paginaActual === pagina }"
+                @click="irAPagina(paginaActual - 1)"
+              >
+                &lt;
+              </button>
+              <button
+                v-for="pagina in totalPaginas"
+                :key="pagina"
+                class="btn-paginacion"
+                :class="{ activa: paginaActual === pagina }"
+                @click="irAPagina(pagina)"
               >
                 {{ pagina }}
               </button>
-              <button @click="irAPagina(paginaActual + 1)" :disabled="paginaActual === totalPaginas" class="btn-paginacion">&gt;</button>
+              <button
+                :disabled="paginaActual === totalPaginas"
+                class="btn-paginacion"
+                @click="irAPagina(paginaActual + 1)"
+              >
+                &gt;
+              </button>
             </div>
           </div>
 
           <!-- Columna derecha, con fichas de proyectos -->
           <div class="columna-11">
-            <div class="tarjeta-ficha p-4 borde borde-redondeado-8" v-if="aporteSeleccionado">
-              <div class="flex m-b-3" style="justify-content: space-between; align-items: center;">
-                <h3 class="m-0">Ficha de proyecto: <span style="font-weight: normal; color: #715B62;">{{ aporteSeleccionado.titulo }}</span></h3>
-                <div class="flex" style="gap: 8px;">
-                  <button class="boton-secundario boton-chico">GeoJson</button>
-                  <button class="boton-secundario boton-chico">KML</button>
-                  <button class="boton-secundario boton-chico">Shapefile</button>
-                  <button class="boton-secundario boton-chico" @click="abrirMensajes">Mensajes</button>
+            <div v-if="aporteSeleccionado" class="tarjeta-ficha p-4 borde borde-redondeado-8">
+              <div class="flex m-b-3" style="justify-content: space-between; align-items: center">
+                <h3 class="m-0">
+                  Ficha de proyecto:
+                  <span style="font-weight: normal; color: #715b62">{{
+                    aporteSeleccionado.titulo
+                  }}</span>
+                </h3>
+                <div class="flex" style="gap: 8px">
+                  <LevantamientoBotonesDescargaAporte
+                    :aporte-id="aporteSeleccionado.id"
+                    :email="data?.user?.email || ''"
+                  />
+                  <button class="boton-secundario boton-chico" @click="abrirMensajes">
+                    Mensajes
+                  </button>
                 </div>
               </div>
 
               <!-- Mapa nativo con sisdai-mapas -->
-              <div v-if="aporteSeleccionado" class="mapa-placeholder m-b-3" style="padding: 0; overflow: hidden; height: 300px;">
+              <div
+                v-if="aporteSeleccionado"
+                class="mapa-placeholder m-b-3"
+                style="padding: 0; overflow: hidden; height: 300px"
+              >
                 <ClientOnly>
                   <SisdaiMapa
                     id="aportesmapa"
                     class="gema"
-                    style="height: 100%; width: 100%" 
+                    style="height: 100%; width: 100%"
                     descripcion="Ubicación del aporte"
                     :vista="vistaMapa"
                   >
-                  <SisdaiCapaXyz/>
-                  <SisdaiCapaVectorial
+                    <SisdaiCapaXyz />
+                    <SisdaiCapaVectorial
                       :key="`punto-${aporteSeleccionado.latitud}-${aporteSeleccionado.longitud}`"
                       :fuente="puntoSeleccionado"
                       :posicion="1"
@@ -351,75 +407,144 @@ const puntoSeleccionado = computed(() => ({
                 </ClientOnly>
               </div>
 
-              <div class="m-b-3 flex" style="gap: 8px; align-items: center;">
-                <span class="form-label" style="margin-bottom: 0;">NOMBRE DEL REGISTRANTE:</span>
-                <span style="color: #334155; font-size: 0.9rem; font-weight: 500;">{{ aporteSeleccionado.registrante }}</span>
+              <div class="m-b-3 flex" style="gap: 8px; align-items: center">
+                <span class="form-label" style="margin-bottom: 0">NOMBRE DEL REGISTRANTE:</span>
+                <span style="color: #334155; font-size: 0.9rem; font-weight: 500">{{
+                  aporteSeleccionado.registrante
+                }}</span>
               </div>
 
-              <div class="flex m-b-4" style="gap: 16px; justify-content: center;">
+              <div class="flex m-b-4" style="gap: 16px; justify-content: center">
                 <template v-if="aporteSeleccionado.fotos && aporteSeleccionado.fotos.length > 0">
-                  <div 
-                    v-for="(foto, index) in aporteSeleccionado.fotos.slice(0, 3)" 
+                  <div
+                    v-for="(foto, index) in aporteSeleccionado.fotos.slice(0, 3)"
                     :key="index"
-                    class="imagen-miniatura bg-imagen miniatura-interactiva" 
+                    class="imagen-miniatura bg-imagen miniatura-interactiva"
                     :style="{ backgroundImage: `url(${foto})` }"
                     @click="abrirImagen(foto)"
                   ></div>
                 </template>
-                <div v-else class="imagen-miniatura bg-placeholder" style="width: 100%;">
-                  <span style="color: #94a3b8; font-size: 0.85rem;">Este aporte no contiene fotografías</span>
+                <div v-else class="imagen-miniatura bg-placeholder" style="width: 100%">
+                  <span style="color: #94a3b8; font-size: 0.85rem"
+                    >Este aporte no contiene fotografías</span
+                  >
                 </div>
               </div>
 
               <!-- Formulario de revisión -->
-              <div class="grid m-b-4" style="gap: 16px;">
+              <div class="grid m-b-4" style="gap: 16px">
                 <div class="columna-8">
                   <label class="form-label">1.- PREGUNTA ABIERTA</label>
-                  <input type="text" class="ancho-completo form-input" readonly :value="aporteSeleccionado.detalle.preguntaAbierta" :title="aporteSeleccionado.detalle.preguntaAbierta" />
+                  <input
+                    type="text"
+                    class="ancho-completo form-input"
+                    readonly
+                    :value="aporteSeleccionado.detalle.preguntaAbierta"
+                    :title="aporteSeleccionado.detalle.preguntaAbierta"
+                  />
                 </div>
                 <div class="columna-8">
                   <label class="form-label">4.- ¿SI O NO?</label>
-                  <input type="text" class="ancho-completo form-input" readonly :value="aporteSeleccionado.detalle.siNo" :title="aporteSeleccionado.detalle.siNo" />
+                  <input
+                    type="text"
+                    class="ancho-completo form-input"
+                    readonly
+                    :value="aporteSeleccionado.detalle.siNo"
+                    :title="aporteSeleccionado.detalle.siNo"
+                  />
                 </div>
                 <div class="columna-8">
                   <label class="form-label">2.- SELECCIÓN SIMPLE</label>
-                  <input type="text" class="ancho-completo form-input" readonly :value="aporteSeleccionado.detalle.seleccionSimple" :title="aporteSeleccionado.detalle.seleccionSimple" />
+                  <input
+                    type="text"
+                    class="ancho-completo form-input"
+                    readonly
+                    :value="aporteSeleccionado.detalle.seleccionSimple"
+                    :title="aporteSeleccionado.detalle.seleccionSimple"
+                  />
                 </div>
                 <div class="columna-8">
                   <label class="form-label">4.1.- ¿POR QUÉ SÍ?</label>
-                  <input type="text" class="ancho-completo form-input" readonly :value="aporteSeleccionado.detalle.porqueSi" :title="aporteSeleccionado.detalle.porqueSi" />
+                  <input
+                    type="text"
+                    class="ancho-completo form-input"
+                    readonly
+                    :value="aporteSeleccionado.detalle.porqueSi"
+                    :title="aporteSeleccionado.detalle.porqueSi"
+                  />
                 </div>
                 <div class="columna-8">
                   <label class="form-label">3.- SELECCIÓN MÚLTIPLE</label>
-                  <input type="text" class="ancho-completo form-input" readonly :value="aporteSeleccionado.detalle.seleccionMultiple" :title="aporteSeleccionado.detalle.seleccionMultiple" />
+                  <input
+                    type="text"
+                    class="ancho-completo form-input"
+                    readonly
+                    :value="aporteSeleccionado.detalle.seleccionMultiple"
+                    :title="aporteSeleccionado.detalle.seleccionMultiple"
+                  />
                 </div>
                 <div class="columna-8">
                   <label class="form-label">5.- COLONIA</label>
-                  <input type="text" class="ancho-completo form-input" readonly :value="aporteSeleccionado.detalle.colonia" :title="aporteSeleccionado.detalle.colonia" />
+                  <input
+                    type="text"
+                    class="ancho-completo form-input"
+                    readonly
+                    :value="aporteSeleccionado.detalle.colonia"
+                    :title="aporteSeleccionado.detalle.colonia"
+                  />
                 </div>
                 <div class="columna-16">
                   <label class="form-label">5.1.- CALLE</label>
-                  <input type="text" class="ancho-completo form-input" readonly :value="aporteSeleccionado.detalle.calle" :title="aporteSeleccionado.detalle.calle" />
+                  <input
+                    type="text"
+                    class="ancho-completo form-input"
+                    readonly
+                    :value="aporteSeleccionado.detalle.calle"
+                    :title="aporteSeleccionado.detalle.calle"
+                  />
                 </div>
                 <div class="columna-16">
                   <label class="form-label">5.2.- CIUDAD</label>
-                  <input type="text" class="ancho-completo form-input" readonly :value="aporteSeleccionado.detalle.ciudad" :title="aporteSeleccionado.detalle.ciudad" />
+                  <input
+                    type="text"
+                    class="ancho-completo form-input"
+                    readonly
+                    :value="aporteSeleccionado.detalle.ciudad"
+                    :title="aporteSeleccionado.detalle.ciudad"
+                  />
                 </div>
               </div>
 
               <!-- Botones de rechazo y aceptación -->
-              <div class="flex" style="justify-content: center; gap: 24px; padding-top: 1rem; border-top: 1px solid #e0e0e0;">
-                <button class="btn-moderno btn-aprobar" @click="cambiarEstadoAporte(aporteSeleccionado.id, 'APROBADO')">
+              <div
+                class="flex"
+                style="
+                  justify-content: center;
+                  gap: 24px;
+                  padding-top: 1rem;
+                  border-top: 1px solid #e0e0e0;
+                "
+              >
+                <button
+                  class="btn-moderno btn-aprobar"
+                  @click="cambiarEstadoAporte(aporteSeleccionado.id, 'APROBADO')"
+                >
                   <span></span> APROBAR APORTE
                 </button>
-                <button class="btn-moderno btn-rechazar" @click="cambiarEstadoAporte(aporteSeleccionado.id, 'RECHAZADO')">
+                <button
+                  class="btn-moderno btn-rechazar"
+                  @click="cambiarEstadoAporte(aporteSeleccionado.id, 'RECHAZADO')"
+                >
                   <span></span> RECHAZAR APORTE
                 </button>
               </div>
-
             </div>
-            
-            <div v-else class="flex flex-vertical-centrado flex-contenido-centrado" style="height: 100%; min-height: 400px; color: #94a3b8;">
+
+            <div
+              v-else
+              class="flex flex-vertical-centrado flex-contenido-centrado"
+              style="height: 100%; min-height: 400px; color: #94a3b8"
+            >
               <p>Selecciona un aporte de la lista para evaluarlo.</p>
             </div>
           </div>
@@ -428,65 +553,71 @@ const puntoSeleccionado = computed(() => ({
 
       <!-- Modal de confirmación-->
       <ClientOnly>
-              <SisdaiModal ref="modalConfirmacion">
-                <template #encabezado>
-                  <h3 class="m-0" style="color: #d48d95; font-weight: 600;">¡Aporte Actualizado!</h3>
-                </template>
-                
-                <template #cuerpo>
-                  <div class="p-y-3 texto-centrado">
-                    <p class="m-b-3" style="color: #d48d95; font-size: 1.05rem;">
-                      {{ mensajeConfirmacion }}
-                    </p>
-                  </div>
-                </template>
-                
-                <template #pie>
-                  <button class="btn-moderno btn-guinda-sisdai" type="button" @click="cerrarModalConfirmacion">
-                    Entendido
-                  </button>
-                </template>
-              </SisdaiModal>
-            </ClientOnly>
+        <SisdaiModal ref="modalConfirmacion">
+          <template #encabezado>
+            <h3 class="m-0" style="color: #d48d95; font-weight: 600">¡Aporte Actualizado!</h3>
+          </template>
+
+          <template #cuerpo>
+            <div class="p-y-3 texto-centrado">
+              <p class="m-b-3" style="color: #d48d95; font-size: 1.05rem">
+                {{ mensajeConfirmacion }}
+              </p>
+            </div>
+          </template>
+
+          <template #pie>
+            <button
+              class="btn-moderno btn-guinda-sisdai"
+              type="button"
+              @click="cerrarModalConfirmacion"
+            >
+              Entendido
+            </button>
+          </template>
+        </SisdaiModal>
+      </ClientOnly>
 
       <!-- Modal de Mensajes-->
-        <Teleport to="body">
-                <ClientOnly>
-                  <SisdaiModal ref="modalMensajes">
-                    <template #encabezado>
-                      <h4 class="m-0" style="color: #d48d95;">Mensajes del Aporte</h4>
-                    </template>
-                    
-                    <template #cuerpo>
-                      <div class="chat-area-lectura p-3 m-t-2">
-                        <template v-if="aporteSeleccionado?.mensajes && aporteSeleccionado.mensajes.length > 0">
-                          <div 
-                            v-for="msj in aporteSeleccionado.mensajes" 
-                            :key="msj.id" 
-                            class="mensaje-lectura m-b-2"
-                          >
-                            <div class="mensaje-header">
-                              <span class="autor">{{ msj.autor }}</span>
-                              <span class="fecha">{{ msj.fecha }}</span>
-                            </div>
-                            <p class="m-0 texto-msj">{{ msj.texto }}</p>
-                          </div>
-                        </template>
-                        
-                        <div v-else class="texto-centrado p-y-4" style="color: #d48d95; font-weight: 500;">
-                          No hay mensajes para este aporte.
-                        </div>
-                      </div>
-                    </template>
-                    
-                    <template #pie>
-                      <button class="boton-secundario boton-chico" type="button" @click="cerrarMensajes">
-                        Cerrar
-                      </button>
-                    </template>
-                  </SisdaiModal>
-                </ClientOnly>
-              </Teleport>
+      <Teleport to="body">
+        <ClientOnly>
+          <SisdaiModal ref="modalMensajes">
+            <template #encabezado>
+              <h4 class="m-0" style="color: #d48d95">Mensajes del Aporte</h4>
+            </template>
+
+            <template #cuerpo>
+              <div class="chat-area-lectura p-3 m-t-2">
+                <template
+                  v-if="aporteSeleccionado?.mensajes && aporteSeleccionado.mensajes.length > 0"
+                >
+                  <div
+                    v-for="msj in aporteSeleccionado.mensajes"
+                    :key="msj.id"
+                    class="mensaje-lectura m-b-2"
+                  >
+                    <div class="mensaje-header">
+                      <span class="autor">{{ msj.autor }}</span>
+                      <span class="fecha">{{ msj.fecha }}</span>
+                    </div>
+                    <p class="m-0 texto-msj">{{ msj.texto }}</p>
+                  </div>
+                </template>
+
+                <div v-else class="texto-centrado p-y-4" style="color: #d48d95; font-weight: 500">
+                  No hay mensajes para este aporte.
+                </div>
+              </div>
+            </template>
+
+            <template #pie>
+              <button class="boton-secundario boton-chico" type="button" @click="cerrarMensajes">
+                Cerrar
+              </button>
+            </template>
+          </SisdaiModal>
+        </ClientOnly>
+      </Teleport>
 
       <!--Modal de Imagen Ampliada-->
       <Teleport to="body">
@@ -497,28 +628,39 @@ const puntoSeleccionado = computed(() => ({
           </div>
         </div>
       </Teleport>
-
     </template>
   </UiLayoutPaneles>
 </template>
 
 <style lang="scss" scoped>
 /* Utilidades base */
-.cursor-pointer { cursor: pointer; }
-.text-chico { font-size: 0.75rem; }
-.ancho-completo { width: 100%; box-sizing: border-box; }
-.flex-columna { flex-direction: column; }
+.cursor-pointer {
+  cursor: pointer;
+}
+.text-chico {
+  font-size: 0.75rem;
+}
+.ancho-completo {
+  width: 100%;
+  box-sizing: border-box;
+}
+.flex-columna {
+  flex-direction: column;
+}
 
 /* TARJETAS LATERALES*/
 .tarjeta-aporte {
-  background-color: #715B62;
-  border: 1px solid #715B62;
+  background-color: #715b62;
+  border: 1px solid #715b62;
   transition: all 0.25s ease;
-  
-  .icono-doc, .titulo, .texto-secundario, .texto-porcentaje {
-    color: #FFFFFF !important;
+
+  .icono-doc,
+  .titulo,
+  .texto-secundario,
+  .texto-porcentaje {
+    color: #ffffff !important;
   }
-  
+
   .barra-fondo {
     height: 6px;
     background-color: rgba(255, 255, 255, 0.2);
@@ -527,30 +669,33 @@ const puntoSeleccionado = computed(() => ({
   }
   .barra-relleno {
     height: 100%;
-    background-color: #D48D95; 
+    background-color: #d48d95;
     border-radius: 3px;
     transition: width 0.3s ease;
   }
 
   &:hover:not(.seleccionada) {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
     filter: brightness(1.05);
   }
 
   &.seleccionada {
-    background-color: #D48D95;
-    border-color: #D48D95;
-    
-    .icono-doc, .titulo, .texto-secundario, .texto-porcentaje {
+    background-color: #d48d95;
+    border-color: #d48d95;
+
+    .icono-doc,
+    .titulo,
+    .texto-secundario,
+    .texto-porcentaje {
       color: #391821 !important;
     }
-    
+
     .barra-fondo {
-      background-color: rgba(255, 255, 255, 0.4); 
+      background-color: rgba(255, 255, 255, 0.4);
     }
     .barra-relleno {
-      background-color: #391821; 
+      background-color: #391821;
     }
   }
 }
@@ -559,7 +704,7 @@ const puntoSeleccionado = computed(() => ({
 .paginacion {
   justify-content: center;
   gap: 8px;
-  
+
   .btn-paginacion {
     background: transparent;
     border: 1px solid #ccc;
@@ -570,12 +715,17 @@ const puntoSeleccionado = computed(() => ({
     font-weight: 500;
     color: #444;
 
-    &:hover:not(:disabled) { background: #eee; }
-    &:disabled { opacity: 0.5; cursor: not-allowed; }
+    &:hover:not(:disabled) {
+      background: #eee;
+    }
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
     &.activa {
-      background-color: #715B62;
-      color: #FFFFFF;
-      border-color: #715B62;
+      background-color: #715b62;
+      color: #ffffff;
+      border-color: #715b62;
     }
   }
 }
@@ -583,16 +733,16 @@ const puntoSeleccionado = computed(() => ({
 /* FICHA Y FORMULARIOS*/
 .tarjeta-ficha {
   background-color: #ffffff;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
 }
 
 .mapa-placeholder {
-  height: 250px; 
-  background-color: #f8fafc; 
+  height: 250px;
+  background-color: #f8fafc;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
-  display: flex; 
-  align-items: center; 
+  display: flex;
+  align-items: center;
   justify-content: center;
 }
 
@@ -628,8 +778,10 @@ const puntoSeleccionado = computed(() => ({
 
 .miniatura-interactiva {
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+
   &:hover {
     transform: scale(1.05);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
@@ -637,13 +789,14 @@ const puntoSeleccionado = computed(() => ({
 }
 
 /* MODAL DE IMÁGENES Y GLOBALES */
-.modal-imagen-overlay, .modal-overlay {
+.modal-imagen-overlay,
+.modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(15, 23, 42, 0.6); 
+  background-color: rgba(15, 23, 42, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -699,17 +852,23 @@ const puntoSeleccionado = computed(() => ({
 }
 
 @keyframes fadeInZoom {
-  from { opacity: 0; transform: scale(0.9); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* Modal de confirmación */
 .modal-confirmacion-contenido {
   background: #ffffff;
-  width: 100%; 
-  max-width: 400px; 
-  border-radius: 12px; 
-  display: flex; 
+  width: 100%;
+  max-width: 400px;
+  border-radius: 12px;
+  display: flex;
   flex-direction: column;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   animation: fadeInZoom 0.2s ease-out;
@@ -722,14 +881,18 @@ const puntoSeleccionado = computed(() => ({
 }
 
 .fondo-guinda {
-  background-color: #715B62;
+  background-color: #715b62;
 }
 
 /* Modal de mensajes */
 .modal-mensajes-contenido {
   background: #ffffff;
-  width: 100%; max-width: 450px; height: 70vh;
-  border-radius: 12px; display: flex; flex-direction: column;
+  width: 100%;
+  max-width: 450px;
+  height: 70vh;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   animation: fadeInZoom 0.2s ease-out;
   overflow: hidden;
@@ -739,7 +902,9 @@ const puntoSeleccionado = computed(() => ({
   padding: 16px 20px;
   background-color: #f8fafc;
   border-bottom: 1px solid #e2e8f0;
-  display: flex; justify-content: space-between; align-items: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 // .btn-cerrar-sutil {
@@ -791,27 +956,26 @@ const puntoSeleccionado = computed(() => ({
   border: 1px solid #cbd5e1 !important;
   border-radius: 8px;
   padding: 10px 14px;
-  
+
   color: #334155 !important;
   -webkit-text-fill-color: #334155 !important;
   opacity: 1 !important;
-  
+
   font-size: 0.9rem;
   transition: all 0.3s ease;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-  
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.form-input:hover, 
+.form-input:hover,
 .form-input:focus {
   outline: none !important;
-  border-color: #715B62 !important;
-  background-color: #ffffff !important; 
+  border-color: #715b62 !important;
+  background-color: #ffffff !important;
 }
-
 
 .btn-moderno {
   display: inline-flex;
@@ -830,8 +994,16 @@ const puntoSeleccionado = computed(() => ({
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-
-.btn-aprobar { background: linear-gradient(135deg, #d48d95 0%, #d47782 100%); }
-.btn-rechazar { background: linear-gradient(135deg, #46252e 0%, #361d24 100%); }
-.btn-guinda-sisdai { background-color: #715B62; width: 100%; padding: 10px; border-radius: 6px; }
+.btn-aprobar {
+  background: linear-gradient(135deg, #d48d95 0%, #d47782 100%);
+}
+.btn-rechazar {
+  background: linear-gradient(135deg, #46252e 0%, #361d24 100%);
+}
+.btn-guinda-sisdai {
+  background-color: #715b62;
+  width: 100%;
+  padding: 10px;
+  border-radius: 6px;
+}
 </style>
