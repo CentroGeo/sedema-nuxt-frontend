@@ -60,13 +60,13 @@ onUnmounted(() => (document.querySelector('body').className = ''));
           globo: 'Carga de archivos',
         },
         {
-          pictograma: 'pictograma-ayuda',
+          pictograma: 'pictograma-colaborar',
           ruta: `${ruta}/servicios-remotos`,
           globo: 'Carga de servicios remotos',
         },
         esSuperusuaria
           ? {
-              pictograma: 'pictograma-ayuda',
+              pictograma: 'pictograma-buscar',
               ruta: `${ruta}/revision-solicitudes`,
               globo: 'Revisión de solicitudes',
             }

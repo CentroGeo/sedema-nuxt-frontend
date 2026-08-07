@@ -9,4 +9,10 @@ export default defineNuxtRouteMiddleware((to) => {
   ) {
     return navigateTo('/catalogo/revision-solicitudes/pendientes-revisor');
   }
+  if (
+    to.fullPath === '/catalogo/servicios-remotos/' ||
+    to.fullPath === '/catalogo/servicios-remotos'
+  ) {
+    return navigateTo('/catalogo/servicios-remotos/agregar');
+  }
 });

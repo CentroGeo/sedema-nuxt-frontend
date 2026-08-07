@@ -1,29 +1,71 @@
 <script setup>
 import { convertirBytes } from '~/utils/catalogo';
+import {
+  LIMITE_CARGA_ARCHIVOS_BYTES,
+  LIMITE_CARGA_ARCHIVOS_MIB,
+} from '#shared/utils/limiteCargaArchivos';
 // emit para pasar los archivos al componente padre
 const emit = defineEmits(['pasarArchivo']);
+
+const props = defineProps({
+  disabled: {
+    type: Boolean,
+    default: false,
+  },
+});
 
 const archivos = ref({});
 const archivosArriba = ref(false);
 const archivoValido = ref(false);
+const mensajeError = ref('');
+
+function filtrarPorTamano(listaArchivos) {
+  const arreglo = Array.from(listaArchivos);
+  const validos = arreglo.filter((f) => f.size <= LIMITE_CARGA_ARCHIVOS_BYTES);
+  const invalidos = arreglo.filter((f) => f.size > LIMITE_CARGA_ARCHIVOS_BYTES);
+
+  if (invalidos.length) {
+    archivoValido.value = true;
+    mensajeError.value =
+      invalidos.length === 1
+        ? `"${invalidos[0].name}" supera el límite de ${LIMITE_CARGA_ARCHIVOS_MIB} MiB y no se agregó.`
+        : `${invalidos.length} archivos superan el límite de ${LIMITE_CARGA_ARCHIVOS_MIB} MiB y no se agregaron.`;
+  } else {
+    archivoValido.value = false;
+    mensajeError.value = '';
+  }
+
+  const dt = new DataTransfer();
+  validos.forEach((f) => dt.items.add(f));
+  return dt.files;
+}
 
 const onDropZone = ref(null);
 const { files } = useDropZone(onDropZone, { onDrop });
 async function onDrop() {
-  archivos.value = files.value;
-  archivosArriba.value = true;
+  if (props.disabled) return;
+
+  archivos.value = filtrarPorTamano(files.value);
+  archivosArriba.value = archivos.value.length > 0;
 }
 
-const { open, onChange } = useFileDialog();
+const { open, onChange } = useFileDialog({ multiple: true });
 onChange(async (files) => {
-  archivos.value = files;
-  archivosArriba.value = true;
+  if (props.disabled) return;
+
+  archivos.value = filtrarPorTamano(files);
+  archivosArriba.value = archivos.value.length > 0;
 });
+
+const abrirSelector = () => {
+  if (!props.disabled) open();
+};
 
 const removerArchivos = () => {
   archivos.value = {};
   archivosArriba.value = false;
   archivoValido.value = false;
+  mensajeError.value = '';
 };
 
 const archivoNoValido = () => {
@@ -39,6 +81,7 @@ function deleteFile(file) {
   if (archivos.value.length === 0) {
     archivosArriba.value = false;
     archivoValido.value = false;
+    mensajeError.value = '';
   }
 }
 
@@ -54,7 +97,9 @@ defineExpose({
       <div
         ref="onDropZone"
         class="contenedor-dragnddrop borde borde-redondeado-16 p-1 m-b-3"
-        @click="open()"
+        :class="{ 'contenedor-dragnddrop-deshabilitado': props.disabled }"
+        :aria-disabled="props.disabled"
+        @click="abrirSelector"
       >
         <div
           v-if="archivosArriba"
@@ -96,7 +141,11 @@ defineExpose({
                 <p>Arrastra o suelta tu archivo</p>
               </div>
 
-              <label class="boton boton-secundario boton-chico" @click.stop="open()">
+              <label
+                class="boton boton-secundario boton-chico"
+                :aria-disabled="props.disabled"
+                @click.stop="abrirSelector"
+              >
                 Elige Archivo
               </label>
             </div>
@@ -104,7 +153,7 @@ defineExpose({
         </div>
       </div>
 
-      <p v-if="archivoValido" class="texto-color-error">Archivo inválido</p>
+      <p v-if="archivoValido" class="texto-color-error">{{ mensajeError }}</p>
 
       <div class="botones-dragnddrop flex">
         <client-only>
@@ -112,7 +161,7 @@ defineExpose({
             class="boton-primario boton-chico"
             aria-label="Guardar"
             type="button"
-            :disabled="!archivosArriba"
+            :disabled="props.disabled || !archivosArriba"
             @click="emit('pasarArchivo', archivos)"
           >
             Guardar
@@ -121,7 +170,7 @@ defineExpose({
             class="boton-secundario boton-chico"
             aria-label="Eliminar"
             type="button"
-            :disabled="!archivosArriba"
+            :disabled="props.disabled || !archivosArriba"
             @click="removerArchivos"
           >
             Eliminar
@@ -137,6 +186,12 @@ defineExpose({
   height: 300px;
   border-style: dashed;
   cursor: pointer;
+}
+
+.contenedor-dragnddrop-deshabilitado {
+  cursor: not-allowed;
+  opacity: 0.55;
+  pointer-events: none;
 }
 #identificadorCAMPOFILE {
   width: 0.1px;

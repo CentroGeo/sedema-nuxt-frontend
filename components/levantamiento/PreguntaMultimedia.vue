@@ -102,7 +102,6 @@ async function guardarArchivo(archivo) {
       <IaElementoDragNdDrop
         ref="dragNdDrop"
         class="m-b-2"
-        :imagen-inicial="imagenPreview"
         @pasar-archivo="(i) => guardarArchivo(i)"
       />
       <div v-if="props.pregunta.obligatorio">Obligatoria*</div>

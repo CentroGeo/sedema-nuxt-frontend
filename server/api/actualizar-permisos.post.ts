@@ -1,6 +1,5 @@
-const config = useRuntimeConfig();
-
 export default defineEventHandler(async (event) => {
+  const config = useRuntimeConfig();
   const data = await readBody(event);
   const pk = data.pk;
   const token = getHeader(event, 'token');

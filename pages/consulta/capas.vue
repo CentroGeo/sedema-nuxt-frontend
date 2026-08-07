@@ -1,4 +1,5 @@
 <script setup>
+import SisdaiModal from '@centrogeomx/sisdai-componentes/src/componentes/modal/SisdaiModal.vue';
 import {
   SisdaiCapaArcgis,
   SisdaiCapaWms,
@@ -6,15 +7,17 @@ import {
   SisdaiMapa,
   utiles,
 } from '@centrogeomx/sisdai-mapas';
+import html2canvas from 'html2canvas';
 import { useResourcesSupplements } from '~/composables/useResourcesSupplements';
 import { arrayNewsOlds, resourceTypeDic } from '~/utils/consulta';
+import pictogramas from '~/utils/geocontenidos/pictogramas.json';
 
 const storeConsulta = useConsultaStore();
 const storeResources = useResourcesConsultaStore();
 const storeSelected = useSelectedResources2Store();
 const config = useRuntimeConfig();
 const { gnoxyFetch } = useGnoxyUrl();
-const { findServer, filteredByServerType } = useResourcesSupplements();
+const { getLayerName, findServer, filteredByServerType } = useResourcesSupplements();
 const route = useRoute();
 const router = useRouter();
 storeConsulta.resourceType = resourceTypeDic.dataLayer;
@@ -31,15 +34,22 @@ const arcgisLayers = computed(() =>
 const linkExportaMapa = ref();
 const attributes = ref({});
 
+// Variables del cambio de estilo en los mapas de consulta
+const mapaBaseSeleccionado = ref('claro');
+//Variable para abrir/cerrar el menú flotante
+const menuMapasAbierto = ref(false);
+
+const urlsMapas = {
+  claro: 'https://{a-c}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+  oscuro: 'https://{a-c}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+  satelite:
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+};
+const urlCapaFondo = computed(() => urlsMapas[mapaBaseSeleccionado.value]);
+// Fin de las variables del mapa de consulta
+
 function alAbrirSelectorDivisionMapa(lado) {
   selectorDivisionAbierto.value = estaAbiertoSelectorDivisionMapa(lado) ? undefined : lado;
-}
-
-function exportarMapa() {
-  utiles.exportarHTMLComoPNG(
-    document.querySelectorAll('.mapa .ol-viewport').item(0),
-    linkExportaMapa.value
-  );
 }
 
 /**
@@ -201,6 +211,40 @@ onMounted(async () => {
     updateQueryParam(storeSelected.asQueryParam());
   }
 });
+
+const modalDescarga = ref(null);
+const mapaImagen = ref('');
+const tituloDescarga = ref('');
+const leyendasDescarga = ref([]);
+function AbrirModalDescarga() {
+  leyendasDescarga.value = [];
+  html2canvas(document.querySelectorAll('.mapa .ol-viewport').item(0), { useCORS: true }).then(
+    (canvas) => {
+      mapaImagen.value = canvas.toDataURL('image/png');
+
+      leyendasDescarga.value = owsLayers.value.map((resource) => ({
+        ...resource,
+        fuente: findServer(resource).replace('?', ''),
+        lado: storeSelected.byPk(resource.pk).lado,
+        opacidad: storeSelected.byPk(resource.pk).opacidad,
+        posicion: storeSelected.byPk(resource.pk).posicion,
+        visible: storeSelected.byPk(resource.pk).visible,
+        estilo: storeSelected.byPk(resource.pk).estilo,
+      }));
+      modalDescarga.value.abrirModal();
+    }
+  );
+}
+function DescargarMapa() {
+  const elemento = document.querySelectorAll('.mapa-descarga').item(0);
+  html2canvas(elemento, { useCORS: true }).then((canvas) => {
+    const link = linkExportaMapa.value;
+    link.href = canvas.toDataURL('image/png');
+    link.download = `${tituloDescarga.value || 'mapa'}.png`;
+    link.click();
+  });
+  modalDescarga.value?.cerrarModal();
+}
 </script>
 
 <template>
@@ -243,12 +287,21 @@ onMounted(async () => {
             />
           </div>
 
-          <SisdaiCapaXyz :posicion="0" />
-          <!---->
+          <SisdaiCapaXyz
+            :key="urlCapaFondo"
+            :posicion="0"
+            :url="urlCapaFondo"
+            :fuente="urlCapaFondo"
+          />
+          <!-- 
+            Se añade el estilo seleccionado a la propiedad :key para forzar a Vue 
+            a desmontar y volver a montar la capa (descartando la caché vieja de imágenes) 
+            cuando el usuario cambie el estilo.
+          -->
           <SisdaiCapaWms
             v-for="resource in owsLayers"
-            :key="`wms-${resource.pk}-${resource.position_}`"
-            :capa="resource.alternate"
+            :key="`wms-${resource.pk}-${resource.position_}-${storeSelected.byPk(resource.pk).estilo}`"
+            :capa="getLayerName(resource)"
             :consulta="gnoxyFetch"
             :fuente="findServer(resource)"
             :lado="storeSelected.byPk(resource.pk).lado"
@@ -258,21 +311,111 @@ onMounted(async () => {
             :visible="storeSelected.byPk(resource.pk).visible"
             :estilo="storeSelected.byPk(resource.pk).estilo"
             :cuadro-informativo="
-              (url) => buildLayerInfo(url, resource.alternate, resource.title, resource.sourcetype)
+              (url) =>
+                buildLayerInfo(url, getLayerName(resource), resource.title, resource.sourcetype)
             "
           />
           <SisdaiCapaArcgis
             v-for="resource in arcgisLayers"
             :key="`arcgis-${resource.pk}-${resource.position_}`"
             :fuente="findServer(resource).replace('?', '')"
-            :capa="resource.alternate.split(':')[1]"
+            :capa="getLayerName(resource).split(':')[1]"
             :mosaicos="true"
             :lado="storeSelected.byPk(resource.pk).lado"
             :opacidad="storeSelected.byPk(resource.pk).opacidad"
             :posicion="storeSelected.byPk(resource.pk).posicion + 1"
             :visible="storeSelected.byPk(resource.pk).visible"
           />
+
+          <div
+            class="menu-flotante-mapa"
+            style="position: absolute; bottom: 30px; right: 20px; z-index: 1000"
+          >
+            <div
+              v-if="menuMapasAbierto"
+              style="
+                position: absolute;
+                bottom: 50px;
+                right: 0;
+                background: white;
+                padding: 15px;
+                border-radius: 8px;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+                width: 150px;
+                border: 1px solid #ddd;
+              "
+            >
+              <h4 style="margin: 0 0 10px 0; font-size: 14px; color: #333; text-align: left">
+                Fondo del mapa
+              </h4>
+              <div v-for="(url, tipo) in urlsMapas" :key="tipo" class="opcion-fondo-mapa">
+                <label>
+                  <input
+                    v-model="mapaBaseSeleccionado"
+                    type="radio"
+                    :value="tipo"
+                    style="margin-right: 8px"
+                  />
+                  {{ tipo }}
+                </label>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              class="boton-secundario"
+              style="
+                border-radius: 50%;
+                width: 44px;
+                height: 44px;
+                padding: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+                cursor: pointer;
+              "
+              title="Cambiar mapa base"
+              @click="menuMapasAbierto = !menuMapasAbierto"
+            >
+              <span
+                style="font-family: 'sisdai-pictogramas'; font-size: 24px"
+                v-html="String.fromCharCode(parseInt(pictogramas['capas'], 16))"
+              ></span>
+            </button>
+          </div>
         </SisdaiMapa>
+
+        <SisdaiModal ref="modalDescarga" tamanio-modal="modal-grande">
+          <template #encabezado>
+            <h1 class="m-t-0">Descargar mapa como imagen</h1>
+          </template>
+
+          <template #cuerpo>
+            <fieldset>
+              <label for="titulo-mapa-descarga">Titulo de la descarga</label>
+              <input
+                id="titulo-mapa-descarga"
+                v-model="tituloDescarga"
+                type="text"
+                placeholder="Ingrese el título para la descarga"
+              />
+            </fieldset>
+
+            <ConsultaMapaDescarga
+              :ows-layers="leyendasDescarga"
+              :funcion-consulta="gnoxyFetch"
+              :mapa-imagen="mapaImagen"
+              :titulo-descarga="tituloDescarga"
+            />
+          </template>
+
+          <template #pie>
+            <button type="button" class="boton-primario" value="acepta" @click="DescargarMapa">
+              Descargar
+            </button>
+          </template>
+        </SisdaiModal>
       </ClientOnly>
     </template>
 
@@ -281,7 +424,7 @@ onMounted(async () => {
         titulo="Capas seleccionadas"
         :resource-type="storeConsulta.resourceType"
         etiqueta-elementos="Capas"
-        :funcion-descarga="exportarMapa"
+        :funcion-descarga="AbrirModalDescarga"
       />
       <a ref="linkExportaMapa" class="oculto" download="sigic.png" />
     </template>
@@ -308,6 +451,34 @@ onMounted(async () => {
     transition:
       opacity 0.27s ease,
       max-width 0.27s ease;
+  }
+}
+/* Estilos para el menú flotante del mapa base */
+.opcion-fondo-mapa {
+  margin-bottom: 4px;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+
+  label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    text-transform: capitalize;
+    color: #333;
+    font-size: 14px;
+    padding: 8px 10px;
+    width: 100%;
+    margin: 0;
+    box-sizing: border-box;
+    transition: color 0.2 ease;
+  }
+
+  &:hover {
+    background-color: #381821bf;
+
+    label {
+      color: white;
+    }
   }
 }
 </style>

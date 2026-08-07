@@ -1,6 +1,5 @@
-const config = useRuntimeConfig();
-
 export default defineEventHandler(async (event) => {
+  const config = useRuntimeConfig();
   const data = await readBody(event);
   const harvesterID = data.id;
   const newStatus = data.status;

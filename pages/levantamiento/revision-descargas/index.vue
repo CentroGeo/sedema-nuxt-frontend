@@ -17,7 +17,7 @@ const storeLevantamiento = useLevantamientoStore();
           :opciones="[
             { texto: 'Aprobadas', ruta: '/levantamiento/revision-descargas' },
             {
-              texto: 'En revisión',
+              texto: 'Pendientes',
               ruta: '/levantamiento/revision-descargas/revision',
               notificacion: false,
             },
@@ -29,16 +29,12 @@ const storeLevantamiento = useLevantamientoStore();
           ]"
         />
 
-        <div class="flex titulo-contenido-levantamiento">
-          <h2>Descargas aprobadas</h2>
-          <UiNumeroElementos :numero="0" etiqueta="Descargas" />
-        </div>
+        <LevantamientoPanelDescargasAportes
+          estado="APROBADO"
+          titulo="Descargas de aportes aprobadas"
+          mensaje-vacio="Las descargas de aportes aprobadas aparecerán en esta sección."
+        />
       </main>
     </template>
   </UiLayoutPaneles>
 </template>
-<style lang="scss" scoped>
-.titulo-contenido-levantamiento {
-  align-items: center;
-}
-</style>

@@ -1,6 +1,5 @@
-const configEnv = useRuntimeConfig();
-
 export default defineEventHandler(async (event) => {
+  const configEnv = useRuntimeConfig();
   const body = await readBody(event);
   const pk = body.pk;
   const baseUrl = configEnv.public.geonodeUrl;

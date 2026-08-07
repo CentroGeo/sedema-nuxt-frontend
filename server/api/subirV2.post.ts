@@ -1,6 +1,5 @@
-const configEnv = useRuntimeConfig();
-
 export default defineEventHandler(async (event) => {
+  const configEnv = useRuntimeConfig();
   try {
     const files = await readMultipartFormData(event);
     console.log('files', files); // imprime los archivos del lado del servidor

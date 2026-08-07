@@ -21,6 +21,12 @@ interface FeatureFlags {
   enableConsulta: boolean;
   enableIaa: boolean;
   enableLevantamiento: boolean;
+  enableAcercaDe: boolean;
+  enableGeocontenidos: boolean;
+  enableGeohistorias: boolean;
+  enableTableros: boolean;
+  enablePanoramas: boolean;
+  enableLandingBuilder: boolean;
 }
 
 export default defineNuxtRouteMiddleware((to) => {
@@ -48,6 +54,23 @@ export default defineNuxtRouteMiddleware((to) => {
 
     // --- Levantamiento (y sus internas) ---
     '/levantamiento': flags.enableAuth && flags.enableLevantamiento,
+
+    // --- Acerca de ---
+    '/acerca-de': flags.enableAcercaDe,
+
+    // --- Geocontenidos (y sus internas) ---
+    '/geocontenidos': flags.enableGeocontenidos,
+
+    // --- Geohistorias (vista pública) ---
+    '/geohistorias': flags.enableGeohistorias,
+
+    // --- Tableros (vista pública, catch-all) ---
+    '/tableros': flags.enableTableros,
+
+    // --- Panoramas ---
+    '/geocontenidos/panoramas': flags.enablePanoramas,
+    // --- Constructor de landing page ---
+    '/landing-builder': flags.enableAuth && flags.enableLandingBuilder,
   };
 
   for (const [prefix, allowed] of Object.entries(rules)) {

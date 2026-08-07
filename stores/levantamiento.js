@@ -55,15 +55,14 @@ export const useLevantamientoStore = defineStore('levantamiento', () => {
           body: formData,
         });
 
-        console.log(response);
-
         if (!response.ok) {
-          throw new Error('Error al guardar el proyecto');
+          const errorData = await response.json().catch(() => ({}));
+          const error = new Error(errorData.message || 'Error al guardar el proyecto');
+          error.data = errorData;
+          throw error;
         }
 
         const data = await response.json();
-        console.log('Proyecto guardado:', data);
-
         const proyectoConAportaciones = {
           ...data.proyecto,
           num_aportaciones: '0',
@@ -106,8 +105,107 @@ export const useLevantamientoStore = defineStore('levantamiento', () => {
         console.error('Error cargando proyecto:', err);
       }
     },
+    async crearAporte(formData) {
+      const response = await fetch(`${apiUrl}/raising/user/create`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const error = new Error(errorData.message || 'Error al enviar el aporte');
+        error.data = errorData;
+        throw error;
+      }
+
+      return response.json();
+    },
+    async actualizarAporte(id, formData) {
+      const response = await fetch(`${apiUrl}/raising/user/update/${id}`, {
+        method: 'PUT',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const error = new Error(errorData.message || 'Error al actualizar el aporte');
+        error.data = errorData;
+        throw error;
+      }
+
+      return response.json();
+    },
+    async obtenerDetalleAporte(id) {
+      return $fetch(`${apiUrl}/raising/user/register/v2`, {
+        method: 'POST',
+        body: { id_levantamiento: id },
+      });
+    },
+    async obtenerAportesPorEstado(email, status) {
+      const data = await $fetch(`${apiUrl}/raising/user/list`, {
+        method: 'POST',
+        body: { email, status },
+      });
+
+      return data.levantamientos || [];
+    },
+    async obtenerMensajesAporte(id) {
+      return $fetch(`${apiUrl}/raising/chat/list`, {
+        method: 'POST',
+        body: { id },
+      });
+    },
+    async eliminarAporte(id) {
+      return $fetch(`${apiUrl}/raising/user/register/${id}`, {
+        method: 'DELETE',
+      });
+    },
     obtenerTotalDescargasAprobadas() {
       return this.descargasAprobadas.length;
+    },
+
+    async obtenerDescargasAportesRevision(email, status, page = 1) {
+      const data = await $fetch(`${apiUrl}/downloads/reviewer/list`, {
+        method: 'POST',
+        query: { page },
+        body: { email, status },
+      });
+      return {
+        descargas: data?.descargas || [],
+        pagination: data?.pagination || { page, total: 0, totalPages: 1 },
+      };
+    },
+
+    async revisarDescargaAportes(id, payload) {
+      return $fetch(`${apiUrl}/downloads/reviewer/status/${id}`, {
+        method: 'POST',
+        body: payload,
+      });
+    },
+    async actualizarStatusAporte(payload, idAporte) {
+      try {
+        const response = await fetch(`${apiUrl}/raising/reviewer/status/${idAporte}`, {
+          method: 'POST', 
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          const error = new Error(errorData.message || 'Error al actualizar el estado del aporte');
+          error.data = errorData;
+          throw error;
+        }
+
+        const data = await response.json();
+        console.log('Estado de aporte actualizado en BD:', data);
+        return data;
+      } catch (error) {
+        console.error('Error en actualizarStatusAporte:', error);
+        throw error;
+      }
     },
 
     async obtenerTotalDescargasEnRevision(user_id) {
@@ -226,12 +324,14 @@ export const useLevantamientoStore = defineStore('levantamiento', () => {
         console.error('Error cargando participantes:', err);
       }
     },
-    async agregarParticipanteProyecto(userEmail, email, rol, idProyecto) {
+    async agregarParticipanteProyecto(userEmail, email, rol, idProyecto, message) {
       try {
+        // El backend almacena el mensaje junto con la invitación del participante.
         const body = {
           user_id: userEmail,
           email: email,
           rol: rol,
+          message: message,
         };
 
         const data = await $fetch(`${apiUrl}/projects/shared/${idProyecto}/user/add`, {
@@ -241,6 +341,7 @@ export const useLevantamientoStore = defineStore('levantamiento', () => {
         console.log(data);
       } catch (err) {
         console.error('Error guardando participante:', err);
+        throw err;
       }
     },
     async actualizarParticipanteProyecto(userEmail, rol, idProyecto, idParticipante) {
@@ -257,9 +358,10 @@ export const useLevantamientoStore = defineStore('levantamiento', () => {
             body: body,
           }
         );
-        console.log(data);
+        return data;
       } catch (err) {
         console.error('Error actualizando participante:', err);
+        throw err;
       }
     },
     async eliminarParticipanteProyecto(userEmail, idProyecto, idParticipante) {
@@ -275,9 +377,10 @@ export const useLevantamientoStore = defineStore('levantamiento', () => {
             body: body,
           }
         );
-        console.log(data);
+        return data;
       } catch (err) {
         console.error('Error eliminando participante:', err);
+        throw err;
       }
     },
     async actualizarFormularioParticipantesProyecto(payload, idProyecto) {
@@ -291,11 +394,15 @@ export const useLevantamientoStore = defineStore('levantamiento', () => {
         });
 
         if (!response.ok) {
-          throw new Error('Error al actualizar el proyecto');
+          const errorData = await response.json().catch(() => ({}));
+          const error = new Error(errorData.message || 'Error al actualizar el proyecto');
+          error.data = errorData;
+          throw error;
         }
 
         const data = await response.json();
         console.log('Proyecto enviado a aprobación:', data);
+        return data;
       } catch (error) {
         console.error('Error:', error);
         throw error;
@@ -408,11 +515,15 @@ export const useLevantamientoStore = defineStore('levantamiento', () => {
         });
 
         if (!response.ok) {
-          throw new Error('Error al actualizar el proyecto');
+          const errorData = await response.json().catch(() => ({}));
+          const error = new Error(errorData.message || 'Error al actualizar el proyecto');
+          error.data = errorData;
+          throw error;
         }
 
         const data = await response.json();
         console.log('Proyecto enviado a aprobación:', data);
+        return data;
       } catch (error) {
         console.error('Error:', error);
         throw error;

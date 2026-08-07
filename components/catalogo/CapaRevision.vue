@@ -20,7 +20,7 @@ const config = useRuntimeConfig();
 
 const storeCatalogo = useResourcesCatalogoStore();
 const { gnoxyFetch } = useGnoxyUrl();
-const { findServer, hasWFS, getSLDs } = useResourcesSupplements();
+const { getLayerName, findServer, hasWFS, getSLDs } = useResourcesSupplements();
 const route = useRoute();
 const selectedPk = route.query.pk;
 const isLoading = ref(true);
@@ -63,7 +63,7 @@ const optionsButtons = ref([
   {
     excludeFor: 'none',
     label: 'Cambiar opacidad',
-    pictogram: 'pictograma-editar',
+    pictogram: 'pictograma-contraste',
     globo: 'Opacidad',
     action: () => {
       modalOpacidad.value?.abrirModal();
@@ -151,7 +151,7 @@ onMounted(async () => {
             <SisdaiCapaWms
               v-if="serverType === 'ogc'"
               :key="`wms-${resourceElement.pk}`"
-              :capa="resourceElement.alternate"
+              :capa="getLayerName(resourceElement)"
               :consulta="gnoxyFetch"
               :fuente="findServer(resourceElement)"
               :mosaicos="true"
@@ -163,7 +163,7 @@ onMounted(async () => {
               v-if="serverType === 'arcgis'"
               :key="`arcgis-${resourceElement.pk}`"
               :fuente="findServer(resourceElement).replace('?', '')"
-              :capa="resourceElement.alternate.split(':')[1]"
+              :capa="getLayerName(resourceElement).split(':')[1]"
               :mosaicos="true"
               :opacidad="layerOpacity / 100"
             />
@@ -226,7 +226,7 @@ onMounted(async () => {
                       <ClientOnly>
                         <SisdaiSelector
                           v-model="selectedStyle"
-                          etiqueta="Variables disponibles"
+                          etiqueta="Visualizaciones disponibles"
                           texto_ayuda="Texto de ayuda."
                         >
                           <option v-for="estilo in allStyles" :key="estilo" :value="estilo">
@@ -241,7 +241,7 @@ onMounted(async () => {
                       v-if="serverType === 'ogc'"
                       :consulta="gnoxyFetch"
                       :fuente="findServer(resourceElement).replace('?', '')"
-                      :nombre="resourceElement.alternate"
+                      :nombre="getLayerName(resourceElement)"
                       :titulo="resourceElement.title || 'cargando...'"
                       :estilo="selectedStyle"
                       :sin-control="true"
@@ -253,7 +253,7 @@ onMounted(async () => {
                       :sin-control="true"
                       :sin-control-clases="true"
                       :titulo="resourceElement.title || 'cargando...'"
-                      :capa="resourceElement.alternate.split(':')[1]"
+                      :capa="getLayerName(resourceElement).split(':')[1]"
                       :fuente="findServer(resourceElement).replace('?', '')"
                     />
                   </div>

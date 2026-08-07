@@ -69,6 +69,10 @@ function validateMeta(requestBody) {
     status = false;
   } else if (!requestBody.date || requestBody.date.length === 0) {
     status = false;
+  } else if (!storeMetadatos.metadata.categoriaOGC) {
+    status = false;
+  } else if (!storeMetadatos.metadata.categoriaSIGIC) {
+    status = false;
   } else if (!requestBody.category) {
     status = false;
   } else if (!requestBody.keywords || requestBody.keywords.length === 0) {
@@ -133,7 +137,14 @@ function irAmisArchivos() {
   <div>
     <div v-if="isMetaInvalid" class="tarjeta fondo-color-error m-t-3">
       <div class="tarjeta-cuerpo">
-        <p class="texto-color-error">Revisa que los campos obligatorios estén llenos.</p>
+        <p class="texto-color-error">Revisa que los campos obligatorios estén llenos:</p>
+        <ul class="texto-color-error m-0">
+          <li v-if="!storeMetadatos.metadata.categoriaOGC">Categoría OGC es obligatoria</li>
+          <li v-if="!storeMetadatos.metadata.categoriaSIGIC">Categoría SIGIC es obligatoria</li>
+          <li v-if="!storeMetadatos.metadata.category">
+            ¿Qué categoría deseas que se visualice? es obligatoria
+          </li>
+        </ul>
       </div>
     </div>
 

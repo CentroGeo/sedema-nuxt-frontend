@@ -7,26 +7,35 @@ definePageMeta({
 });
 
 const storeLevantamiento = useLevantamientoStore();
+const { data } = useAuth();
 
 const router = useRouter();
 const route = useRoute();
 
-const porEnviar = ref([
-  {
-    id: 0,
-    thumbnail_img: 'https://cdn.conahcyt.mx/sisdai/sisdai-css/documentacion/kale-1.jpg',
-    title: 'Título del aporte',
-    update_date: formatDate(new Date()),
-    status: 'Por enviar',
-  },
-  {
-    id: 1,
-    thumbnail_img: 'https://cdn.conahcyt.mx/sisdai/sisdai-css/documentacion/kale-1.jpg',
-    title: 'Título del aporte',
-    update_date: formatDate(new Date()),
-    status: 'Por enviar',
-  },
-]);
+const porEnviar = shallowRef([]);
+const cargandoAportes = ref(false);
+const errorAportes = ref('');
+
+onMounted(async () => {
+  const email = data.value?.user.email;
+  if (!email) return;
+
+  cargandoAportes.value = true;
+  try {
+    const aportes = await storeLevantamiento.obtenerAportesPorEstado(email, 'SIN EVALUAR');
+    porEnviar.value = aportes.map((aporte) => ({
+      ...aporte,
+      title: aporte.title || aporte.nombre || 'Aporte sin título',
+      fecha_formateada: aporte.fecha_guardado
+        ? formatDate(new Date(aporte.fecha_guardado))
+        : '',
+    }));
+  } catch {
+    errorAportes.value = 'No fue posible cargar los aportes por enviar.';
+  } finally {
+    cargandoAportes.value = false;
+  }
+});
 
 const modalRemoverAporte = ref(null);
 
@@ -47,9 +56,25 @@ function irAEditarAporte() {
     path: `/levantamiento/aportes/editar/${aporteSeleccionado.value.id}`,
     query: {
       title: aporteSeleccionado.value.title,
+      aporte_id: aporteSeleccionado.value.id,
+      project_id: aporteSeleccionado.value.id_proyecto,
       previous_path: route.path,
+      mode: 'edit',
     },
   });
+}
+
+function confirmarEliminarAporte(aporte) {
+  aporteSeleccionado.value = aporte;
+  modalRemoverAporte.value?.abrirModal();
+}
+
+async function eliminarAporte() {
+  if (!aporteSeleccionado.value?.id) return;
+  await storeLevantamiento.eliminarAporte(aporteSeleccionado.value.id);
+  porEnviar.value = porEnviar.value.filter((aporte) => aporte.id !== aporteSeleccionado.value.id);
+  modalRemoverAporte.value?.cerrarModal();
+  aporteSeleccionado.value = {};
 }
 </script>
 <template>
@@ -90,7 +115,7 @@ function irAEditarAporte() {
           <div class="columna-16">
             <div class="flex">
               <h2>Aportes por enviar</h2>
-              <UiNumeroElementos :numero="0" />
+              <UiNumeroElementos :numero="porEnviar.length" etiqueta="Aportes" />
             </div>
           </div>
           <div class="columna-8">
@@ -98,15 +123,23 @@ function irAEditarAporte() {
           </div>
           <div class="columna-16">
             <div class="contenedor-por-enviar">
+              <p v-if="cargandoAportes">Cargando aportes…</p>
+              <p v-else-if="errorAportes" class="texto-color-error" role="alert">
+                {{ errorAportes }}
+              </p>
               <div class="grid">
                 <div v-for="value in porEnviar" :key="value.id" class="columna-5">
                   <div class="tarjeta">
-                    <img class="tarjeta-imagen" alt="" :srcset="value.thumbnail_img" />
+                    <div
+                      class="tarjeta-imagen flex flex-contenido-centrado flex-vertical-centrado fondo-color-acento"
+                    >
+                      <span class="pictograma-documento pictograma-grande" aria-hidden="true" />
+                    </div>
 
                     <div class="tarjeta-cuerpo">
                       <p class="tarjeta-etiqueta">Aporte creado en:</p>
                       <p class="tarjeta-titulo">{{ value.title }}</p>
-                      <p>{{ value.update_date }}</p>
+                      <p>{{ value.fecha_formateada }}</p>
                     </div>
 
                     <div class="tarjeta-pie">
@@ -128,7 +161,7 @@ function irAEditarAporte() {
                         <button
                           class="boton-secundario boton-chico texto-centrado tarjeta-pie-boton"
                           type="button"
-                          @click="modalRemoverAporte.abrirModal()"
+                          @click="confirmarEliminarAporte(value)"
                         >
                           Eliminar aporte
                         </button>
@@ -155,6 +188,9 @@ function irAEditarAporte() {
               @click="modalRemoverAporte.cerrarModal()"
             >
               Regresar
+            </button>
+            <button class="boton-primario boton-chico" type="button" @click="eliminarAporte">
+              Eliminar aporte
             </button>
           </template>
         </SisdaiModal>

@@ -1,6 +1,5 @@
-const config = useRuntimeConfig();
-
 export default defineEventHandler(async (event) => {
+  const config = useRuntimeConfig();
   const body = await readBody(event);
   const token = getHeader(event, 'token');
   const type = getHeader(event, 'resourceType');
@@ -26,9 +25,9 @@ export default defineEventHandler(async (event) => {
     restriction_code_type: null,
     constraints_other: 'Ninguna',
     edition: '1.0',
-    doi: '-',
+    doi: 'Información no proporcionada',
     purpose: 'Propósito original no documentado',
-    supplemental_information: 'No proporcionada',
+    supplemental_information: 'Información no proporcionada',
     maintenance_frequency: 'unknown',
     attribute_set: {},
   };
@@ -41,7 +40,7 @@ export default defineEventHandler(async (event) => {
       field === 'supplemental_information' &&
       body['supplemental_information'] === 'No information provided'
     ) {
-      bodyDict['supplemental_information'] = 'No proporcionada';
+      bodyDict['supplemental_information'] = 'Información no proporcionada';
     } else if (Object.keys(bodyDict).includes(field)) {
       bodyDict[field] = body[field];
     } else if (field === 'keywords') {

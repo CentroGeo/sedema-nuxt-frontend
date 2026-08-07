@@ -1,4 +1,5 @@
 <script setup>
+import SisdaiModal from '@centrogeomx/sisdai-componentes/src/componentes/modal/SisdaiModal.vue';
 import {
   buildUrl,
   categoriesInSpanish,
@@ -13,6 +14,14 @@ const storeConsulta = useConsultaStore();
 const storeFilters = useFilteredResources();
 const { gnoxyFetch } = useGnoxyUrl();
 const { data } = useAuth();
+const storeSelected = useSelectedResources2Store();
+const storeCatalogo = useCatalogoStore();
+
+// Estados reactivos para la eliminación
+const resourceToDelete = ref(null);
+const modalEliminar = ref(null);
+const isBeingDeleted = ref(false);
+const wasDeletionSuccesful = ref(null);
 
 defineProps({
   titulo: { type: String, default: 'Título' },
@@ -22,6 +31,15 @@ const totalResources = ref(0);
 const isLoading = ref(true);
 const resources = computed(() => storeResources.resourcesByType());
 const params = computed(() => storeFilters.filters.queryParams);
+const categorizedResources = computed(() => {
+  const result = {};
+  resources.value.forEach((r) => {
+    const title = r.category?.gn_description ?? 'Sin Clasificar';
+    if (!result[title]) result[title] = [];
+    result[title].push(r);
+  });
+  return result;
+});
 const selectedOwner = computed({
   get: () => storeFilters.filters.owner,
   set: (value) => storeFilters.updateFilter('owner', value),
@@ -33,10 +51,8 @@ const inputSearch = computed({
 const nthElement = 1;
 const isLoggedIn = ref(data.value ? true : false);
 const apiCategorias = `${config.public.geonodeApi}/facets/category?page_size=30`;
-const filteredResources = ref([]);
 const categoriesDict = ref({});
 const orderedCategories = ref([]);
-const categorizedResources = ref({});
 const selectedCategories = ref([]);
 const modalFiltroAvanzado = ref(null);
 const modalOWSglobal = ref(null);
@@ -100,7 +116,7 @@ async function buildCategoriesDict() {
   }
   if (Object.keys(categoriesDict.value).length > 0) {
     orderedCategories.value = Object.keys(categoriesDict.value).sort((a, b) =>
-      categoriesInSpanish[a].localeCompare(categoriesInSpanish[b])
+      (categoriesInSpanish[a] ?? a).localeCompare(categoriesInSpanish[b] ?? b)
     );
   } else {
     orderedCategories.value = [];
@@ -139,34 +155,6 @@ function getNthElements() {
   return nthElementsPks;
 }
 
-function groupResults() {
-  categorizedResources.value = {};
-  filteredResources.value.map((r) => {
-    if (r.category) {
-      const title = r.category.gn_description;
-      if (Object.keys(categorizedResources.value).includes(title)) {
-        categorizedResources.value[title].push(r);
-      } else {
-        categorizedResources.value[title] = [];
-        categorizedResources.value[title].push(r);
-      }
-    } else {
-      if (Object.keys(categorizedResources.value).includes('Sin Clasificar')) {
-        categorizedResources.value['Sin Clasificar'].push(r);
-      } else {
-        categorizedResources.value['Sin Clasificar'] = [];
-        categorizedResources.value['Sin Clasificar'].push(r);
-      }
-    }
-  });
-  storeResources.setNthElements(storeConsulta.resourceType, getNthElements());
-}
-
-function updateResources(nuevosRecursos) {
-  filteredResources.value = nuevosRecursos;
-  groupResults();
-}
-
 async function setSelectedCategory(categoria) {
   if (selectedCategories.value.includes(categoria)) {
     selectedCategories.value = selectedCategories.value.filter((c) => c !== categoria);
@@ -174,17 +162,14 @@ async function setSelectedCategory(categoria) {
     selectedCategories.value.push(categoria);
   }
 
-  // Se agrega este if para que no se dispare la misma petición más de una vez
   if (!categoriesDict.value[categoria].isLoading) {
     await callResources(categoria);
-    updateResources(resources.value);
   }
 }
 
 async function fetchNewData(category) {
   if (categoriesDict.value[category].isLoading === false) {
     await callResources(category);
-    updateResources(resources.value);
   }
 }
 
@@ -239,8 +224,133 @@ function resetAdvancedFilter() {
   modalFiltroAvanzado.value.cerrarModalBusqueda();
 }
 
+function abrirConfirmarEliminar(resource) {
+  resourceToDelete.value = resource;
+  wasDeletionSuccesful.value = null;
+  isBeingDeleted.value = false;
+  modalEliminar.value?.abrirModal();
+}
+
+function cancelarEliminar() {
+  modalEliminar.value?.cerrarModal();
+  resourceToDelete.value = null;
+}
+
+// Lógica de borrado en base de datos local (vía endpoint proxy)
+async function borrarLocal(pk) {
+  const token = data.value?.accessToken;
+  try {
+    const response = await $fetch('/api/delete-resource', {
+      method: 'DELETE',
+      headers: { token: token, pk: pk },
+    });
+    return !!response;
+  } catch (error) {
+    console.error('Error al borrar localmente:', error);
+    return false;
+  }
+}
+// Obtener ID del Harvester para desvincular capas remotas
+async function getHarvesterId(urlService) {
+  const userPk = storeCatalogo.userInfo.pk;
+  const url = `${config.public.geonodeApi}/services/?url=${urlService}&owner_id=${userPk}`;
+  const requestServices = await gnoxyFetch(url);
+  if (!requestServices.ok) return null;
+  const resServices = await requestServices.json();
+  return resServices.results[0]?.['harvester_id'] || null;
+}
+
+// Desvinculación de capa remota en harvester externo
+async function borrarRemoto(resource) {
+  const token = data.value?.accessToken;
+  const remoteAlternate = resource.alternate;
+  const linkObject = resource.links?.find((link) => link.link_type === 'OGC:WMS');
+  if (!linkObject) return true;
+
+  const serviceLink = linkObject.url.replace('https://', '').replace('http://', '').split('/')[0];
+  const harvesterIdentifier = await getHarvesterId(serviceLink);
+  if (!harvesterIdentifier) return true;
+
+  const requestBody = [{ unique_identifier: remoteAlternate, should_be_harvested: false }];
+
+  try {
+    const updateHarvestables = await $fetch('/api/importar-externo', {
+      method: 'POST',
+      headers: { token: token },
+      body: { harvesterID: harvesterIdentifier, resources: requestBody },
+    });
+    if (updateHarvestables) {
+      const updateHarvesterStatus = await $fetch('/api/actualizar-externo', {
+        method: 'POST',
+        headers: { token: token },
+        body: { id: harvesterIdentifier, status: 'harvesting-resources' },
+      });
+      return !!updateHarvesterStatus;
+    }
+    return false;
+  } catch (error) {
+    console.error('Error al borrar externamente:', error);
+    return false;
+  }
+}
+
+// Flujo de ejecución tras confirmar en la modal
+async function ejecutarEliminar() {
+  if (!resourceToDelete.value) return;
+  isBeingDeleted.value = true;
+
+  let success = false;
+  if (resourceToDelete.value.sourcetype === 'REMOTE') {
+    const isRemoteDeleted = await borrarRemoto(resourceToDelete.value);
+    if (isRemoteDeleted) {
+      success = await borrarLocal(resourceToDelete.value.pk);
+    }
+  } else {
+    success = await borrarLocal(resourceToDelete.value.pk);
+  }
+
+  isBeingDeleted.value = false;
+  wasDeletionSuccesful.value = success;
+
+  if (success) {
+    const type = storeConsulta.resourceType;
+
+    // Remueve el recurso de los stores y listas de visualización locales
+    storeResources.resources[type] = storeResources.resources[type].filter(
+      (r) => r.pk !== resourceToDelete.value.pk
+    );
+
+    totalResources.value = Math.max(0, totalResources.value - 1);
+
+    // Actualiza el conteo de la categoría y la excluye si ya no contiene elementos
+    const categoryName = resourceToDelete.value.category?.gn_description || 'Sin Clasificar';
+    if (categoriesDict.value[categoryName]) {
+      categoriesDict.value[categoryName].total = Math.max(
+        0,
+        categoriesDict.value[categoryName].total - 1
+      );
+
+      if (categoriesDict.value[categoryName].total === 0) {
+        orderedCategories.value = orderedCategories.value.filter((c) => c !== categoryName);
+      }
+    }
+
+    if (storeSelected.pks.includes(String(resourceToDelete.value.pk))) {
+      storeSelected.removeByPk(String(resourceToDelete.value.pk));
+    }
+
+    setTimeout(() => {
+      modalEliminar.value?.cerrarModal();
+      resourceToDelete.value = null;
+    }, 2000);
+  }
+}
 watch(selectedOwner, () => {
   storeFilters.buildQueryParams();
+});
+
+watch(categorizedResources, () => {
+  storeResources.setNthElements(storeConsulta.resourceType, getNthElements());
 });
 
 watch(params, async () => {
@@ -248,7 +358,6 @@ watch(params, async () => {
   storeResources.resetByType();
   totalResources.value = 0;
   selectedCategories.value = [];
-  categorizedResources.value = {};
   await buildCategoriesDict();
   isLoading.value = false;
 });
@@ -256,9 +365,6 @@ watch(params, async () => {
 onMounted(async () => {
   storeFilters.resetAll();
   storeFilters.buildQueryParams();
-  if (resources.value.length !== 0) {
-    updateResources(resources.value);
-  }
 });
 </script>
 
@@ -420,6 +526,7 @@ onMounted(async () => {
               :catalogue-element="resource"
               :resource-type="storeConsulta.resourceType"
               @trigger-fetch="fetchNewData"
+              @delete="abrirConfirmarEliminar"
             />
           </div>
 
@@ -471,6 +578,84 @@ onMounted(async () => {
     :ows-link="sigicOWS"
     :service="'CSW'"
   />
+
+  <ClientOnly>
+    <SisdaiModal ref="modalEliminar">
+      <template #encabezado>
+        <h2 v-if="wasDeletionSuccesful === null || isBeingDeleted">
+          ¿Deseas eliminar este recurso?
+        </h2>
+        <p v-else></p>
+      </template>
+      <template #cuerpo>
+        <p v-if="wasDeletionSuccesful === null || isBeingDeleted" class="m-b-2">
+          <span v-if="resourceToDelete?.is_published">
+            El recurso <strong style="font-weight: bold">{{ resourceToDelete?.title }}</strong> está
+            publicado en el catálogo. Al eliminarlo, se borrará permanentemente del servidor y no
+            será posible recuperarlo.
+          </span>
+          <span v-else>
+            El recurso <strong style="font-weight: bold">{{ resourceToDelete?.title }}</strong> será
+            eliminado permanentemente del servidor y no será posible recuperarlo.
+          </span>
+        </p>
+
+        <!-- Botones de Confirmar/Cancelar -->
+        <div
+          v-if="wasDeletionSuccesful === null || isBeingDeleted"
+          class="flex m-y-2 flex-contenido-centrado"
+        >
+          <div class="contenedor flex flex-contenido-centrado">
+            <button
+              type="button"
+              class="boton-secundario"
+              :disabled="isBeingDeleted"
+              @click="cancelarEliminar"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              class="boton-primario"
+              :disabled="isBeingDeleted"
+              @click="ejecutarEliminar"
+            >
+              Eliminar
+            </button>
+          </div>
+          <div v-if="isBeingDeleted" class="columna-3 color-invertir">
+            <img
+              :src="`${config.app.baseURL}img/loader.gif`"
+              class="color-invertir"
+              alt="...Procesando"
+            />
+          </div>
+        </div>
+
+        <!-- Alerta de éxito -->
+        <div v-if="wasDeletionSuccesful === true && !isBeingDeleted" class="flex" style="gap: 0px">
+          <p
+            class="columna-14 texto-color-confirmacion fondo-color-confirmacion borde borde-color-confirmacion p-2 borde-redondeado-8"
+          >
+            <span class="pictograma-aprobado" /> El recurso fue eliminado con éxito del servidor.
+          </p>
+        </div>
+
+        <!-- Alerta de error -->
+        <div v-if="wasDeletionSuccesful === false && !isBeingDeleted" class="flex" style="gap: 0px">
+          <p
+            class="columna-14 texto-color-error fondo-color-error borde borde-color-error p-2 borde-redondeado-8"
+          >
+            <span class="pictograma-alerta" /> No pudimos eliminar {{ resourceToDelete?.title }}.
+            Revisa tu conexión e intentalo de nuevo más tarde.
+          </p>
+          <div class="columna-14 flex flex-contenido-final">
+            <button class="boton-primario boton-chico" @click="cancelarEliminar">Regresar</button>
+          </div>
+        </div>
+      </template>
+    </SisdaiModal>
+  </ClientOnly>
 </template>
 
 <style lang="scss" scoped>

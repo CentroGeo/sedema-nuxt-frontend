@@ -1,6 +1,5 @@
-const config = useRuntimeConfig();
-
 export default defineEventHandler(async (event) => {
+  const config = useRuntimeConfig();
   const body = await readBody(event);
   const token = getHeader(event, 'token');
   const url = `${config.public.geonodeApi}/account/me/profile/`;

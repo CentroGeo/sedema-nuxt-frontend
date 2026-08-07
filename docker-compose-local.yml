@@ -19,6 +19,8 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+    volumes:
+      - landing_builder_data:/app/.data
     environment:
       NODE_ENV: ${NODE_ENV}
       NUXT_PUBLIC_BASE_URL: ${NUXT_PUBLIC_BASE_URL}
@@ -35,6 +37,10 @@ services:
       NUXT_PUBLIC_ENABLE_CONSULTA: ${NUXT_PUBLIC_ENABLE_CONSULTA}
       NUXT_PUBLIC_ENABLE_IAA: ${NUXT_PUBLIC_ENABLE_IAA}
       NUXT_PUBLIC_ENABLE_LEVANTAMIENTO: ${NUXT_PUBLIC_ENABLE_LEVANTAMIENTO}
+      NUXT_PUBLIC_ENABLE_ACERCA_DE: ${NUXT_PUBLIC_ENABLE_ACERCA_DE}
+      NUXT_PUBLIC_ENABLE_GEOCONTENIDOS: ${NUXT_PUBLIC_ENABLE_GEOCONTENIDOS}
+      NUXT_PUBLIC_ENABLE_GEOHISTORIAS: ${NUXT_PUBLIC_ENABLE_GEOHISTORIAS}
+      NUXT_PUBLIC_ENABLE_TABLEROS: ${NUXT_PUBLIC_ENABLE_TABLEROS}
       NUXT_AUTH_ORIGIN: ${NUXT_AUTH_ORIGIN}
       NUXT_PUBLIC_AUTH_BASE_URL: ${NUXT_PUBLIC_AUTH_BASE_URL}
       KEYCLOAK_ISSUER: ${KEYCLOAK_ISSUER}
@@ -53,3 +59,6 @@ networks:
     driver: bridge
     driver_opts:
       com.docker.network.driver.mtu: 1400
+
+volumes:
+  landing_builder_data:

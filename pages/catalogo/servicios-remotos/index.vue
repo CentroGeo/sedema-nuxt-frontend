@@ -7,10 +7,6 @@ definePageMeta({
 });
 
 const storeCatalogo = useCatalogoStore();
-
-navigateTo({
-  path: '/catalogo/servicios-remotos/agregar',
-});
 </script>
 <template>
   <UiLayoutPaneles :estado-colapable="storeCatalogo.catalogoColapsado">

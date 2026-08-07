@@ -33,6 +33,7 @@ const idAleatorio = 'id-' + Math.random().toString(36).substring(2);
 const shownModal = ref('ninguno');
 const modalResource = ref(null);
 const downloadOneChild = ref(null);
+const metadatosChild = ref(null);
 const releaseRequest = ref(null);
 const resourceType = ref('');
 const modalEliminar = ref(null);
@@ -49,6 +50,8 @@ const comentarios = ref('');
 const revisor = ref('');
 const recursoSolicitud = ref({});
 const modalCancelarSolicitud = ref(null);
+const modalVolverEditar = ref(null);
+const recursoReabrir = ref(null);
 const dictTable = ref({
   pk: 'pk',
   titulo: 'Título',
@@ -154,6 +157,18 @@ function openAddRequestToMyReviewsModal(resource) {
   modalAgregarMisRevisiones.value.abrirModal();
 }
 
+function notifyMetadatosChild(resource) {
+  shownModal.value = 'metadatosModal';
+  if (resource.recurso_completo) {
+    modalResource.value = resource.recurso_completo;
+  } else {
+    modalResource.value = resource;
+  }
+  resourceType.value = tipoRecurso(resource);
+  nextTick(() => {
+    metadatosChild.value?.abrirModalRevision();
+  });
+}
 /**
  * Hace la petición para agregar la solicitud a revisión.
  */
@@ -418,9 +433,11 @@ async function confirmarEliminar() {
   await wait(3000);
   isBeingDeleted.value = false;
   if (wasDeletionSuccesful.value) {
-    modalEliminar.value?.cerrarModal();
-    const router = useRouter();
-    router.go(0);
+    setTimeout(() => {
+      modalEliminar.value?.cerrarModal();
+      const router = useRouter();
+      router.go(0);
+    }, 2000);
   }
 }
 
@@ -476,6 +493,26 @@ async function removerRevision() {
     // forzando recargar la página para ver el cambio
     // location.reload();
     router.go(0);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function abrirModalVolverEditar(resource) {
+  recursoReabrir.value = resource;
+  modalVolverEditar.value.abrirModal();
+}
+
+async function volverAEditar() {
+  try {
+    const response = await $fetch('/api/reabrir-edicion', {
+      method: 'POST',
+      body: { resource_pk: recursoReabrir.value.pk, token: token },
+    });
+    modalVolverEditar.value.cerrarModal();
+    if (response !== 'Error') {
+      irARutaConQuery(recursoReabrir.value);
+    }
   } catch (error) {
     console.error(error);
   }
@@ -596,6 +633,7 @@ async function removerRevision() {
             <!-- Acciones -->
             <div v-if="variable === 'acciones'">
               <div class="flex-width">
+                <!-- Eliminamos el botón de contraste que te llevaba al mismo sitio que el botón editar -->
                 <button
                   v-if="datum[variable].split(', ').includes('Editar')"
                   v-globo-informacion:izquierda="'Editar'"
@@ -617,6 +655,16 @@ async function removerRevision() {
                   <span class="pictograma-previsualizar"></span>
                 </button>
                 <button
+                  v-if="datum[variable].split(', ').includes('Ver')"
+                  v-globo-informacion:izquierda="'Ver metadatos'"
+                  class="boton-pictograma boton-secundario"
+                  aria-label="Ver metadatos"
+                  type="button"
+                  @click="notifyMetadatosChild(datum)"
+                >
+                  <span class="pictograma-metadatos"></span>
+                </button>
+                <button
                   v-if="datum[variable].split(', ').includes('Visualizar')"
                   v-globo-informacion:izquierda="'Visualizar'"
                   class="boton-pictograma boton-secundario"
@@ -634,7 +682,7 @@ async function removerRevision() {
                   type="button"
                   @click="openResourceReview(datum)"
                 >
-                  <span class="pictograma-ayuda"></span>
+                  <span class="pictograma-buscar"></span>
                 </button>
                 <button
                   v-if="datum[variable].split(', ').includes('Añadir')"
@@ -654,7 +702,7 @@ async function removerRevision() {
                   type="button"
                   @click="notifyReleaseRequest(datum)"
                 >
-                  <span class="pictograma-ayuda"></span>
+                  <span class="pictograma-archivo-subir"></span>
                 </button>
                 <button
                   v-if="datum[variable].split(', ').includes('Comentarios')"
@@ -664,7 +712,7 @@ async function removerRevision() {
                   type="button"
                   @click="abrirModalComentarios(datum)"
                 >
-                  <span class="pictograma-ayuda"></span>
+                  <span class="pictograma-chat"></span>
                 </button>
                 <button
                   v-if="datum[variable].split(', ').includes('Descargar')"
@@ -675,6 +723,16 @@ async function removerRevision() {
                   @click="notifyDownloadOneChild(datum)"
                 >
                   <span class="pictograma-archivo-descargar"></span>
+                </button>
+                <button
+                  v-if="datum[variable].split(', ').includes('Volver a editar')"
+                  v-globo-informacion:izquierda="'Volver a editar'"
+                  class="boton-pictograma boton-secundario"
+                  aria-label="Volver a editar"
+                  type="button"
+                  @click="abrirModalVolverEditar(datum)"
+                >
+                  <span class="pictograma-editar"></span>
                 </button>
                 <button
                   v-if="datum[variable].split(', ').includes('Cancelar')"
@@ -747,18 +805,36 @@ async function removerRevision() {
       :resource-type="resourceType"
       :selected-element="modalResource"
     />
+    <CatalogoModalRevisionMeta
+      v-if="shownModal === 'metadatosModal'"
+      ref="metadatosChild"
+      :key="`${modalResource.pk}_${resourceType}`"
+      :review-pk="modalResource.pk"
+      :resource-type="resourceType === 'document' ? 'documents' : 'datasets'"
+    />
 
     <ClientOnly>
       <!-- Modal Eliminar Recurso -->
       <SisdaiModal ref="modalEliminar">
         <template #encabezado>
           <h2 v-if="wasDeletionSuccesful === null || isBeingDeleted">
-            ¿Deseas eliminar <span class="header-title">{{ resourceToDeleteTitle }}</span
-            >?
+            ¿Deseas eliminar este recurso?
           </h2>
           <p v-else></p>
         </template>
         <template #cuerpo>
+          <p v-if="wasDeletionSuccesful === null || isBeingDeleted" class="m-b-2">
+            <span v-if="resourceToDelete?.is_published">
+              El recurso <strong style="font-weight: bold">{{ resourceToDeleteTitle }}</strong> está
+              publicado en el catálogo. Al eliminarlo, se borrará permanentemente del servidor y no
+              será posible recuperarlo.
+            </span>
+            <span v-else>
+              El recurso <strong style="font-weight: bold">{{ resourceToDeleteTitle }}</strong> será
+              eliminado permanentemente del servidor y no será posible recuperarlo.
+            </span>
+          </p>
+
           <!--Botones-->
           <div
             v-if="wasDeletionSuccesful === null || isBeingDeleted"
@@ -790,6 +866,19 @@ async function removerRevision() {
               />
             </div>
           </div>
+          <!-- Alerta de éxito -->
+          <div
+            v-if="wasDeletionSuccesful === true && !isBeingDeleted"
+            class="flex"
+            style="gap: 0px"
+          >
+            <p
+              class="columna-14 texto-color-confirmacion fondo-color-confirmacion borde borde-color-confirmacion p-2 borde-redondeado-8"
+            >
+              <span class="pictograma-aprobado" /> El recurso fue eliminado con éxito del servidor.
+            </p>
+          </div>
+
           <!--Alerta de que fracasó la eliminación-->
           <div
             v-if="wasDeletionSuccesful === false && !isBeingDeleted"
@@ -878,6 +967,30 @@ async function removerRevision() {
           </button>
           <button class="boton-primario boton-chico" type="button" @click="removerRevision">
             Remover
+          </button>
+        </template>
+      </SisdaiModal>
+      <SisdaiModal ref="modalVolverEditar">
+        <template #encabezado>
+          <h2>Volver a editar</h2>
+        </template>
+        <template #cuerpo>
+          <p>
+            Al volver a editar <b>{{ recursoReabrir?.titulo }}</b
+            >, la capa saldrá del catálogo público y deberá pasar de nuevo por el proceso de
+            revisión desde cero. ¿Deseas continuar?
+          </p>
+        </template>
+        <template #pie>
+          <button
+            class="boton-secundario boton-chico"
+            type="button"
+            @click="modalVolverEditar.cerrarModal()"
+          >
+            Cancelar
+          </button>
+          <button class="boton-primario boton-chico" type="button" @click="volverAEditar">
+            Volver a editar
           </button>
         </template>
       </SisdaiModal>

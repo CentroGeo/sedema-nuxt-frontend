@@ -85,4 +85,9 @@ watch(valorOpacidad, (nv) => (storeSelected.byPk(selectedElement.value.pk).opaci
   background-color: var(--color-neutro-0);
   border: 1px solid var(--color-secundario-8);
 }
+.modal-cuerpo p {
+  overflow-wrap: break-word !important;
+  word-break: break-all !important;
+  white-space: normal !important;
+}
 </style>

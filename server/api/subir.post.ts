@@ -8,9 +8,8 @@ export const config = {
     bodyParser: false,
   },
 };
-const configEnv = useRuntimeConfig();
-
 export default defineEventHandler(async (event) => {
+  const configEnv = useRuntimeConfig();
   // Parsea FormData con formidable
   const form = formidable({ multiples: false });
   console.log('form', form);

@@ -3,7 +3,8 @@ import SisdaiAreaTexto from '@centrogeomx/sisdai-componentes/src/componentes/are
 import SisdaiBotonesRadioGrupo from '@centrogeomx/sisdai-componentes/src/componentes/boton-radio-grupo/SisdaiBotonesRadioGrupo.vue';
 import SisdaiBotonRadio from '@centrogeomx/sisdai-componentes/src/componentes/boton-radio/SisdaiBotonRadio.vue';
 import SisdaiModal from '@centrogeomx/sisdai-componentes/src/componentes/modal/SisdaiModal.vue';
-import { SisdaiCapaXyz, SisdaiMapa } from '@centrogeomx/sisdai-mapas';
+// Componentes requeridos cuando se reactive la visualización del mapa de aportes.
+// import { SisdaiCapaXyz, SisdaiMapa } from '@centrogeomx/sisdai-mapas';
 import { useRoute, useRouter } from 'vue-router';
 
 definePageMeta({
@@ -80,7 +81,7 @@ const handleDescarga = () => {
         </div>
         <div class="contenedor">
           <div class="grid contenedor-formulario">
-            <div class="columna-8 preguntas">
+            <div class="columna-16 preguntas">
               <div class="m-b-3">
                 <h5 class="m-t-0 m-b-2">Objetivo del proyecto:</h5>
                 <p class="m-y-0">
@@ -95,33 +96,61 @@ const handleDescarga = () => {
               </div>
               <div class="m-b-3">
                 <h5 class="m-t-0 m-b-2">Visualización de formulario</h5>
-                <div class="fondo-color-neutro p-3 borde-redondeado-20 flex">
-                  <div
-                    v-for="(pregunta, index) in preguntas"
-                    :key="index"
-                    class="p-3 borde-redondeado-20 fondo-color-primario columna-16"
-                  >
-                    <div v-if="pregunta.tipo !== 'multimedia'" class="m-b-2 texto-peso-500">
-                      {{ index + 1 }}. {{ pregunta.pregunta }}
-                    </div>
-                    <div class="m-b-1 texto-color-secundario texto-peso-500">
-                      {{
-                        pregunta.tipo === 'multimedia'
-                          ? `${index + 1}. ${pregunta.instrucciones}`
-                          : pregunta.instrucciones
-                      }}
-                    </div>
-
-                    <div
-                      v-if="pregunta.obligatorio"
-                      class="texto-color-secundario texto-tamanio-2 text-peso-400"
-                    >
-                      Obligatoria*
-                    </div>
+                <p class="m-t-0 texto-color-secundario">
+                  Vista previa de las preguntas. Las respuestas se registran desde la sección
+                  Aportes.
+                </p>
+                <!--
+                  Reutiliza los componentes Sisdai del constructor para representar cada tipo.
+                  `inert` mantiene su apariencia normal, pero evita capturar respuestas en esta
+                  vista; el registro de información se realiza únicamente desde Aportes.
+                -->
+                <div
+                  class="previsualizacion-formulario fondo-color-neutro p-3 borde-redondeado-20"
+                  inert
+                  aria-label="Vista previa del formulario, no editable"
+                >
+                  <div v-for="(pregunta, index) in preguntas" :key="index">
+                    <LevantamientoPreguntaAbierta
+                      v-if="pregunta.tipo === 'abierta'"
+                      :pregunta="pregunta"
+                      :es-edicion="false"
+                      :indice="index"
+                    />
+                    <LevantamientoPreguntaUnica
+                      v-else-if="pregunta.tipo === 'unica'"
+                      :pregunta="pregunta"
+                      :es-edicion="false"
+                      :indice="index"
+                    />
+                    <LevantamientoPreguntaMultiple
+                      v-else-if="pregunta.tipo === 'multiple'"
+                      :pregunta="pregunta"
+                      :es-edicion="false"
+                      :indice="index"
+                    />
+                    <LevantamientoPreguntaCondicional
+                      v-else-if="pregunta.tipo === 'condicional'"
+                      :pregunta="pregunta"
+                      :es-edicion="false"
+                      :indice="index"
+                    />
+                    <LevantamientoPreguntaMultimedia
+                      v-else-if="pregunta.tipo === 'multimedia'"
+                      :pregunta="pregunta"
+                      :es-edicion="false"
+                      :indice="index"
+                    />
                   </div>
                 </div>
               </div>
             </div>
+            <!--
+              Mapa de aportes del proyecto:
+              este bloque mostrará la ubicación de los aportes aprobados y permitirá solicitar
+              su descarga cuando se conecte el endpoint y la capa vectorial correspondientes.
+              Se conserva temporalmente comentado para no mostrar un mapa sin datos.
+
             <div class="columna-8 mapa">
               <ClientOnly>
                 <SisdaiMapa
@@ -141,11 +170,9 @@ const handleDescarga = () => {
                   Solicitar descarga
                   <span class="pictograma-archivo-descargar" aria-hidden="true"></span>
                 </button>
-                <button class="boton-primario boton-chico boton-accion-aportar" type="button">
-                  Aportar
-                </button>
               </div>
             </div>
+            -->
           </div>
         </div>
 
@@ -270,11 +297,15 @@ const handleDescarga = () => {
   font-weight: 400;
 }
 
+.previsualizacion-formulario {
+  pointer-events: none;
+}
+
 .contenedor-formulario {
   height: 60vh;
   overflow: hidden;
 
-  .columna-8.preguntas {
+  .columna-16.preguntas {
     overflow: auto;
   }
 
@@ -286,11 +317,6 @@ const handleDescarga = () => {
       position: absolute;
       bottom: 24px;
       right: 26px;
-
-      .boton-accion-aportar {
-        width: 143px;
-        justify-content: center;
-      }
     }
   }
 }

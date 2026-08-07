@@ -1,7 +1,8 @@
-import type { Fields, Files } from 'formidable';
 import formidable from 'formidable';
 import { promises as fsp } from 'fs';
 import { createError } from 'h3';
+import { LIMITE_CARGA_ARCHIVOS_BYTES } from '#shared/utils/limiteCargaArchivos';
+import { parseUploadForm } from '../utils/parseUploadForm';
 
 export const config = {
   api: {
@@ -9,18 +10,12 @@ export const config = {
   },
 };
 
-const configEnv = useRuntimeConfig();
-
 export default defineEventHandler(async (event) => {
-  const form = formidable({ multiples: false });
+  const configEnv = useRuntimeConfig();
+  const form = formidable({ multiples: false, maxFileSize: LIMITE_CARGA_ARCHIVOS_BYTES });
 
   // Parseo del form data recibido
-  const data = await new Promise<{ fields: Fields; files: Files }>((resolve, reject) => {
-    form.parse(event.node.req, (err, fields, files) => {
-      if (err) reject(err);
-      else resolve({ fields, files });
-    });
-  });
+  const data = await parseUploadForm(form, event.node.req);
 
   const { base_file } = data.files;
   const token = data?.fields?.token?.[0];
@@ -29,14 +24,39 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Archivo o token faltante' });
   }
 
+  const quotaRes = await fetch(`${configEnv.public.geonodeApi}/data-importer/jobs/quota/`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!quotaRes.ok) {
+    throw createError({
+      statusCode: quotaRes.status,
+      message: 'No fue posible validar los espacios disponibles',
+    });
+  }
+
+  const quota = await quotaRes.json();
+
+  if (!quota.can_upload) {
+    throw createError({
+      statusCode: 409,
+      message: 'Alcanzaste el límite de archivos y capas pendientes de aprobación.',
+    });
+  }
+
   // Crear FormData para enviar a GeoNode
   const formData = new FormData();
   const buffer = await fsp.readFile(base_file[0].filepath);
-  formData.append(
-    'base_file',
-    new Blob([buffer], { type: base_file[0].mimetype }),
-    base_file[0].originalFilename
-  );
+  const filename = base_file[0].originalFilename ?? 'archivo';
+  const blob = new Blob([buffer], { type: base_file[0].mimetype });
+  formData.append('base_file', blob, filename);
+
+  // GeoNode requiere zip_file además de base_file para activar la extracción del ZIP
+  if (filename.toLowerCase().endsWith('.zip')) {
+    formData.append('zip_file', blob, filename);
+  }
 
   try {
     // 1️⃣ Subir archivo al GeoNode
@@ -93,7 +113,7 @@ export default defineEventHandler(async (event) => {
         success: true,
         message: 'Procesamiento completado',
         id: resource.id,
-        url: `${configEnv.public.geonodeHost}${resource.detail_url}`,
+        url: `${configEnv.public.geonodeUrl}${resource.detail_url}`,
         time: statusJson.finished,
       };
     } else {

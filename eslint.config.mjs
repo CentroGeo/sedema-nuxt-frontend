@@ -29,7 +29,7 @@ export default withNuxt([
     ],
     rules: {
       eqeqeq: 'error',
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      'no-console': 'off',
       'no-debugger': 'warn',
       'no-prototype-builtins': 'error',
       'no-new': 0,

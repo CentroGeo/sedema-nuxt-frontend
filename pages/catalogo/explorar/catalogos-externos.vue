@@ -2,12 +2,8 @@
 const { data } = useAuth();
 const storeCatalogo = useCatalogoStore();
 const isLoggedIn = ref(data.value ? true : false);
-onMounted(() => {
-  if (isLoggedIn.value === false) {
-    navigateTo({
-      path: `/catalogo/servicios-remotos/servicios-sugeridos`,
-    });
-  }
+definePageMeta({
+  middleware: 'redireccionar-servicios-remotos',
 });
 </script>
 <template>

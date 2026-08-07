@@ -1,8 +1,7 @@
 import formidable from 'formidable';
 import { promises as fsp } from 'fs';
-const configEnv = useRuntimeConfig();
-
 export default defineEventHandler(async (event) => {
+  const configEnv = useRuntimeConfig();
   const baseUrl = configEnv.public.geonodeApi;
   const url = `${baseUrl}/upload/uploads/upload`;
   const form = formidable({ multiples: false });

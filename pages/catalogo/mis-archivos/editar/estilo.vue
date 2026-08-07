@@ -1,4 +1,5 @@
 <script setup>
+import SisdaiModal from '@centrogeomx/sisdai-componentes/src/componentes/modal/SisdaiModal.vue';
 import { useResourcesSupplements } from '~/composables/useResourcesSupplements';
 
 definePageMeta({
@@ -9,7 +10,8 @@ definePageMeta({
 });
 const storeCatalogo = useCatalogoStore();
 const storeResources = useResourcesCatalogoStore();
-const { getSLDs } = useResourcesSupplements();
+const { getSLDs, destroySLDs, setDefaultSLD, renameSLD, syncStylesFromGeoserver } =
+  useResourcesSupplements();
 const config = useRuntimeConfig();
 
 const { data } = useAuth();
@@ -24,20 +26,37 @@ const isLoading = ref(false);
 const loadedStylesStatus = ref({});
 const resourcestyles = ref([]);
 
-// Función que usa el nuevo endpoint
+const modalEliminar = ref(null);
+const estiloAEliminar = ref('');
+const defaultStyle = ref(null);
+const styleTitles = ref({});
+
+// Estado de edición inline de nombre
+const editingStyle = ref(null);
+const editingTitle = ref('');
+
+// Estado de sincronización
+const syncResult = ref(null);
+const isSyncing = ref(false);
+
+async function recargarEstilos() {
+  const styles = await getSLDs(resourceToEdit.value);
+  resourcestyles.value = styles.styleList;
+  defaultStyle.value = styles.defaultStyle;
+  styleTitles.value = styles.styleTitles || {};
+}
+
 async function guardarArchivo(files) {
   loadedStylesStatus.value = {};
   subidaExitosa.value = undefined;
   isLoading.value = true;
 
   const validFileList = {};
-  // Primero revisamos si los archivos son válidos
   for (const file of files) {
     const isValid = style_files.map((end) => file.name.endsWith(end)).includes(true);
     validFileList[file.name] = isValid;
   }
 
-  // Si los archivos son válidos, agregamos los sld
   if (!Object.values(validFileList).includes(false)) {
     for (const d of files) {
       loadedStylesStatus.value[d.name] = 'loading';
@@ -53,8 +72,7 @@ async function guardarArchivo(files) {
         body: formData,
       });
       loadedStylesStatus.value[fileName] = fileUpdateStatus;
-      const styles = await getSLDs(resourceToEdit.value);
-      resourcestyles.value = styles.styleList;
+      await recargarEstilos();
     }
   } else {
     dragNdDrop.value?.archivoNoValido();
@@ -62,10 +80,84 @@ async function guardarArchivo(files) {
   isLoading.value = false;
 }
 
+function abrirConfirmacionBorrar(style) {
+  estiloAEliminar.value = style;
+  modalEliminar.value?.abrirModal();
+}
+
+async function confirmarBorrarEstilo() {
+  isLoading.value = true;
+  const exito = await destroySLDs({
+    pk: selectedPk,
+    stylename: estiloAEliminar.value,
+    sourcetype: resourceToEdit.value.sourcetype,
+    token: data.value?.accessToken,
+  });
+
+  if (exito) {
+    await recargarEstilos();
+  }
+  modalEliminar.value?.cerrarModal();
+  isLoading.value = false;
+}
+
+async function establecerPredeterminado(style) {
+  isLoading.value = true;
+  const exito = await setDefaultSLD({
+    pk: selectedPk,
+    stylename: style,
+    token: data.value?.accessToken,
+  });
+  if (exito) {
+    await recargarEstilos();
+  }
+  isLoading.value = false;
+}
+
+function iniciarEdicion(style) {
+  editingStyle.value = style;
+  editingTitle.value = styleTitles.value[style] || style;
+}
+
+function cancelarEdicion() {
+  editingStyle.value = null;
+  editingTitle.value = '';
+}
+
+async function guardarNombreEstilo(style) {
+  if (!editingTitle.value.trim()) return;
+  isLoading.value = true;
+  const exito = await renameSLD({
+    pk: selectedPk,
+    stylename: style,
+    newTitle: editingTitle.value.trim(),
+    token: data.value?.accessToken,
+  });
+  if (exito) {
+    await recargarEstilos();
+  }
+  editingStyle.value = null;
+  editingTitle.value = '';
+  isLoading.value = false;
+}
+
+async function sincronizarDesdeGeoServer() {
+  isSyncing.value = true;
+  syncResult.value = null;
+  const resultado = await syncStylesFromGeoserver({
+    pk: selectedPk,
+    token: data.value?.accessToken,
+  });
+  syncResult.value = resultado;
+  if (resultado) {
+    await recargarEstilos();
+  }
+  isSyncing.value = false;
+}
+
 onMounted(async () => {
   resourceToEdit.value = await storeResources.fetchResourceByPk(selectedPk);
-  const styles = await getSLDs(resourceToEdit.value);
-  resourcestyles.value = styles.styleList;
+  await recargarEstilos();
   isLoadingGlobal.value = false;
 });
 </script>
@@ -126,20 +218,125 @@ onMounted(async () => {
                 ]"
               />
 
-              <h2 class="m-t-0">Estilo</h2>
-              <div>
+              <h2 class="m-t-0">Estilos de la capa</h2>
+              <div class="m-b-5">
                 <table class="tabla-condensada">
                   <thead>
                     <tr>
-                      <th>Estilos de la capa</th>
+                      <th>Nombre del estilo</th>
+                      <th class="alineacion-derecha">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr v-for="style in resourcestyles" :key="style">
-                      <td>{{ style }}</td>
+                      <td>
+                        <!-- Modo edición inline -->
+                        <div
+                          v-if="editingStyle === style"
+                          class="flex"
+                          style="gap: 0.5rem; align-items: center"
+                        >
+                          <input
+                            v-model="editingTitle"
+                            type="text"
+                            class="campo-texto"
+                            style="flex: 1"
+                            @keyup.enter="guardarNombreEstilo(style)"
+                            @keyup.escape="cancelarEdicion"
+                          />
+                          <button
+                            type="button"
+                            class="boton-pictograma boton-sin-contenedor-primario"
+                            aria-label="Guardar nombre"
+                            @click="guardarNombreEstilo(style)"
+                          >
+                            <span class="pictograma-aprobado" aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            class="boton-pictograma boton-sin-contenedor-secundario"
+                            aria-label="Cancelar edición"
+                            @click="cancelarEdicion"
+                          >
+                            <span class="pictograma-cerrar" aria-hidden="true" />
+                          </button>
+                        </div>
+                        <!-- Modo lectura -->
+                        <span v-else>
+                          {{ styleTitles[style] || style }}
+                          <span
+                            v-if="style === defaultStyle"
+                            class="texto-color-acento"
+                            style="font-size: 0.85em; margin-left: 0.4rem"
+                            >(predeterminado)</span
+                          >
+                        </span>
+                      </td>
+                      <td class="alineacion-derecha">
+                        <template v-if="editingStyle !== style">
+                          <!-- Editar nombre -->
+                          <button
+                            type="button"
+                            class="boton-pictograma boton-sin-contenedor-secundario"
+                            aria-label="Editar nombre del estilo"
+                            @click="iniciarEdicion(style)"
+                          >
+                            <span class="pictograma-editar" aria-hidden="true" />
+                          </button>
+                          <!-- Establecer como predeterminado -->
+                          <button
+                            v-if="style !== defaultStyle"
+                            type="button"
+                            class="boton-pictograma boton-sin-contenedor-secundario"
+                            aria-label="Establecer como predeterminado"
+                            :title="
+                              'Establecer \'' +
+                              (styleTitles[style] || style) +
+                              '\' como predeterminado'
+                            "
+                            @click="establecerPredeterminado(style)"
+                          >
+                            <span class="pictograma-estrella" aria-hidden="true" />
+                          </button>
+                          <!-- Eliminar (solo no-default) -->
+                          <button
+                            v-if="style !== defaultStyle"
+                            type="button"
+                            class="boton-pictograma boton-sin-contenedor-secundario"
+                            aria-label="Eliminar estilo"
+                            @click="abrirConfirmacionBorrar(style)"
+                          >
+                            <span class="pictograma-eliminar" aria-hidden="true" />
+                          </button>
+                        </template>
+                      </td>
                     </tr>
                   </tbody>
                 </table>
+              </div>
+
+              <!-- Sincronizar desde GeoServer -->
+              <div class="m-b-4">
+                <button
+                  type="button"
+                  class="boton-secundario"
+                  :disabled="isSyncing"
+                  @click="sincronizarDesdeGeoServer"
+                >
+                  <span v-if="isSyncing">Sincronizando...</span>
+                  <span v-else>Sincronizar estilos desde GeoServer</span>
+                </button>
+                <div
+                  v-if="syncResult !== null"
+                  class="fondo-color-confirmacion texto-color-confirmacion p-2 borde-redondeado-16 m-t-2"
+                  style="display: inline-block; margin-left: 0.5rem"
+                >
+                  {{ syncResult.synced }} sincronizados, {{ syncResult.already_registered }} ya
+                  registrados
+                  <span v-if="syncResult.errors?.length">
+                    · {{ syncResult.errors.length }} errores
+                  </span>
+                </div>
               </div>
 
               <p><b style="font-weight: bold">Agregar estilos, solo archivos .sld</b></p>
@@ -202,6 +399,32 @@ onMounted(async () => {
           </div>
         </div>
       </main>
+
+      <ClientOnly>
+        <SisdaiModal ref="modalEliminar">
+          <template #encabezado>
+            <h2 class="m-t-0">¿Deseas eliminar este estilo?</h2>
+          </template>
+          <template #cuerpo>
+            <p>
+              El estilo <b>{{ styleTitles[estiloAEliminar] || estiloAEliminar }}</b> será eliminado
+              permanentemente del servidor.
+            </p>
+            <div class="flex flex-contenido-final m-t-5">
+              <button
+                type="button"
+                class="boton-secundario m-r-2"
+                @click="modalEliminar?.cerrarModal()"
+              >
+                Cancelar
+              </button>
+              <button type="button" class="boton-primario" @click="confirmarBorrarEstilo">
+                Eliminar
+              </button>
+            </div>
+          </template>
+        </SisdaiModal>
+      </ClientOnly>
     </template>
   </UiLayoutPaneles>
 </template>

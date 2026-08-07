@@ -73,15 +73,6 @@ const aprobarProyecto = async () => {
 
   await storeLevantamiento.actualizarStatusProyecto(payload, route.params.id);
 
-  const payloadPrivacidad = {
-    isPrivate: false,
-  };
-
-  await storeLevantamiento.actualizarFormularioParticipantesProyecto(
-    payloadPrivacidad,
-    route.params.id
-  );
-
   modalAprobarProyecto.value.cerrarModal();
   modalProyectoAprobado.value.abrirModal();
 };

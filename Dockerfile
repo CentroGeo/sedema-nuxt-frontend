@@ -2,6 +2,7 @@
 FROM node:22 AS builder
 
 ENV NODE_ENV=production
+ENV NODE_OPTIONS=--max_old_space_size=4096
 
 WORKDIR /app
 
@@ -16,6 +17,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # --- copiar solo package.json primero ---
 COPY package*.json ./
 
+# scripts necesarios para postinstall
+COPY scripts/ ./scripts/
+
 # instalar dependencias
 RUN npm install --include=dev --legacy-peer-deps \
     && npm cache clean --force
@@ -24,10 +28,7 @@ RUN npm install --include=dev --legacy-peer-deps \
 COPY . .
 
 # compilar la aplicación
-RUN npm run build  \
-    && mv .output/ build_output \
-    && npm run clean \
-    && mv build_output/ .output/
+RUN npm run build
 
 
 # 🚀 Final stage

@@ -20,12 +20,76 @@ const storeLevantamiento = useLevantamientoStore();
 const modalCrearProyecto = ref(null);
 const imagenPreview = ref(null);
 const imagenProyecto = ref(null);
+const reinicioCargaImagen = ref(0);
+const errorImagen = ref('');
+const errorCrearProyecto = ref('');
+const tituloErrorCrearProyecto = ref('Revisa el formulario');
+const creandoProyecto = ref(false);
+
+const irACompartirProyecto = (idProyecto) => {
+  navigateTo({
+    path: `/levantamiento/proyectos/mis-proyectos/${idProyecto}`,
+    query: { seccion: 'participantes-permisos' },
+  });
+};
+
+const erroresNuevoProyecto = reactive({
+  nombre: '',
+  institucion: '',
+  categoria: '',
+  objetivo: '',
+  instrucciones: '',
+});
 
 async function guardarArchivo(archivo) {
+  if (!['image/jpeg', 'image/png'].includes(archivo?.type)) {
+    imagenProyecto.value = null;
+    errorImagen.value = 'Selecciona una imagen en formato JPG o PNG.';
+    return;
+  }
+  if (archivo.size > 5 * 1024 * 1024) {
+    imagenProyecto.value = null;
+    errorImagen.value = 'La imagen no debe superar los 5 MB.';
+    return;
+  }
+
+  // Conserva la imagen seleccionada y limpia el error de campo obligatorio.
   imagenProyecto.value = archivo;
+  errorImagen.value = '';
+  if (!Object.values(erroresNuevoProyecto).some(Boolean)) errorCrearProyecto.value = '';
 }
 
 const handleCrearProyecto = async () => {
+  errorCrearProyecto.value = '';
+  tituloErrorCrearProyecto.value = 'Revisa el formulario';
+
+  erroresNuevoProyecto.nombre = nuevoProyecto.nombre.trim()
+    ? ''
+    : 'Ingresa el nombre del proyecto.';
+  erroresNuevoProyecto.institucion = nuevoProyecto.institucion
+    ? ''
+    : 'Selecciona la institución a la que pertenece el proyecto.';
+  erroresNuevoProyecto.categoria = nuevoProyecto.categoria
+    ? ''
+    : 'Selecciona una categoría para el proyecto.';
+  erroresNuevoProyecto.objetivo = nuevoProyecto.objetivo.trim()
+    ? ''
+    : 'Describe el objetivo del proyecto.';
+  erroresNuevoProyecto.instrucciones = nuevoProyecto.instrucciones.trim()
+    ? ''
+    : 'Escribe las instrucciones para las personas participantes.';
+
+  // Evita enviar el formulario cuando falta la imagen de identificación.
+  errorImagen.value = imagenProyecto.value
+    ? ''
+    : 'Agrega una imagen de identificación para crear el proyecto.';
+
+  if (Object.values(erroresNuevoProyecto).some(Boolean) || errorImagen.value) {
+    errorCrearProyecto.value =
+      'Completa los campos señalados como obligatorios antes de crear el proyecto.';
+    return;
+  }
+
   const formData = new FormData();
 
   Object.entries(nuevoProyecto).forEach(([key, value]) => {
@@ -35,16 +99,36 @@ const handleCrearProyecto = async () => {
   formData.append('id_propietario', data.value?.user.email);
   formData.append('lider', data.value?.user.name);
 
+  // Agrega una marca de tiempo para evitar colisiones entre nombres de archivo.
   const timestamp = Date.now();
   const extension = imagenProyecto.value.name.split('.').pop();
   const baseName = imagenProyecto.value.name.replace(`.${extension}`, '');
-
   const nombreImagen = `${baseName}_${timestamp}.${extension}`;
 
   formData.append('image', imagenProyecto.value, nombreImagen);
 
-  await storeLevantamiento.guardarProyecto(formData);
-  modalCrearProyecto.value.cerrarModal();
+  creandoProyecto.value = true;
+  try {
+    await storeLevantamiento.guardarProyecto(formData);
+    modalCrearProyecto.value.cerrarModal();
+    Object.assign(nuevoProyecto, {
+      nombre: '',
+      institucion: '',
+      categoria: '',
+      objetivo: '',
+      instrucciones: '',
+    });
+    imagenProyecto.value = null;
+    imagenPreview.value = null;
+    reinicioCargaImagen.value += 1;
+  } catch (error) {
+    tituloErrorCrearProyecto.value = 'No pudimos crear el proyecto';
+    errorCrearProyecto.value =
+      error?.data?.message ||
+      'No pudimos crear el proyecto. Revisa la información e inténtalo nuevamente.';
+  } finally {
+    creandoProyecto.value = false;
+  }
 };
 
 const nuevoProyecto = reactive({
@@ -54,6 +138,20 @@ const nuevoProyecto = reactive({
   objetivo: '',
   instrucciones: '',
 });
+
+watch(
+  nuevoProyecto,
+  (valores) => {
+    Object.keys(erroresNuevoProyecto).forEach((campo) => {
+      if (String(valores[campo] || '').trim()) erroresNuevoProyecto[campo] = '';
+    });
+
+    if (!Object.values(erroresNuevoProyecto).some(Boolean) && !errorImagen.value) {
+      errorCrearProyecto.value = '';
+    }
+  },
+  { deep: true }
+);
 
 const proyectosFiltrado = ref([]);
 
@@ -194,15 +292,13 @@ onBeforeUnmount(() => {
               >
                 Configurar proyecto
               </NuxtLink>
-              <button
-                class="boton-secundario boton-chico boton-accion-proyecto m-b-3 fondo-color-primario"
-                disabled
-                type="button"
-              >
-                Aportar
-              </button>
               <div class="flex flex-contenido-final proyecto-acciones">
-                <button class="boton-pictograma boton-sin-contenedor-primario">
+                <button
+                  class="boton-pictograma boton-sin-contenedor-primario"
+                  type="button"
+                  aria-label="Compartir proyecto"
+                  @click="irACompartirProyecto(proyecto.id)"
+                >
                   <span class="pictograma-compartir" aria-hidden="true"></span>
                 </button>
                 <button
@@ -227,20 +323,44 @@ onBeforeUnmount(() => {
         <SisdaiModal ref="modalCrearProyecto" class="modal-grande">
           <template #encabezado> <h3>Nuevo proyecto</h3> </template>
           <template #cuerpo>
-            <div class="p-3">
+            <div class="formulario-creacion p-3">
+              <div
+                v-if="errorCrearProyecto"
+                class="mensaje-formulario flex fondo-color-error texto-color-error borde borde-color-error borde-redondeado-8 p-2 m-b-3"
+                role="alert"
+                aria-live="assertive"
+              >
+                <span class="pictograma-alerta pictograma-mediano" aria-hidden="true" />
+                <div>
+                  <strong>{{ tituloErrorCrearProyecto }}</strong>
+                  <p class="m-y-0">{{ errorCrearProyecto }}</p>
+                </div>
+              </div>
               <ClientOnly>
                 <SisdaiCampoBase
                   v-model="nuevoProyecto.nombre"
                   etiqueta="Nombre del proyecto"
                   ejemplo="Escribe el nombre de tu proyecto"
                   :es_etiqueta_visible="true"
-                  :es_obligatorio="false"
+                  :es_obligatorio="true"
+                  :texto_error="erroresNuevoProyecto.nombre"
                   class="m-b-2"
+                  :class="{
+                    'campo-con-error': erroresNuevoProyecto.nombre,
+                    'texto-color-error': erroresNuevoProyecto.nombre,
+                  }"
                 />
                 <SisdaiSelector
                   v-model="nuevoProyecto.institucion"
                   etiqueta="Institución a la que pertenece"
+                  instruccional="Selecciona una institución"
+                  :es_obligatorio="true"
+                  :texto_error="erroresNuevoProyecto.institucion"
                   class="m-b-2"
+                  :class="{
+                    'campo-con-error': erroresNuevoProyecto.institucion,
+                    'texto-color-error': erroresNuevoProyecto.institucion,
+                  }"
                 >
                   <option value="inst_1">Institución Uno</option>
                   <option value="inst_2">Institución Dos</option>
@@ -249,7 +369,14 @@ onBeforeUnmount(() => {
                 <SisdaiSelector
                   v-model="nuevoProyecto.categoria"
                   etiqueta="Categoría del proyecto"
+                  instruccional="Selecciona una categoría"
+                  :es_obligatorio="true"
+                  :texto_error="erroresNuevoProyecto.categoria"
                   class="m-b-2"
+                  :class="{
+                    'campo-con-error': erroresNuevoProyecto.categoria,
+                    'texto-color-error': erroresNuevoProyecto.categoria,
+                  }"
                 >
                   <option value="cat_1">Categoría Uno</option>
                   <option value="cat_2">Categoría Dos</option>
@@ -260,29 +387,59 @@ onBeforeUnmount(() => {
                   etiqueta="Objetivo del proyecto"
                   ejemplo="Describe brevemente tu proyecto"
                   :es_etiqueta_visible="true"
-                  :es_obligatorio="false"
+                  :es_obligatorio="true"
+                  :texto_error="erroresNuevoProyecto.objetivo"
                   class="m-b-2"
+                  :class="{
+                    'campo-con-error': erroresNuevoProyecto.objetivo,
+                    'texto-color-error': erroresNuevoProyecto.objetivo,
+                  }"
                 />
                 <SisdaiAreaTexto
                   v-model="nuevoProyecto.instrucciones"
                   etiqueta="Instrucciones para participantes"
-                  ejemplo="Describe brevemente tu proyecto"
+                  ejemplo="Indica cómo deben participar y qué información deben aportar"
                   :es_etiqueta_visible="true"
-                  :es_obligatorio="false"
+                  :es_obligatorio="true"
+                  :texto_error="erroresNuevoProyecto.instrucciones"
                   class="m-b-2"
+                  :class="{
+                    'campo-con-error': erroresNuevoProyecto.instrucciones,
+                    'texto-color-error': erroresNuevoProyecto.instrucciones,
+                  }"
                 />
-                <label>Imagen de identificación del proyecto</label>
-                <IaElementoDragNdDrop
-                  ref="dragNdDrop"
-                  :imagen-inicial="imagenPreview"
-                  @pasar-archivo="(i) => guardarArchivo(i)"
-                />
+                <div class="campo-imagen" :class="{ 'campo-imagen-error': errorImagen }">
+                  <label> Imagen de identificación del proyecto </label>
+                  <p class="formulario-ayuda m-t-0">
+                    Selecciona una imagen JPG o PNG de máximo 5 MB.
+                  </p>
+                  <IaElementoDragNdDrop
+                    :key="reinicioCargaImagen"
+                    ref="dragNdDrop"
+                    :imagen-inicial="imagenPreview"
+                    @pasar-archivo="(i) => guardarArchivo(i)"
+                  />
+                </div>
+                <p
+                  v-if="errorImagen"
+                  class="mensaje-campo texto-color-error fondo-color-error borde borde-color-error borde-redondeado-8 p-1 m-t-1"
+                  role="alert"
+                  aria-live="assertive"
+                >
+                  <span class="pictograma-alerta m-r-1" aria-hidden="true" />
+                  {{ errorImagen }}
+                </p>
               </ClientOnly>
             </div>
           </template>
           <template #pie>
-            <button class="boton-primario boton-chico" type="button" @click="handleCrearProyecto">
-              Crear proyecto
+            <button
+              class="boton-primario boton-chico"
+              type="button"
+              :disabled="creandoProyecto"
+              @click="handleCrearProyecto"
+            >
+              {{ creandoProyecto ? 'Creando proyecto…' : 'Crear proyecto' }}
             </button>
             <button
               class="boton-secundario boton-chico"
@@ -400,6 +557,41 @@ onBeforeUnmount(() => {
 
 .proyecto-acciones {
   gap: 8px;
+}
+
+.mensaje-formulario {
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.mensaje-formulario p {
+  margin-top: 0.25rem;
+}
+
+.campo-imagen-error {
+  border-left: 4px solid currentColor;
+  color: var(--color-error, inherit);
+  padding-left: 1rem;
+}
+
+.mensaje-campo {
+  display: flex;
+  align-items: center;
+}
+
+.campo-con-error :deep(input),
+.campo-con-error :deep(select),
+.campo-con-error :deep(textarea) {
+  border-color: currentColor;
+  color: inherit;
+}
+
+.campo-con-error :deep(.formulario-ayuda) {
+  color: inherit;
+}
+
+.formulario-creacion :deep(.formulario-obligatoriedad) {
+  display: none;
 }
 </style>
 

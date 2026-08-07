@@ -60,8 +60,19 @@ const resourcesDict = computed(() => ({
   },
 }));
 
+function getTotalLabel(type) {
+  const { total, keyword } = resourcesDict.value[type];
+  return `${total ?? 0} ${keyword}`;
+}
+
 async function updateSelection(type) {
-  const currentPk = resourcesDict.value[type].latest.pk;
+  const latestResource = resourcesDict.value[type].latest;
+
+  if (!latestResource) {
+    return;
+  }
+
+  const currentPk = latestResource.pk;
   if (type === 'dataTable' || type === 'document') {
     storeSelected.add(new SelectedResource({ pk: currentPk }), null, type);
   } else {
@@ -94,11 +105,7 @@ async function updateSelection(type) {
                 <div class="tarjeta-cuerpo">
                   <p class="tarjeta-titulo">{{ resourcesDict[type].title }}</p>
                   <p class="tarjeta-etiqueta">
-                    {{
-                      !resourcesDict[type].total
-                        ? '...cargando'
-                        : resourcesDict[type].total + ' capas'
-                    }}
+                    {{ getTotalLabel(type) }}
                   </p>
                 </div>
               </nuxt-link>
@@ -117,7 +124,7 @@ async function updateSelection(type) {
                 />
                 <div class="tarjeta-cuerpo">
                   <p class="tarjeta-etiqueta">{{ resourcesDict[type].title }}</p>
-                  <p v-if="!resourcesDict[type].latest">...cargando</p>
+                  <p v-if="!resourcesDict[type].latest">Sin elementos recientes</p>
                   <p v-if="resourcesDict[type].latest" class="tarjeta-titulo">
                     {{ resourcesDict[type].latest.title }}
                   </p>
@@ -127,7 +134,7 @@ async function updateSelection(type) {
                     </div>
                   </span>
                 </div>
-                <div class="tarjeta-pie">
+                <div v-if="resourcesDict[type].latest" class="tarjeta-pie">
                   <button
                     class="boton boton-primario boton-chico"
                     aria-label="Ver capa en visualizador"

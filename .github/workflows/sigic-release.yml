@@ -6,7 +6,6 @@ on:
       - 'v*'
   workflow_dispatch:
 
-
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -30,12 +29,6 @@ jobs:
           fi
           echo "TAG=$TAG" >> $GITHUB_OUTPUT
 
-      - name: Set image name (lowercase)
-        id: image
-        run: |
-          IMAGE=$(echo "ghcr.io/${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          echo "IMAGE=$IMAGE" >> $GITHUB_OUTPUT
-
       - name: Login to GHCR
         run: echo "${{ secrets.GHCR_GEOINTSIGIC_PAT }}" | docker login ghcr.io -u geointsigic --password-stdin
 
@@ -43,13 +36,13 @@ jobs:
       - name: Build image
         run: |
           docker build \
-            -t ${{ steps.image.outputs.IMAGE }}:${{ steps.tag.outputs.TAG }} \
+            -t ${{ vars.IMAGE_NAME }}:${{ steps.tag.outputs.TAG }} \
             .
 
       # ✅ TAG + PUSH
       - name: Tag & Push image
         run: |
-          IMAGE="${{ steps.image.outputs.IMAGE }}"
+          IMAGE="${{ vars.IMAGE_NAME }}"
           VERSION="${{ steps.tag.outputs.TAG }}"
 
           # push versión
@@ -60,16 +53,3 @@ jobs:
 
           # push latest
           docker push "$IMAGE:latest"
-
-  deploy:
-      needs: build-and-push
-      runs-on: [self-hosted, deploy-release]
-      steps:
-        - name: Login to GHCR
-          run: echo "${{ secrets.GHCR_GEOINTSIGIC_PAT }}" | docker login ghcr.io -u geointsigic --password-stdin
-
-        - name: Pull and restart frontend
-          run: |
-            cd /opt/sigic-bundle
-            docker compose pull frontend-admin frontend-app
-            docker compose up -d frontend-admin frontend-app

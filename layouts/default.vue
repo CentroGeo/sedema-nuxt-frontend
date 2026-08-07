@@ -1,13 +1,25 @@
 <script setup>
-import SisdaiMenuAccesibilidad from '@centrogeomx/sisdai-componentes/src/componentes/menu-accesibilidad/SisdaiMenuAccesibilidad.vue';
+import SisdaiMenuAccesibilidad from '~/components/base/SisdaiMenuAccesibilidad.vue';
 import SisdaiNavegacionGobMx from '@centrogeomx/sisdai-componentes/src/componentes/navegacion-gob-mx/SisdaiNavegacionGobMx.vue';
-import SisdaiPiePaginaGobMx from '@centrogeomx/sisdai-componentes/src/componentes/pie-pagina-gob-mx/SisdaiPiePaginaGobMx.vue';
+import SisdaiPiePaginaGobMx from '~/components/base/SisdaiPiePaginaGobMxCustom.vue';
 import MainNavegacion from '~/components/base/MainNavegacion.vue';
 import { useAccesibilidadStore } from '~/stores/accesibilidad';
+import { useLandingBuilderStore } from '~/stores/landingBuilder';
 
 const accesibilidadStore = useAccesibilidadStore();
+const storeLandingBuilder = useLandingBuilderStore();
 const route = useRoute();
 const currentPath = computed(() => route.fullPath);
+
+// La barra de Gobierno de México puede desactivarse por página desde el
+// constructor de páginas (ver LandingBuilderPaginaIdentidad); en el resto del
+// sitio se muestra siempre, como antes.
+const esConstructor = computed(() => route.path.startsWith('/landing-builder'));
+const mostrarBarraGobMx = computed(() =>
+  esConstructor.value
+    ? storeLandingBuilder.mostrarBarraGobMx
+    : storeLandingBuilder.mostrarBarraGobMxPublica
+);
 
 useHead(() => ({
   meta: [
@@ -20,7 +32,7 @@ useHead(() => ({
 <template>
   <div>
     <a href="#principal" class="ir-contenido-principal"> Ir a contenido principal </a>
-    <SisdaiNavegacionGobMx />
+    <SisdaiNavegacionGobMx v-if="mostrarBarraGobMx" />
 
     <MainNavegacion />
 

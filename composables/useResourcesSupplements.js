@@ -3,6 +3,18 @@ export function useResourcesSupplements() {
   const { gnoxyFetch } = useGnoxyUrl();
 
   /**
+   * Devuelve el typename correcto para peticiones WMS/WFS.
+   * Para recursos REMOTE usa remote_typename (sin sufijo _h{id}).
+   * Para recursos locales usa resource.alternate tal cual.
+   */
+  function getLayerName(resource) {
+    if (resource?.sourcetype === 'REMOTE' && resource?.remote_typename) {
+      return resource.remote_typename;
+    }
+    return resource?.alternate;
+  }
+
+  /**
    * Regresa el servidor en el que esta alojado un recurso
    * @param {Object} resource
    * @returns {String}
@@ -23,7 +35,7 @@ export function useResourcesSupplements() {
     if (resource.sourcetype === 'REMOTE') {
       return getWMSserver(resource);
     } else {
-      return `${config.public.geonodeUrl}/gs/ows`;
+      return `${config.public.geoserverUrl}/ows?`;
     }
   }
 
@@ -141,7 +153,7 @@ export function useResourcesSupplements() {
       service: 'WFS',
       version: '1.0.0',
       request: 'GetFeature',
-      typeName: resource.alternate,
+      typeName: getLayerName(resource),
       maxFeatures: 1,
       outputFormat: 'application/json',
     });
@@ -255,7 +267,7 @@ export function useResourcesSupplements() {
    * @returns {Promise<String, Array>}
    */
   async function fetchRemoteStyles(resource) {
-    const targetLayerName = resource.alternate;
+    const targetLayerName = getLayerName(resource);
     const targetLayerStyles = [];
     let targetLayerDefaultStyle = null;
     const server = getWMSserver(resource);
@@ -317,19 +329,23 @@ export function useResourcesSupplements() {
   async function getSLDs(resource) {
     let styleList = [];
     let defaultStyle = null;
+    let styleTitles = {};
 
     try {
       if (resource.sourcetype !== 'REMOTE') {
-        const stylesURL = `${config.public.geonodeApi}/datasets/${resource.pk}/sldstyles/`;
+        // Se añade un timestamp (?t=Date.now()) para evitar que el navegador devuelva una respuesta
+        // vieja de su caché cuando se actualizan o suben nuevos estilos.
+        const stylesURL = `${config.public.geonodeApi}/datasets/${resource.pk}/sldstyles/?t=${Date.now()}`;
         const stylesRes = await gnoxyFetch(stylesURL);
 
         if (!stylesRes.ok) {
-          //console.error('Falló la petición de estilos de:', resource.title);
-          return { defaultStyle, styleList };
+          return { defaultStyle, styleList, styleTitles };
         }
 
         const stylesData = await stylesRes.json();
         defaultStyle = stylesData.default_style;
+        styleTitles = stylesData.style_titles || {};
+
         stylesData.styles.forEach((d) => {
           const optionList = d.split(':');
           if (optionList.length > 1 && !styleList.includes(optionList[1])) {
@@ -342,16 +358,150 @@ export function useResourcesSupplements() {
         if (!styleList.includes(defaultStyle)) {
           styleList.push(defaultStyle);
         }
-        return { defaultStyle, styleList };
+        return { defaultStyle, styleList, styleTitles };
       } else {
         const { targetLayerDefaultStyle, targetLayerStyles } = await fetchRemoteStyles(resource);
         defaultStyle = targetLayerDefaultStyle;
         styleList = targetLayerStyles;
-        return { defaultStyle, styleList };
+        return { defaultStyle, styleList, styleTitles };
       }
     } catch {
-      //console.error('Falló la petición general de estilos de:', resource.title);
-      return { defaultStyle, styleList };
+      return { defaultStyle, styleList, styleTitles };
+    }
+  }
+
+  /**
+   * Elimina un estilo (SLD) de un recurso local.
+   * @param {Object} params
+   * @param {string|number} params.pk Identificador del recurso
+   * @param {string} params.stylename Nombre del estilo a eliminar
+   * @param {string} params.sourcetype Tipo de fuente del recurso (debe ser distinto a REMOTE)
+   * @param {string} params.token Token de autenticación
+   * @returns {Promise<boolean>} True si se eliminó con éxito, False en caso contrario
+   */
+  async function destroySLDs({ pk, stylename, sourcetype, token }) {
+    try {
+      if (sourcetype !== 'REMOTE') {
+        const destroyStylesURL = `${config.public.geonodeApi}/datasets/${pk}/sldstyles/${stylename}`;
+
+        const stylesRes = await gnoxyFetch(destroyStylesURL, {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        return stylesRes.ok;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error al eliminar SLD:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Establece un estilo como predeterminado de un recurso local.
+   * @param {Object} params
+   * @param {string|number} params.pk Identificador del recurso
+   * @param {string} params.stylename Nombre técnico del estilo
+   * @param {string} params.token Token de autenticación
+   * @returns {Promise<boolean>} True si se actualizó con éxito
+   */
+  async function setDefaultSLD({ pk, stylename, token }) {
+    try {
+      const url = `${config.public.geonodeApi}/datasets/${pk}/sldstyles/set-default/`;
+      const res = await gnoxyFetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ style: stylename }),
+      });
+      return res.ok;
+    } catch (error) {
+      console.error('Error al establecer estilo predeterminado:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Actualiza el nombre visible (sld_title) de un estilo en GeoNode.
+   * @param {Object} params
+   * @param {string|number} params.pk Identificador del recurso
+   * @param {string} params.stylename Nombre técnico del estilo
+   * @param {string} params.newTitle Nuevo nombre visible
+   * @param {string} params.token Token de autenticación
+   * @returns {Promise<boolean>} True si se actualizó con éxito
+   */
+  async function renameSLD({ pk, stylename, newTitle, token }) {
+    try {
+      const url = `${config.public.geonodeApi}/datasets/${pk}/sldstyles/${stylename}/`;
+      const res = await gnoxyFetch(url, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ sld_title: newTitle }),
+      });
+      return res.ok;
+    } catch (error) {
+      console.error('Error al renombrar estilo:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Importa metadatos desde un archivo XML estándar (ISO 19139 o Dublin Core).
+   * El backend parsea el archivo y retorna los campos para pre-llenar el formulario.
+   * @param {Object} params
+   * @param {string|number} params.pk Identificador del recurso
+   * @param {File} params.file Archivo XML a procesar
+   * @param {string} params.token Token de autenticación
+   * @returns {Promise<{format: string, fields: Object}|null>}
+   */
+  async function importMetadataFromXML({ pk, file, token }) {
+    try {
+      const formData = new FormData();
+      formData.append('xml_file', file);
+      formData.append('pk', String(pk));
+      formData.append('token', token ?? '');
+      const result = await $fetch('/api/importar-metadatos', {
+        method: 'POST',
+        body: formData,
+      });
+      return result;
+    } catch (error) {
+      console.error('Error al importar metadatos desde XML:', error);
+      const status = error?.status ?? error?.statusCode;
+      const msg = error?.data?.message ?? error?.statusMessage ?? error?.message ?? '';
+      return { _error: true, status, message: msg };
+    }
+  }
+
+  /**
+   * Sincroniza estilos de GeoServer que no tienen registro en GeoNode.
+   * @param {Object} params
+   * @param {string|number} params.pk Identificador del recurso
+   * @param {string} params.token Token de autenticación
+   * @returns {Promise<{synced: number, already_registered: number, errors?: string[]}|null>}
+   */
+  async function syncStylesFromGeoserver({ pk, token }) {
+    try {
+      const url = `${config.public.geonodeApi}/datasets/${pk}/sldstyles/sync-from-geoserver/`;
+      const res = await gnoxyFetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (error) {
+      console.error('Error al sincronizar estilos desde GeoServer:', error);
+      return null;
     }
   }
 
@@ -414,6 +564,7 @@ export function useResourcesSupplements() {
 
           data[index] = {
             id: h.harvester_id,
+            service_id: h.id,
             title: h.title,
             status: harvesterStatus,
             total_resources: totalResources,
@@ -452,6 +603,7 @@ export function useResourcesSupplements() {
   }
 
   return {
+    getLayerName,
     getWMSserver,
     findServer,
     buildArcgisLayerRequest,
@@ -462,6 +614,11 @@ export function useResourcesSupplements() {
     defineGeomType,
     fetchRemoteStyles,
     getSLDs,
+    destroySLDs,
+    setDefaultSLD,
+    renameSLD,
+    syncStylesFromGeoserver,
+    importMetadataFromXML,
     fetchByPk,
     fetchRemoteServices,
     filteredByServerType,

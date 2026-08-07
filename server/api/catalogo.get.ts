@@ -1,6 +1,5 @@
-const config = useRuntimeConfig();
-
 export default defineEventHandler(async (event) => {
+  const config = useRuntimeConfig();
   const api = `${config.public.geonodeApi}/resources`;
 
   let allResults: object[] = [];

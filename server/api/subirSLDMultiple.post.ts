@@ -1,8 +1,7 @@
 import formidable from 'formidable';
 import { promises as fsp } from 'fs';
-const config = useRuntimeConfig();
-
 export default defineEventHandler(async (event) => {
+  const config = useRuntimeConfig();
   const form = formidable({ multiples: false });
   const data = await new Promise<{
     // @ts-ignore

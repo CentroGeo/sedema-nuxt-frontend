@@ -25,7 +25,7 @@ const inputCategories = computed({
   set: (value) => storeFilters.updateFilter('categories', value),
 });
 
-const categoriesDict = {
+const ogcCategoriesDict = {
   Biota: 'biota',
   Boundaries: 'boundaries',
   'Climatology Meteorology Atmosphere': 'climatologyMeteorologyAtmosphere',
@@ -46,7 +46,14 @@ const categoriesDict = {
   Structure: 'structure',
   Transportation: 'transportation',
   'Utilities Communication': 'utilitiesCommunication',
-  //'Sin Clasificar': 'Sin clasificar',
+};
+
+const sigicCategoriesDict = {
+  'Medio ambiente y recursos naturales': 'medioAmbienteRecursosNaturales',
+  'Infraestructura y servicios urbanos regionales': 'infraestructuraServiciosUrbanosRegionales',
+  'Territorio, límites y catastro': 'territorioLimitesCatastro',
+  'Sociedad, demografía y economía': 'sociedadDemografiaEconomia',
+  'Sensores remotos y mapas base': 'sensoresRemotosMapasBase',
 };
 function abrirModalBusqueda() {
   modalBusqueda.value?.abrirModal();
@@ -69,16 +76,30 @@ defineExpose({
       </template>
 
       <template #cuerpo>
-        <label for="filtro-categoria">Categoria</label>
+        <label for="filtro-categoria">Categoría</label>
         <div class="grupo-categoria p-1">
+          <p class="etiqueta m-x-1 m-b-0 m-t-1">OGC</p>
           <div class="flex p-1" style="gap: 0px">
             <SisdaiCasillaVerificacion
-              v-for="(category, index) in Object.keys(categoriesDict)"
-              :key="`${index}-category`"
+              v-for="(category, index) in Object.keys(ogcCategoriesDict)"
+              :key="`ogc-${index}`"
               v-model="inputCategories"
               name="filtro-categoria"
-              :value="categoriesDict[category]"
+              :value="ogcCategoriesDict[category]"
               :etiqueta="categoriesInSpanish[category]"
+              class="opcion-checkbox"
+            />
+          </div>
+
+          <p class="etiqueta m-x-1 m-b-0 m-t-2">Otras categorías</p>
+          <div class="flex p-1" style="gap: 0px">
+            <SisdaiCasillaVerificacion
+              v-for="(category, index) in Object.keys(sigicCategoriesDict)"
+              :key="`sigic-${index}`"
+              v-model="inputCategories"
+              name="filtro-categoria"
+              :value="sigicCategoriesDict[category]"
+              :etiqueta="category"
               class="opcion-checkbox"
             />
           </div>

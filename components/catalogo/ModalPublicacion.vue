@@ -76,6 +76,29 @@ function checkServerType() {
   }
 }
 
+const storeMetadatos = useEditedMetadataStore();
+const modalErrorCategorias = ref(null);
+const mensajesErrorCategoria = ref([]);
+
+function validarCategoriasBasicos() {
+  const errores = [];
+  if (!storeMetadatos.metadata.categoriaOGC) {
+    errores.push('Debes seleccionar una Categoría OGC.');
+  }
+  if (!storeMetadatos.metadata.categoriaSIGIC) {
+    errores.push('Debes seleccionar una Categoría SIGIC.');
+  }
+  if (!storeMetadatos.metadata.category) {
+    errores.push('Debes indicar qué categoría deseas que se visualice.');
+  }
+  if (errores.length > 0) {
+    mensajesErrorCategoria.value = errores;
+    modalErrorCategorias.value?.abrirModal();
+    return false;
+  }
+  return true;
+}
+
 const estatus = ref(true);
 /**
  * Confirma la solicitud de publicación, cierra los modales, realiza la
@@ -253,8 +276,10 @@ onMounted(() => {
               type="button"
               class="boton-primario texto-centrado"
               @click="
-                modalMetaBasicos.cerrarModal();
-                modalMetaLicencias.abrirModal();
+                if (validarCategoriasBasicos()) {
+                  modalMetaBasicos.cerrarModal();
+                  modalMetaLicencias.abrirModal();
+                }
               "
             >
               Siguiente
@@ -473,6 +498,25 @@ onMounted(() => {
             </button>
           </div>
         </div>
+      </template>
+    </SisdaiModal>
+
+    <SisdaiModal ref="modalErrorCategorias">
+      <template #encabezado>
+        <h2>Campos obligatorios incompletos</h2>
+      </template>
+      <template #cuerpo>
+        <p>Para continuar debes completar los siguientes campos:</p>
+        <ul>
+          <li v-for="(msg, i) in mensajesErrorCategoria" :key="i" class="texto-color-error">
+            {{ msg }}
+          </li>
+        </ul>
+      </template>
+      <template #pie>
+        <button type="button" class="boton-primario" @click="modalErrorCategorias.cerrarModal()">
+          Entendido
+        </button>
       </template>
     </SisdaiModal>
   </ClientOnly>

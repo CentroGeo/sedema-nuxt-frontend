@@ -4,7 +4,7 @@ import { buildUrl } from '~/utils/consulta';
 export const useCatalogoStore = defineStore('catalogo', () => {
   const config = useRuntimeConfig();
   const { data, status } = useAuth();
-  const userEmail = data.value?.user.email;
+  const userEmail = computed(() => data.value?.user.email);
   const estaLogueado = computed(() => status.value === 'authenticated');
 
   return {
@@ -22,7 +22,7 @@ export const useCatalogoStore = defineStore('catalogo', () => {
         const { gnoxyFetch } = useGnoxyUrl();
         const queryParams = {
           page_size: 1,
-          'filter{email}': userEmail,
+          'filter{email}': userEmail.value,
         };
 
         const url = buildUrl(`${config.public.geonodeApi}/users`, queryParams);

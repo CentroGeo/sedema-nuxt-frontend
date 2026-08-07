@@ -85,5 +85,11 @@ const pksSeleccionados = computed({
   max-height: 200px;
   overflow-y: auto;
   scrollbar-width: thin;
+
+  :deep(label) {
+    overflow-wrap: break-word !important;
+    word-break: break-all !important;
+    white-space: normal !important;
+  }
 }
 </style>

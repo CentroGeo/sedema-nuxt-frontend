@@ -2,16 +2,23 @@
 defineProps({
   name: {
     type: String,
+    default: '',
   },
   value: {
     type: String,
+    default: '',
   },
   label: {
     type: String,
+    default: '',
   },
-  modelValue: { type: String },
+  modelValue: {
+    type: String,
+    default: '',
+  },
   description: {
     type: String,
+    default: '',
   },
 });
 

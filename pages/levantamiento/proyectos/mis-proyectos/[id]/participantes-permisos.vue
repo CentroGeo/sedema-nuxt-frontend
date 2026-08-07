@@ -37,7 +37,7 @@ const permisos = [
     description: 'Puede revisar, comentar y aprobar cambios en el proyecto',
   },
   {
-    value: 'participar',
+    value: 'aporta',
     label: 'Participar',
     description: 'Puede contribuir activamente con aportes de información',
   },
@@ -54,7 +54,29 @@ const route = useRoute();
 const participante = reactive({
   email: '',
   rol: '',
+  mensaje: '',
 });
+
+const enviandoInvitacion = ref(false);
+const estadoInvitacion = reactive({
+  tipo: '',
+  mensaje: '',
+});
+const erroresInvitacion = reactive({
+  email: '',
+  rol: '',
+  mensaje: '',
+});
+const guardandoPrivacidad = ref(false);
+const estadoPrivacidad = reactive({
+  tipo: '',
+  mensaje: '',
+});
+const estadoGestionParticipantes = reactive({
+  tipo: '',
+  mensaje: '',
+});
+const procesandoParticipante = ref(false);
 
 const proyecto = ref(null);
 
@@ -64,6 +86,7 @@ watch(
     if (!email) return;
 
     proyecto.value = await storeLevantamiento.obtenerProyectoPorId(email, route.params.id);
+    await storeLevantamiento.obtenerParticipantesPorProyecto(email, route.params.id);
   },
   { immediate: true }
 );
@@ -71,9 +94,12 @@ watch(
 const privacidadSeleccionada = ref('privado');
 
 watch(
-  () => proyecto.value?.es_privada,
-  (esPrivada) => {
-    if (esPrivada === true) {
+  () => [proyecto.value?.es_privada, proyecto.value?.status],
+  ([esPrivada, status]) => {
+    // Conserva la selección pública mientras el proyecto espera aprobación.
+    if (status === 'EN REVISION') {
+      privacidadSeleccionada.value = 'publico';
+    } else if (esPrivada === true) {
       privacidadSeleccionada.value = 'privado';
     } else if (esPrivada === false) {
       privacidadSeleccionada.value = 'publico';
@@ -82,19 +108,71 @@ watch(
   { immediate: true }
 );
 
-onMounted(() => {
-  storeLevantamiento.obtenerParticipantesPorProyecto(data.value?.user.email, route.params.id);
-});
+const proyectoEnRevision = computed(() => proyecto.value?.status === 'EN REVISION');
+
+const limpiarErrorInvitacion = (campo) => {
+  erroresInvitacion[campo] = '';
+  if (!Object.values(erroresInvitacion).some(Boolean)) {
+    estadoInvitacion.tipo = '';
+    estadoInvitacion.mensaje = '';
+  }
+};
+
+watch(() => participante.email, (valor) => valor.trim() && limpiarErrorInvitacion('email'));
+watch(() => participante.rol, (valor) => valor && limpiarErrorInvitacion('rol'));
+watch(() => participante.mensaje, (valor) => valor.trim() && limpiarErrorInvitacion('mensaje'));
 
 const agregarParticipante = async () => {
-  await storeLevantamiento.agregarParticipanteProyecto(
-    data.value?.user.email,
-    participante.email,
-    participante.rol,
-    route.params.id
-  );
+  estadoInvitacion.tipo = '';
+  estadoInvitacion.mensaje = '';
 
-  await storeLevantamiento.obtenerParticipantesPorProyecto(data.value?.user.email, route.params.id);
+  const correo = participante.email.trim();
+  erroresInvitacion.email = !correo
+    ? 'Ingresa el correo electrónico de la persona participante.'
+    : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)
+      ? ''
+      : 'Ingresa un correo electrónico válido.';
+  erroresInvitacion.rol = participante.rol ? '' : 'Selecciona el permiso de la persona participante.';
+  erroresInvitacion.mensaje = participante.mensaje.trim()
+    ? ''
+    : 'Escribe el mensaje de invitación.';
+
+  if (Object.values(erroresInvitacion).some(Boolean)) {
+    estadoInvitacion.tipo = 'error';
+    estadoInvitacion.mensaje =
+      'Completa el correo, el permiso y el mensaje de invitación antes de continuar.';
+    return;
+  }
+
+  enviandoInvitacion.value = true;
+  try {
+    // Envía el permiso canónico y el mensaje personalizado de la invitación.
+    await storeLevantamiento.agregarParticipanteProyecto(
+      data.value?.user.email,
+      correo,
+      participante.rol,
+      route.params.id,
+      participante.mensaje.trim()
+    );
+
+    await storeLevantamiento.obtenerParticipantesPorProyecto(
+      data.value?.user.email,
+      route.params.id
+    );
+    // Limpia el formulario únicamente después de una invitación exitosa.
+    participante.email = '';
+    participante.rol = '';
+    participante.mensaje = '';
+    estadoInvitacion.tipo = 'confirmacion';
+    estadoInvitacion.mensaje = 'La persona fue agregada al proyecto correctamente.';
+  } catch (error) {
+    estadoInvitacion.tipo = 'error';
+    estadoInvitacion.mensaje =
+      error?.data?.message ||
+      'No pudimos agregar a la persona. Revisa los datos e inténtalo nuevamente.';
+  } finally {
+    enviandoInvitacion.value = false;
+  }
 };
 
 const formatearFecha = (fechaISO) => {
@@ -107,6 +185,7 @@ const formatearFecha = (fechaISO) => {
   return fecha;
 };
 
+
 const modalCambiarPermiso = ref(null);
 const participanteSeleccionado = ref(null);
 const permisoSeleccionado = ref('');
@@ -118,15 +197,27 @@ const abrirModalCambiarPermiso = (participante) => {
 };
 
 const actualizarPermiso = async () => {
-  await storeLevantamiento.actualizarParticipanteProyecto(
-    data.value?.user.email,
-    permisoSeleccionado.value,
-    route.params.id,
-    participanteSeleccionado.value.id
-  );
-
-  await storeLevantamiento.obtenerParticipantesPorProyecto(data.value?.user.email, route.params.id);
-  modalCambiarPermiso.value.cerrarModal();
+  estadoGestionParticipantes.tipo = '';
+  estadoGestionParticipantes.mensaje = '';
+  procesandoParticipante.value = true;
+  try {
+    await storeLevantamiento.actualizarParticipanteProyecto(
+      data.value?.user.email,
+      permisoSeleccionado.value,
+      route.params.id,
+      participanteSeleccionado.value.id
+    );
+    await storeLevantamiento.obtenerParticipantesPorProyecto(data.value?.user.email, route.params.id);
+    modalCambiarPermiso.value.cerrarModal();
+    estadoGestionParticipantes.tipo = 'confirmacion';
+    estadoGestionParticipantes.mensaje = 'El permiso se actualizó correctamente.';
+  } catch (error) {
+    estadoGestionParticipantes.tipo = 'error';
+    estadoGestionParticipantes.mensaje =
+      error?.data?.message || 'No pudimos actualizar el permiso. Inténtalo nuevamente.';
+  } finally {
+    procesandoParticipante.value = false;
+  }
 };
 
 const modalEliminarPermiso = ref(null);
@@ -136,27 +227,55 @@ const abrirModalEliminarPermiso = (participante) => {
   modalEliminarPermiso.value.abrirModal();
 };
 const eliminarPermiso = async () => {
-  await storeLevantamiento.eliminarParticipanteProyecto(
-    data.value?.user.email,
-    route.params.id,
-    participanteSeleccionado.value.id
-  );
-
-  await storeLevantamiento.obtenerParticipantesPorProyecto(data.value?.user.email, route.params.id);
-  modalEliminarPermiso.value.cerrarModal();
+  estadoGestionParticipantes.tipo = '';
+  estadoGestionParticipantes.mensaje = '';
+  procesandoParticipante.value = true;
+  try {
+    await storeLevantamiento.eliminarParticipanteProyecto(
+      data.value?.user.email,
+      route.params.id,
+      participanteSeleccionado.value.id
+    );
+    await storeLevantamiento.obtenerParticipantesPorProyecto(data.value?.user.email, route.params.id);
+    modalEliminarPermiso.value.cerrarModal();
+    estadoGestionParticipantes.tipo = 'confirmacion';
+    estadoGestionParticipantes.mensaje = 'La persona fue eliminada del proyecto.';
+  } catch (error) {
+    estadoGestionParticipantes.tipo = 'error';
+    estadoGestionParticipantes.mensaje =
+      error?.data?.message || 'No pudimos eliminar a la persona. Inténtalo nuevamente.';
+  } finally {
+    procesandoParticipante.value = false;
+  }
 };
 
 const modalSolicitarAprobacion = ref(null);
 
 const solicitarAprobacion = async () => {
+  if (proyectoEnRevision.value || guardandoPrivacidad.value) return;
+
   const payload = {
     status: 'EN REVISION',
     user_id: data.value?.user.email,
   };
 
-  await storeLevantamiento.actualizarStatusProyecto(payload, route.params.id);
-
-  modalSolicitarAprobacion.value.abrirModal();
+  estadoPrivacidad.tipo = '';
+  estadoPrivacidad.mensaje = '';
+  guardandoPrivacidad.value = true;
+  try {
+    await storeLevantamiento.actualizarStatusProyecto(payload, route.params.id);
+    proyecto.value.status = 'EN REVISION';
+    proyecto.value.es_privada = true;
+    estadoPrivacidad.tipo = 'confirmacion';
+    estadoPrivacidad.mensaje = 'El proyecto fue enviado a revisión para solicitar su publicación.';
+    modalSolicitarAprobacion.value.abrirModal();
+  } catch (error) {
+    estadoPrivacidad.tipo = 'error';
+    estadoPrivacidad.mensaje =
+      error?.data?.message || 'No pudimos enviar el proyecto a revisión. Inténtalo nuevamente.';
+  } finally {
+    guardandoPrivacidad.value = false;
+  }
 };
 
 const router = useRouter();
@@ -168,13 +287,32 @@ const irAMisProyectos = () => {
 const modalProyectoPrivado = ref(null);
 
 const actualizarProyecto = async () => {
-  const payload = {
-    isPrivate: true,
-  };
+  // La visibilidad pública requiere revisión; la privada se guarda directamente.
+  if (privacidadSeleccionada.value === 'publico') {
+    await solicitarAprobacion();
+    return;
+  }
 
-  await storeLevantamiento.actualizarFormularioParticipantesProyecto(payload, route.params.id);
-
-  modalProyectoPrivado.value.abrirModal();
+  estadoPrivacidad.tipo = '';
+  estadoPrivacidad.mensaje = '';
+  guardandoPrivacidad.value = true;
+  try {
+    await storeLevantamiento.actualizarFormularioParticipantesProyecto(
+      { isPrivate: true, user_id: data.value?.user.email },
+      route.params.id
+    );
+    proyecto.value.es_privada = true;
+    proyecto.value.status = 'SIN EVALUAR';
+    estadoPrivacidad.tipo = 'confirmacion';
+    estadoPrivacidad.mensaje = 'La privacidad del proyecto se guardó correctamente.';
+    modalProyectoPrivado.value.abrirModal();
+  } catch (error) {
+    estadoPrivacidad.tipo = 'error';
+    estadoPrivacidad.mensaje =
+      error?.data?.message || 'No pudimos cambiar la privacidad del proyecto. Inténtalo nuevamente.';
+  } finally {
+    guardandoPrivacidad.value = false;
+  }
 };
 
 defineExpose({
@@ -205,6 +343,24 @@ defineExpose({
 
   <div v-else class="columna-10">
     <h6 class="m-b-3">Selecciona la privacidad de tu proyecto</h6>
+    <div
+      v-if="estadoPrivacidad.mensaje"
+      class="mensaje-invitacion flex borde borde-redondeado-8 p-2 m-b-3"
+      :class="
+        estadoPrivacidad.tipo === 'confirmacion'
+          ? 'texto-color-confirmacion fondo-color-confirmacion borde-color-confirmacion'
+          : 'texto-color-error fondo-color-error borde-color-error'
+      "
+      :role="estadoPrivacidad.tipo === 'error' ? 'alert' : 'status'"
+      aria-live="polite"
+    >
+      <span
+        :class="estadoPrivacidad.tipo === 'confirmacion' ? 'pictograma-aprobado' : 'pictograma-alerta'"
+        class="pictograma-mediano"
+        aria-hidden="true"
+      />
+      <p class="m-y-0">{{ estadoPrivacidad.mensaje }}</p>
+    </div>
     <div class="flex m-b-3">
       <template v-for="elemento in elementosPrivacidad" :key="elemento.value">
         <levantamiento-radio-boton
@@ -236,9 +392,10 @@ defineExpose({
         <button
           class="boton-primario boton-chico"
           aria-label="Solicitar aprobación"
+          :disabled="proyectoEnRevision || guardandoPrivacidad"
           @click="solicitarAprobacion"
         >
-          Solicitar aprobación
+          {{ proyectoEnRevision ? 'Proyecto en revisión' : 'Solicitar aprobación' }}
         </button>
       </div>
     </div>
@@ -254,7 +411,38 @@ defineExpose({
           </div>
         </template>
       </div>
-      <div class="m-b-3">
+      <div class="formulario-invitacion m-b-3">
+        <div
+          v-if="estadoInvitacion.mensaje"
+          class="mensaje-invitacion flex borde borde-redondeado-8 p-2 m-b-3"
+          :class="
+            estadoInvitacion.tipo === 'confirmacion'
+              ? 'texto-color-confirmacion fondo-color-confirmacion borde-color-confirmacion'
+              : 'texto-color-error fondo-color-error borde-color-error'
+          "
+          :role="estadoInvitacion.tipo === 'error' ? 'alert' : 'status'"
+          :aria-live="estadoInvitacion.tipo === 'error' ? 'assertive' : 'polite'"
+        >
+          <span
+            :class="
+              estadoInvitacion.tipo === 'confirmacion'
+                ? 'pictograma-aprobado'
+                : 'pictograma-alerta'
+            "
+            class="pictograma-mediano"
+            aria-hidden="true"
+          />
+          <div>
+            <strong>
+              {{
+                estadoInvitacion.tipo === 'confirmacion'
+                  ? 'Invitación registrada'
+                  : 'Revisa la invitación'
+              }}
+            </strong>
+            <p class="m-y-0">{{ estadoInvitacion.mensaje }}</p>
+          </div>
+        </div>
         <ClientOnly>
           <div class="flex privacidad-acciones m-b-3">
             <div class="privacidad-input">
@@ -262,62 +450,103 @@ defineExpose({
                 v-model="participante.email"
                 etiqueta="Correo electrónico del participante"
                 ejemplo="Ingresa un correo electrónico"
+                tipo="email"
                 :es_etiqueta_visible="true"
+                :es_obligatorio="true"
+                :texto_error="erroresInvitacion.email"
               />
             </div>
             <div class="privacidad-input">
-              <SisdaiSelector v-model="participante.rol" etiqueta="Permiso">
-                <option value="Administrar">Administrar</option>
-                <option value="Revisar">Revisar</option>
-                <option value="Participar">Participar</option>
-                <option value="Solo ver">Solo ver</option>
+              <SisdaiSelector
+                v-model="participante.rol"
+                etiqueta="Permiso"
+                :es_obligatorio="true"
+                :texto_error="erroresInvitacion.rol"
+              >
+                <option value="" disabled>Selecciona un permiso</option>
+                <option value="administrar">Administrar</option>
+                <option value="revisar">Revisar</option>
+                <option value="aporta">Participar</option>
+                <option value="ver">Solo ver</option>
               </SisdaiSelector>
             </div>
           </div>
           <SisdaiAreaTexto
-            etiqueta="Mensaje personalizado"
+            v-model="participante.mensaje"
+            etiqueta="Mensaje para la invitación"
             ejemplo="Escribe un mensaje para la persona invitada"
             :es_etiqueta_visible="true"
-            :es_obligatorio="false"
+            :es_obligatorio="true"
+            :texto_error="erroresInvitacion.mensaje"
+            texto-ayuda="Explica brevemente por qué deseas invitar a esta persona."
+            maxlength="500"
             class="m-b-3"
           />
         </ClientOnly>
         <div class="flex flex-contenido-final">
-          <button class="boton-primario boton boton-chico" @click="agregarParticipante">
-            Enviar invitación
+          <button
+            class="boton-primario boton boton-chico"
+            :disabled="enviandoInvitacion"
+            @click="agregarParticipante"
+          >
+            {{ enviandoInvitacion ? 'Registrando invitación…' : 'Agregar participante' }}
           </button>
         </div>
       </div>
       <div>
         <h6>Permisos asignados</h6>
+        <div
+          v-if="estadoGestionParticipantes.mensaje"
+          class="mensaje-invitacion flex borde borde-redondeado-8 p-2 m-b-3"
+          :class="
+            estadoGestionParticipantes.tipo === 'confirmacion'
+              ? 'texto-color-confirmacion fondo-color-confirmacion borde-color-confirmacion'
+              : 'texto-color-error fondo-color-error borde-color-error'
+          "
+          :role="estadoGestionParticipantes.tipo === 'error' ? 'alert' : 'status'"
+          aria-live="polite"
+        >
+          <span
+            :class="
+              estadoGestionParticipantes.tipo === 'confirmacion'
+                ? 'pictograma-aprobado'
+                : 'pictograma-alerta'
+            "
+            class="pictograma-mediano"
+            aria-hidden="true"
+          />
+          <p class="m-y-0">{{ estadoGestionParticipantes.mensaje }}</p>
+        </div>
         <div class="flex usuarios-asignados">
           <div
-            v-for="participante in storeLevantamiento.participantes"
-            :key="participante.id"
+            v-for="i_participante in storeLevantamiento.participantes"
+            :key="i_participante.id"
             class="correo-participante borde-redondeado-8 fondo-color-acento p-2 flex flex-contenido-separado"
           >
             <div>
-              <div class="m-b-minimo texto-tamanio-3 asignado-email">{{ participante.correo }}</div>
+              <div class="m-b-minimo texto-tamanio-3 asignado-email">
+                {{ i_participante.correo }}
+              </div>
               <div class="flex">
                 <span
                   class="p-x-1 p-y-minimo borde borde-color-acento borde-redondeado-8 texto-color-secundario"
-                  >{{ participante.rol }}</span
+                  >{{ i_participante.rol }}</span
                 >
                 <span class="asignado-fecha texto-tamanio-2"
-                  >Asignado el {{ formatearFecha(participante.created_date) }}</span
+                  >Asignado el {{ formatearFecha(i_participante.created_date) }}</span
                 >
               </div>
             </div>
             <div class="flex">
               <button
                 class="boton-secundario boton boton-chico"
-                @click="abrirModalCambiarPermiso(participante)"
+                @click="abrirModalCambiarPermiso(i_participante)"
               >
                 Cambiar permiso
               </button>
               <button
                 class="boton-secundario boton boton-chico"
-                @click="abrirModalEliminarPermiso(participante)"
+                @click="abrirModalEliminarPermiso(i_participante)"
               >
                 Eliminar
               </button>
@@ -338,25 +567,25 @@ defineExpose({
             <SisdaiBotonRadio
               v-model="permisoSeleccionado"
               etiqueta="Administrar"
-              value="Administrar"
+              value="administrar"
               name="permiso-usuario"
             />
             <SisdaiBotonRadio
               v-model="permisoSeleccionado"
               etiqueta="Revisar"
-              value="Revisar"
+              value="revisar"
               name="permiso-usuario"
             />
             <SisdaiBotonRadio
               v-model="permisoSeleccionado"
               etiqueta="Participar"
-              value="Participar"
+              value="aporta"
               name="permiso-usuario"
             />
             <SisdaiBotonRadio
               v-model="permisoSeleccionado"
               etiqueta="Solo ver"
-              value="Solo ver"
+              value="ver"
               name="permiso-usuario"
             />
           </SisdaiBotonesRadioGrupo>
@@ -369,8 +598,13 @@ defineExpose({
           >
             Cerrar
           </button>
-          <button type="button" class="boton-primario boton-chico" @click="actualizarPermiso">
-            Asignar permiso
+          <button
+            type="button"
+            class="boton-primario boton-chico"
+            :disabled="procesandoParticipante"
+            @click="actualizarPermiso"
+          >
+            {{ procesandoParticipante ? 'Guardando…' : 'Asignar permiso' }}
           </button>
         </template>
       </SisdaiModal>
@@ -391,8 +625,13 @@ defineExpose({
           >
             Regresar
           </button>
-          <button type="button" class="boton-primario boton-chico" @click="eliminarPermiso">
-            Confirmar
+          <button
+            type="button"
+            class="boton-primario boton-chico"
+            :disabled="procesandoParticipante"
+            @click="eliminarPermiso"
+          >
+            {{ procesandoParticipante ? 'Eliminando…' : 'Confirmar' }}
           </button>
         </template>
       </SisdaiModal>
@@ -491,5 +730,18 @@ defineExpose({
 
 .asignado-fecha {
   align-self: flex-end;
+}
+
+.mensaje-invitacion {
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.mensaje-invitacion p {
+  margin-top: 0.25rem;
+}
+
+.formulario-invitacion :deep(.formulario-obligatoriedad) {
+  display: none;
 }
 </style>

@@ -526,3 +526,11 @@ onMounted(async () => {
     </SisdaiModal>
   </ClientOnly>
 </template>
+
+<style>
+.modal-cuerpo p {
+  overflow-wrap: break-word !important;
+  word-break: break-all !important;
+  white-space: normal !important;
+}
+</style>

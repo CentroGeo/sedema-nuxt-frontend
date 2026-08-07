@@ -31,6 +31,33 @@ const notificaciones = [
 const storeLevantamiento = useLevantamientoStore();
 const { data } = useAuth();
 
+// Define la sección de destino de cada permiso sin ejecutar acciones directas desde la tarjeta.
+const accionesPorPermiso = {
+  administrar: {
+    etiqueta: 'Administración',
+    accion: 'Configurar permisos y formulario',
+    ruta: (id) =>
+      `/levantamiento/proyectos/mis-proyectos/${id}?acceso=administrador-compartido&seccion=participantes-permisos`,
+  },
+  revisar: {
+    etiqueta: 'Revisión',
+    accion: 'Ir a revisión de aportes',
+    ruta: () => '/levantamiento/revision-aportes',
+  },
+  aporta: {
+    etiqueta: 'Participación',
+    accion: 'Ir a Aportes',
+    ruta: () => '/levantamiento/aportes',
+  },
+  ver: {
+    etiqueta: 'Solo consulta',
+    accion: 'Ver proyecto',
+    ruta: (id) => `/levantamiento/proyectos/proyecto/${id}`,
+  },
+};
+
+const obtenerAccion = (proyecto) => accionesPorPermiso[proyecto.rol] ?? accionesPorPermiso.ver;
+
 const proyectosCompartidosFiltrado = ref([]);
 
 onMounted(async () => {
@@ -122,20 +149,21 @@ onMounted(async () => {
             </div>
             <div class="m-b-minimo texto-color-secundario">{{ proyecto.institucion }}</div>
             <div class="m-b-minimo texto-color-secundario">{{ proyecto.autor }}</div>
-            <UiNumeroElementos :numero="proyecto.aportes" etiqueta="Aportes" class="m-b-3" />
+            <UiNumeroElementos
+              :numero="proyecto.num_aportaciones"
+              etiqueta="Aportes"
+              class="m-b-1"
+            />
+            <p class="texto-peso-600 m-t-0 m-b-3">
+              Permiso: {{ obtenerAccion(proyecto).etiqueta }}
+            </p>
             <NuxtLink
               class="boton boton-primario boton-chico boton-accion-proyecto m-b-1"
-              aria-label="Ver proyecto"
-              :to="`/levantamiento/proyectos/proyecto/${proyecto.id}`"
+              :aria-label="`${obtenerAccion(proyecto).accion}: ${proyecto.nombre}`"
+              :to="obtenerAccion(proyecto).ruta(proyecto.id)"
             >
-              Ver proyecto
+              {{ obtenerAccion(proyecto).accion }}
             </NuxtLink>
-            <button
-              class="boton-secundario boton-chico boton-accion-proyecto fondo-color-primario m-b-1"
-              type="button"
-            >
-              Aportar
-            </button>
           </div>
         </div>
       </main>

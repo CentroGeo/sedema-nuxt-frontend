@@ -5,5 +5,18 @@ npm-debug.log
 .nuxt
 .output
 
+.husky
+.vscode
+
 .git
-.gitmodules
+.github
+Dockerfile
+Dockerfile.local
+docker-compose-ghcr.yml
+docker-compose-local.yml
+docker-compose-idce.yml
+
+README.md
+LICENSE
+CLAUDE.md
+CHANGELOG.md
