@@ -249,7 +249,7 @@ onMounted(async () => {
             <nuxt-link
               class="boton boton-primario"
               to="/catalogo/revision-solicitudes/pendientes-revisor"
-              >Ir a en proceso de revisión
+              >Ir al proceso de revisión
             </nuxt-link>
           </div>
         </div>
