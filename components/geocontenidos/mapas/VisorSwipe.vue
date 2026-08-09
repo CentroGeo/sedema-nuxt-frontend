@@ -15,9 +15,29 @@ const props = defineProps({
     type: Number,
     default: 50,
   },
+  wmsExternos: {
+    type: Array,
+    default: () => [],
+  },
+  mostrarAgregarWms: {
+    type: Boolean,
+    default: false,
+  },
+  mostrarVerWms: {
+    type: Boolean,
+    default: false,
+  },
 });
 
-const emit = defineEmits(['vista']);
+const emit = defineEmits([
+  'vista',
+  'agregar-wms',
+  'ver-wms',
+  'alternar-wms',
+  'reintentar-wms',
+  'iniciar-carga-wms',
+  'finalizar-carga-wms',
+]);
 
 function alMoverVista({ acercamiento, centro }) {
   if (!Array.isArray(centro) || centro.length < 2) return;
@@ -107,6 +127,11 @@ const ladoMap = { left: 'izquierdo', right: 'derecho' };
 const capasOrdenadas = computed(() =>
   [...props.capas].sort((a, b) => a.stack_order - b.stack_order)
 );
+const wmsExternosActivos = computed(() => props.wmsExternos.filter((item) => item.activo));
+
+const posicionInicialWms = computed(
+  () => Math.max(0, ...props.capas.map((capa) => Number(capa.stack_order) || 0)) + 1
+);
 </script>
 
 <template>
@@ -150,9 +175,33 @@ const capasOrdenadas = computed(() =>
           />
         </template>
 
+        <GeocontenidosMapasCapaWmsExterna
+          v-for="(externo, index) in wmsExternosActivos"
+          :key="`wms-externo-${externo.id}`"
+          :configuracion="externo"
+          :posicion="posicionInicialWms + index"
+          @iniciar-carga="emit('iniciar-carga-wms', externo)"
+          @finalizar-carga="
+            (cargaExitosa) =>
+              emit('finalizar-carga-wms', {
+                item: externo,
+                cargaExitosa,
+              })
+          "
+        />
+
         <slot />
       </SisdaiMapa>
-      <GeocontenidosMapasControlInfo :titulo="mapa.name" />
+      <PanoramasBarraHerramientasFlotante
+        :herramientas-visibles="['wms']"
+        :wms-externos="wmsExternos"
+        :mostrar-agregar-wms="mostrarAgregarWms"
+        :mostrar-ver-wms="mostrarVerWms"
+        @agregar-wms="emit('agregar-wms')"
+        @ver-wms="emit('ver-wms')"
+        @alternar-wms="emit('alternar-wms', $event)"
+        @reintentar-wms="emit('reintentar-wms', $event)"
+      />
       <GeocontenidosMapasControlCapaBase v-model="baseLayerActual" />
       <GeocontenidosMapasLeyendaMapa
         :capas="capasOrdenadas"
