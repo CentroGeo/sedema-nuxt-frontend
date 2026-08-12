@@ -98,7 +98,13 @@ function cancelarEdicion() {
               </p>
 
               <p class="tarjeta-wms__tipo">
-                {{ capa.wms_or_tile === 'tile' ? 'Tile (XYZ)' : 'WMS' }}
+                {{
+                  capa.wms_or_tile === 'tile'
+                    ? 'Tile (XYZ)'
+                    : capa.wms_version
+                      ? `WMS ${capa.wms_version}`
+                      : 'WMS'
+                }}
                 <template v-if="capa.attribution"> · {{ capa.attribution }}</template>
               </p>
             </div>
@@ -143,6 +149,7 @@ function cancelarEdicion() {
         <GeocontenidosWmsFormularioWms
           :key="formularioVersion"
           :valores-iniciales="valoresIniciales"
+          permitir-consulta-capas
           @guardar="guardarTemporal"
           @cancelar="cancelarEdicion"
         />
