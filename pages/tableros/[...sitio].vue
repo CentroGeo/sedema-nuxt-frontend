@@ -27,51 +27,53 @@ const indicador = reactive({
   datos: null,
 });
 
-const capasWmsTemporales = ref([]);
-
 const capasWmsActivas = computed(() =>
-  capasWmsTemporales.value.filter(
+  (sitio.datos?.external_wms || []).filter(
     (capa) => capa.at_start && capa.url && (capa.wms_or_tile === 'tile' || capa.wms_layers)
   )
 );
 
-function obtenerClaveWms(siteId) {
-  return `sigic-tablero-wms-temporal:${siteId}`;
-}
+let canalActualizacionWms = null;
 
-function cargarCapasWmsTemporales(siteId) {
-  if (!import.meta.client || !siteId) return;
-
-  const contenido = localStorage.getItem(obtenerClaveWms(siteId));
-
-  if (!contenido) {
-    capasWmsTemporales.value = [];
-    return;
-  }
-
-  try {
-    const capasGuardadas = JSON.parse(contenido);
-    capasWmsTemporales.value = Array.isArray(capasGuardadas) ? capasGuardadas : [];
-  } catch (error) {
-    console.error('No fue posible recuperar las capas WMS del tablero:', error);
-    capasWmsTemporales.value = [];
-  }
-}
-
-function alCambiarAlmacenamiento(event) {
+async function recargarCapasWms() {
   const siteId = sitio.datos?.id;
 
-  if (!siteId || event.key !== obtenerClaveWms(siteId)) return;
+  if (!siteId) return;
 
-  cargarCapasWmsTemporales(siteId);
+  try {
+    const datosActualizados = await fetchSitio(siteId);
+
+    sitio.datos.external_wms = Array.isArray(datosActualizados?.external_wms)
+      ? datosActualizados.external_wms
+      : [];
+  } catch (error) {
+    console.error('No fue posible actualizar las capas WMS del tablero:', error);
+  }
+}
+
+function alRecibirActualizacionWms(event) {
+  if (String(event.data?.siteId) !== String(sitio.datos?.id)) return;
+
+  recargarCapasWms();
+}
+
+function alVolverAlTablero() {
+  recargarCapasWms();
 }
 
 onMounted(() => {
-  window.addEventListener('storage', alCambiarAlmacenamiento);
+  if ('BroadcastChannel' in window) {
+    canalActualizacionWms = new BroadcastChannel('sigic-tablero-wms');
+    canalActualizacionWms.addEventListener('message', alRecibirActualizacionWms);
+  }
+
+  window.addEventListener('focus', alVolverAlTablero);
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener('storage', alCambiarAlmacenamiento);
+  canalActualizacionWms?.removeEventListener('message', alRecibirActualizacionWms);
+  canalActualizacionWms?.close();
+  window.removeEventListener('focus', alVolverAlTablero);
 });
 
 const estilosDinamicos = computed(() => {
@@ -121,7 +123,6 @@ async function cargarSitio() {
     }
 
     sitio.datos = datos;
-    cargarCapasWmsTemporales(datos.id);
 
     const respGrupos = await fetchGrupos(datos.id);
     grupos.value = respGrupos.results || [];

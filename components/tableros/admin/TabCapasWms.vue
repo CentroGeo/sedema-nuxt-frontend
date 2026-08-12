@@ -21,6 +21,15 @@ const errorOperacion = ref('');
 
 const valoresIniciales = computed(() => capaEnEdicion.value || {});
 
+let canalActualizacionWms = null;
+
+function notificarActualizacionWms() {
+  canalActualizacionWms?.postMessage({
+    siteId: String(props.siteId),
+    actualizado: Date.now(),
+  });
+}
+
 function extraerMensajeError(data, mensajePredeterminado) {
   if (!data || typeof data !== 'object') return mensajePredeterminado;
 
@@ -93,6 +102,7 @@ async function guardarCapa(datos) {
     capaEnEdicion.value = null;
     formularioVersion.value += 1;
     await cargarCapas();
+    notificarActualizacionWms();
   } catch (error) {
     console.error('No fue posible guardar la capa WMS:', error);
     errorOperacion.value = error?.message || 'No fue posible guardar la capa WMS.';
@@ -131,6 +141,7 @@ async function alternarVisibilidad(capa) {
         ...capasWms.value[indice],
         ...respuesta,
       };
+      notificarActualizacionWms();
     }
 
     if (capaEnEdicion.value?.id === capa.id) {
@@ -160,6 +171,8 @@ async function eliminarCapa(id) {
 
     capasWms.value = capasWms.value.filter((capa) => capa.id !== id);
 
+    notificarActualizacionWms();
+
     if (capaEnEdicion.value?.id === id) {
       cancelarEdicion();
     }
@@ -177,7 +190,17 @@ function cancelarEdicion() {
   formularioVersion.value += 1;
 }
 
-onMounted(cargarCapas);
+onMounted(() => {
+  if ('BroadcastChannel' in window) {
+    canalActualizacionWms = new BroadcastChannel('sigic-tablero-wms');
+  }
+
+  cargarCapas();
+});
+
+onBeforeUnmount(() => {
+  canalActualizacionWms?.close();
+});
 </script>
 
 <template>
@@ -216,17 +239,26 @@ onMounted(cargarCapas);
             <header class="tarjeta-wms__encabezado">
               <h4>{{ capa.name }}</h4>
 
-              <button
-                type="button"
-                class="tarjeta-wms__estado"
-                :class="{ 'tarjeta-wms__estado--activo': capa.at_start }"
-                :aria-pressed="capa.at_start"
-                :aria-label="`${capa.at_start ? 'Desactivar' : 'Activar'} la capa ${capa.name}`"
-                :disabled="operandoId === capa.id"
-                @click="alternarVisibilidad(capa)"
+              <label
+                class="tarjeta-wms__interruptor"
+                :class="{ 'tarjeta-wms__interruptor--deshabilitado': operandoId === capa.id }"
               >
-                {{ operandoId === capa.id ? 'Guardando…' : capa.at_start ? 'Activa' : 'Inactiva' }}
-              </button>
+                <input
+                  type="checkbox"
+                  :checked="capa.at_start"
+                  :disabled="operandoId === capa.id"
+                  :aria-label="`${capa.at_start ? 'Desactivar' : 'Activar'} la capa ${capa.name}`"
+                  @change="alternarVisibilidad(capa)"
+                />
+
+                <span class="tarjeta-wms__interruptor-pista" aria-hidden="true">
+                  <span class="tarjeta-wms__interruptor-circulo" />
+                </span>
+
+                <span class="tarjeta-wms__interruptor-texto">
+                  {{ operandoId === capa.id ? 'Guardando…' : capa.at_start ? 'Activa' : 'Oculta' }}
+                </span>
+              </label>
             </header>
 
             <div class="tarjeta-wms__contenido">
@@ -414,31 +446,74 @@ onMounted(cargarCapas);
   font-size: 1rem;
 }
 
-.tarjeta-wms__estado {
+.tarjeta-wms__interruptor {
+  display: inline-flex;
   flex: 0 0 auto;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background-color: var(--color-neutro-3);
-  color: var(--texto);
-  font-size: 0.75rem;
-  border: 1px solid transparent;
+  align-items: center;
+  gap: 7px;
   cursor: pointer;
-  font-family: inherit;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
-.tarjeta-wms__estado--activo {
-  background-color: #d8f3dc;
-  color: #1b5e20;
+.tarjeta-wms__interruptor input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 
-.tarjeta-wms__estado:hover {
-  border-color: currentcolor;
+.tarjeta-wms__interruptor-pista {
+  position: relative;
+  display: inline-flex;
+  width: 38px;
+  height: 22px;
+  align-items: center;
+  padding: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 999px;
+  background-color: #777;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
 }
 
-.tarjeta-wms__estado:focus-visible {
+.tarjeta-wms__interruptor-circulo {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: transform 0.2s ease;
+}
+
+.tarjeta-wms__interruptor input:checked + .tarjeta-wms__interruptor-pista {
+  border-color: #d8f3dc;
+  background-color: #218739;
+}
+
+.tarjeta-wms__interruptor
+  input:checked
+  + .tarjeta-wms__interruptor-pista
+  .tarjeta-wms__interruptor-circulo {
+  transform: translateX(16px);
+}
+
+.tarjeta-wms__interruptor input:focus-visible + .tarjeta-wms__interruptor-pista {
   outline: 2px solid var(--texto-inverso);
   outline-offset: 2px;
+}
+
+.tarjeta-wms__interruptor--deshabilitado {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.tarjeta-wms__interruptor-texto {
+  min-width: 54px;
+  color: var(--texto-inverso);
 }
 
 .tarjeta-wms__contenido {
