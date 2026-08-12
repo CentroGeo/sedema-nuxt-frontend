@@ -16,6 +16,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  mostrarControlInicio: {
+    type: Boolean,
+    default: true,
+  },
 });
 
 const emit = defineEmits(['guardar', 'cancelar']);
@@ -263,7 +267,7 @@ function enviar() {
       <input v-else id="wms-layers" v-model.trim="formulario.wms_layers" type="text" required />
     </div>
 
-    <div class="m-b-4">
+    <div v-if="mostrarControlInicio" class="m-b-4">
       <input id="wms-inicio" v-model="formulario.at_start" type="checkbox" />
       <label for="wms-inicio">Mostrar al inicio</label>
     </div>

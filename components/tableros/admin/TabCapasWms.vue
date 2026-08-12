@@ -10,15 +10,19 @@ function guardarTemporal(datos) {
     const indice = capasWms.value.findIndex((capa) => capa.id === capaEnEdicion.value.id);
 
     if (indice !== -1) {
+      const capaActual = capasWms.value[indice];
+
       capasWms.value[indice] = {
-        ...capasWms.value[indice],
+        ...capaActual,
         ...datos,
+        at_start: Boolean(capaActual.at_start),
       };
     }
   } else {
     capasWms.value.push({
       id: `wms-temporal-${Date.now()}`,
       ...datos,
+      at_start: false,
     });
   }
 
@@ -28,6 +32,17 @@ function guardarTemporal(datos) {
 
 function editarCapa(capa) {
   capaEnEdicion.value = { ...capa };
+}
+
+function alternarVisibilidad(id) {
+  capasWms.value = capasWms.value.map((capa) =>
+    capa.id === id
+      ? {
+          ...capa,
+          at_start: !capa.at_start,
+        }
+      : capa
+  );
 }
 
 function eliminarCapa(id) {
@@ -79,12 +94,16 @@ function cancelarEdicion() {
             <header class="tarjeta-wms__encabezado">
               <h4>{{ capa.name }}</h4>
 
-              <span
+              <button
+                type="button"
                 class="tarjeta-wms__estado"
                 :class="{ 'tarjeta-wms__estado--activo': capa.at_start }"
+                :aria-pressed="capa.at_start"
+                :aria-label="`${capa.at_start ? 'Desactivar' : 'Activar'} la capa ${capa.name}`"
+                @click="alternarVisibilidad(capa.id)"
               >
                 {{ capa.at_start ? 'Activa' : 'Inactiva' }}
-              </span>
+              </button>
             </header>
 
             <div class="tarjeta-wms__contenido">
@@ -149,6 +168,7 @@ function cancelarEdicion() {
         <GeocontenidosWmsFormularioWms
           :key="formularioVersion"
           :valores-iniciales="valoresIniciales"
+          :mostrar-control-inicio="false"
           permitir-consulta-capas
           @guardar="guardarTemporal"
           @cancelar="cancelarEdicion"
@@ -283,11 +303,24 @@ function cancelarEdicion() {
   background-color: var(--color-neutro-3);
   color: var(--texto);
   font-size: 0.75rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
 }
 
 .tarjeta-wms__estado--activo {
   background-color: #d8f3dc;
   color: #1b5e20;
+}
+
+.tarjeta-wms__estado:hover {
+  border-color: currentcolor;
+}
+
+.tarjeta-wms__estado:focus-visible {
+  outline: 2px solid var(--texto-inverso);
+  outline-offset: 2px;
 }
 
 .tarjeta-wms__contenido {
