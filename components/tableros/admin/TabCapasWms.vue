@@ -6,104 +6,185 @@ const props = defineProps({
   },
 });
 
-const claveAlmacenamiento = computed(() => `sigic-tablero-wms-temporal:${props.siteId}`);
+const { data: userData } = useAuth();
+
+const { fetchCapasWmsSitio, crearCapaWmsSitio, actualizarCapaWmsSitio, eliminarCapaWmsSitio } =
+  useTableroApi();
+
 const capasWms = ref([]);
 const capaEnEdicion = ref(null);
 const formularioVersion = ref(0);
+const cargandoCapas = ref(false);
+const guardando = ref(false);
+const operandoId = ref(null);
+const errorOperacion = ref('');
 
 const valoresIniciales = computed(() => capaEnEdicion.value || {});
 
-function guardarCapasEnNavegador() {
-  if (!import.meta.client || !props.siteId) return;
+function extraerMensajeError(data, mensajePredeterminado) {
+  if (!data || typeof data !== 'object') return mensajePredeterminado;
 
-  localStorage.setItem(claveAlmacenamiento.value, JSON.stringify(capasWms.value));
+  if (data.detail) return String(data.detail);
+
+  if (Array.isArray(data.errors)) {
+    return data.errors.join(' ');
+  }
+
+  const mensajes = Object.entries(data)
+    .filter(([campo]) => !['success', 'code'].includes(campo))
+    .flatMap(([, valor]) => (Array.isArray(valor) ? valor : [valor]))
+    .filter(Boolean)
+    .map(String);
+
+  return mensajes.join(' ') || mensajePredeterminado;
 }
 
-function cargarCapasDelNavegador() {
-  if (!import.meta.client || !props.siteId) return;
+async function cargarCapas() {
+  if (!props.siteId) return;
 
-  const contenido = localStorage.getItem(claveAlmacenamiento.value);
-
-  if (!contenido) {
-    capasWms.value = [];
-    return;
-  }
+  cargandoCapas.value = true;
+  errorOperacion.value = '';
 
   try {
-    const capasGuardadas = JSON.parse(contenido);
-    capasWms.value = Array.isArray(capasGuardadas) ? capasGuardadas : [];
+    capasWms.value = await fetchCapasWmsSitio(props.siteId);
   } catch (error) {
-    console.error('No fue posible recuperar las capas WMS temporales:', error);
+    console.error('No fue posible cargar las capas WMS del tablero:', error);
     capasWms.value = [];
+    errorOperacion.value = 'No fue posible cargar las capas WMS del tablero.';
+  } finally {
+    cargandoCapas.value = false;
   }
 }
 
-watch(capasWms, guardarCapasEnNavegador, {
-  deep: true,
-});
+async function guardarCapa(datos) {
+  errorOperacion.value = '';
+  guardando.value = true;
 
-onMounted(cargarCapasDelNavegador);
+  const capaActual = capaEnEdicion.value;
 
-function guardarTemporal(datos) {
-  if (capaEnEdicion.value) {
-    const indice = capasWms.value.findIndex((capa) => capa.id === capaEnEdicion.value.id);
+  const payload = {
+    site: Number(props.siteId),
+    name: datos.name,
+    url: datos.url,
+    attribution: datos.attribution || '',
+    wms_or_tile: datos.wms_or_tile || 'wms',
+    wms_layers: datos.wms_layers || '',
+    wms_version: datos.wms_version || '',
+    at_start: capaActual ? Boolean(capaActual.at_start) : false,
+    stack_order: capaActual?.stack_order ?? capasWms.value.length,
+  };
 
-    if (indice !== -1) {
-      const capaActual = capasWms.value[indice];
+  try {
+    const token = userData.value?.accessToken;
 
-      capasWms.value[indice] = {
-        ...capaActual,
-        ...datos,
-        at_start: Boolean(capaActual.at_start),
-      };
+    const respuesta = capaActual
+      ? await actualizarCapaWmsSitio(capaActual.id, payload, token)
+      : await crearCapaWmsSitio(payload, token);
+
+    if (!respuesta?.id) {
+      throw new Error(
+        extraerMensajeError(
+          respuesta,
+          `No fue posible ${capaActual ? 'actualizar' : 'agregar'} la capa WMS.`
+        )
+      );
     }
-  } else {
-    capasWms.value.push({
-      id: `wms-temporal-${Date.now()}`,
-      ...datos,
-      at_start: false,
-    });
-  }
 
-  capaEnEdicion.value = null;
-  formularioVersion.value += 1;
+    capaEnEdicion.value = null;
+    formularioVersion.value += 1;
+    await cargarCapas();
+  } catch (error) {
+    console.error('No fue posible guardar la capa WMS:', error);
+    errorOperacion.value = error?.message || 'No fue posible guardar la capa WMS.';
+  } finally {
+    guardando.value = false;
+  }
 }
 
 function editarCapa(capa) {
+  errorOperacion.value = '';
   capaEnEdicion.value = { ...capa };
 }
+async function alternarVisibilidad(capa) {
+  errorOperacion.value = '';
+  operandoId.value = capa.id;
 
-function alternarVisibilidad(id) {
-  capasWms.value = capasWms.value.map((capa) =>
-    capa.id === id
-      ? {
-          ...capa,
-          at_start: !capa.at_start,
-        }
-      : capa
-  );
+  try {
+    const respuesta = await actualizarCapaWmsSitio(
+      capa.id,
+      {
+        at_start: !capa.at_start,
+      },
+      userData.value?.accessToken
+    );
+
+    if (!respuesta?.id) {
+      throw new Error(
+        extraerMensajeError(respuesta, 'No fue posible cambiar la visibilidad de la capa.')
+      );
+    }
+
+    const indice = capasWms.value.findIndex((item) => item.id === capa.id);
+
+    if (indice !== -1) {
+      capasWms.value[indice] = {
+        ...capasWms.value[indice],
+        ...respuesta,
+      };
+    }
+
+    if (capaEnEdicion.value?.id === capa.id) {
+      capaEnEdicion.value = {
+        ...capaEnEdicion.value,
+        ...respuesta,
+      };
+    }
+  } catch (error) {
+    console.error('No fue posible cambiar la visibilidad WMS:', error);
+    errorOperacion.value = error?.message || 'No fue posible cambiar la visibilidad de la capa.';
+  } finally {
+    operandoId.value = null;
+  }
 }
 
-function eliminarCapa(id) {
-  capasWms.value = capasWms.value.filter((capa) => capa.id !== id);
+async function eliminarCapa(id) {
+  errorOperacion.value = '';
+  operandoId.value = id;
 
-  if (capaEnEdicion.value?.id === id) {
-    cancelarEdicion();
+  try {
+    const eliminada = await eliminarCapaWmsSitio(id, userData.value?.accessToken);
+
+    if (!eliminada) {
+      throw new Error('No fue posible eliminar la capa WMS.');
+    }
+
+    capasWms.value = capasWms.value.filter((capa) => capa.id !== id);
+
+    if (capaEnEdicion.value?.id === id) {
+      cancelarEdicion();
+    }
+  } catch (error) {
+    console.error('No fue posible eliminar la capa WMS:', error);
+    errorOperacion.value = error?.message || 'No fue posible eliminar la capa WMS.';
+  } finally {
+    operandoId.value = null;
   }
 }
 
 function cancelarEdicion() {
   capaEnEdicion.value = null;
+  errorOperacion.value = '';
   formularioVersion.value += 1;
 }
+
+onMounted(cargarCapas);
 </script>
 
 <template>
   <section class="tab-capas-wms">
-    <div class="tab-capas-wms__aviso" role="status">
-      Configuración temporal guardada únicamente en este navegador. Todavía no se sincroniza con el
-      servidor.
-    </div>
+    <p v-if="errorOperacion" class="texto-color-error m-b-3" role="alert">
+      {{ errorOperacion }}
+    </p>
 
     <div class="tab-capas-wms__columnas">
       <section class="panel-wms panel-wms--listado">
@@ -118,7 +199,8 @@ function cancelarEdicion() {
           </span>
         </header>
 
-        <div v-if="capasWms.length === 0" class="estado-vacio">
+        <GeocontenidosLoader v-if="cargandoCapas" mensaje="Cargando capas WMS..." />
+        <div v-else-if="capasWms.length === 0" class="estado-vacio">
           <span class="pictograma-capas estado-vacio__icono" aria-hidden="true" />
 
           <h4>No hay capas WMS agregadas</h4>
@@ -140,9 +222,10 @@ function cancelarEdicion() {
                 :class="{ 'tarjeta-wms__estado--activo': capa.at_start }"
                 :aria-pressed="capa.at_start"
                 :aria-label="`${capa.at_start ? 'Desactivar' : 'Activar'} la capa ${capa.name}`"
-                @click="alternarVisibilidad(capa.id)"
+                :disabled="operandoId === capa.id"
+                @click="alternarVisibilidad(capa)"
               >
-                {{ capa.at_start ? 'Activa' : 'Inactiva' }}
+                {{ operandoId === capa.id ? 'Guardando…' : capa.at_start ? 'Activa' : 'Inactiva' }}
               </button>
             </header>
 
@@ -172,6 +255,7 @@ function cancelarEdicion() {
               <button
                 type="button"
                 class="boton boton-secundario boton-chico"
+                :disabled="guardando || operandoId === capa.id"
                 @click="editarCapa(capa)"
               >
                 <span class="pictograma-editar m-r-1" aria-hidden="true" />
@@ -181,6 +265,7 @@ function cancelarEdicion() {
               <button
                 type="button"
                 class="boton boton-secundario boton-chico texto-color-error"
+                :disabled="guardando || operandoId === capa.id"
                 @click="eliminarCapa(capa.id)"
               >
                 <span class="pictograma-eliminar m-r-1" aria-hidden="true" />
@@ -210,7 +295,8 @@ function cancelarEdicion() {
           :valores-iniciales="valoresIniciales"
           :mostrar-control-inicio="false"
           permitir-consulta-capas
-          @guardar="guardarTemporal"
+          :guardando="guardando"
+          @guardar="guardarCapa"
           @cancelar="cancelarEdicion"
         />
       </section>
@@ -221,14 +307,6 @@ function cancelarEdicion() {
 <style lang="scss" scoped>
 .tab-capas-wms {
   width: 100%;
-}
-
-.tab-capas-wms__aviso {
-  margin-bottom: 16px;
-  padding: 10px 14px;
-  border-left: 4px solid var(--color-primario-4);
-  background-color: var(--fondo-acento);
-  font-size: 0.875rem;
 }
 
 .tab-capas-wms__columnas {

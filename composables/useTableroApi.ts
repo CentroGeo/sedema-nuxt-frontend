@@ -88,6 +88,24 @@ export function useTableroApi() {
     togglePublic: (id: number, token?: string | null) =>
       jsonRequest(`${baseUrl}/sites/${id}/toggle-public/`, 'POST', {}, token),
 
+    // ---------- Capas WMS del tablero ----------
+    fetchCapasWmsSitio: async (siteId: number | string) => {
+      const data = await fetchJson(
+        `${baseUrl}/site-external-wms/?site=${encodeURIComponent(siteId)}`
+      );
+
+      return Array.isArray(data) ? data : data.results || [];
+    },
+
+    crearCapaWmsSitio: (datos: unknown, token?: string | null) =>
+      jsonRequest(`${baseUrl}/site-external-wms/`, 'POST', datos, token),
+
+    actualizarCapaWmsSitio: (id: number | string, datos: unknown, token?: string | null) =>
+      jsonRequest(`${baseUrl}/site-external-wms/${id}/`, 'PATCH', datos, token),
+
+    eliminarCapaWmsSitio: (id: number | string, token?: string | null) =>
+      deleteRequest(`${baseUrl}/site-external-wms/${id}/`, token),
+
     // ---------- GeoNode datasets ----------
     fetchDatasets: (search: string) =>
       fetchJson(
