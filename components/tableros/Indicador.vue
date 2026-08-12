@@ -16,6 +16,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  capasWms: {
+    type: Array,
+    default: () => [],
+  },
 });
 
 const rangoActivoColor = ref(null);
@@ -68,6 +72,7 @@ watch(
             :use-filter="datos.use_filter"
             :filters="datos.filters"
             :rango-activo-color="rangoActivoColor"
+            :capas-wms="capasWms"
             @hover-rango="onHoverRango"
           />
         </div>

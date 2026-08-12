@@ -27,6 +27,53 @@ const indicador = reactive({
   datos: null,
 });
 
+const capasWmsTemporales = ref([]);
+
+const capasWmsActivas = computed(() =>
+  capasWmsTemporales.value.filter(
+    (capa) => capa.at_start && capa.url && (capa.wms_or_tile === 'tile' || capa.wms_layers)
+  )
+);
+
+function obtenerClaveWms(siteId) {
+  return `sigic-tablero-wms-temporal:${siteId}`;
+}
+
+function cargarCapasWmsTemporales(siteId) {
+  if (!import.meta.client || !siteId) return;
+
+  const contenido = localStorage.getItem(obtenerClaveWms(siteId));
+
+  if (!contenido) {
+    capasWmsTemporales.value = [];
+    return;
+  }
+
+  try {
+    const capasGuardadas = JSON.parse(contenido);
+    capasWmsTemporales.value = Array.isArray(capasGuardadas) ? capasGuardadas : [];
+  } catch (error) {
+    console.error('No fue posible recuperar las capas WMS del tablero:', error);
+    capasWmsTemporales.value = [];
+  }
+}
+
+function alCambiarAlmacenamiento(event) {
+  const siteId = sitio.datos?.id;
+
+  if (!siteId || event.key !== obtenerClaveWms(siteId)) return;
+
+  cargarCapasWmsTemporales(siteId);
+}
+
+onMounted(() => {
+  window.addEventListener('storage', alCambiarAlmacenamiento);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('storage', alCambiarAlmacenamiento);
+});
+
 const estilosDinamicos = computed(() => {
   const config = sitio.datos?.configuration;
   if (!config) return {};
@@ -74,6 +121,7 @@ async function cargarSitio() {
     }
 
     sitio.datos = datos;
+    cargarCapasWmsTemporales(datos.id);
 
     const respGrupos = await fetchGrupos(datos.id);
     grupos.value = respGrupos.results || [];
@@ -216,6 +264,7 @@ cargarSitio();
         :nombre="indicadorActivoNombre"
         :datos="indicador.datos"
         :cargando="indicador.cargando"
+        :capas-wms="capasWmsActivas"
       />
 
       <TablerosPiePagina :sitio="sitio.datos" />

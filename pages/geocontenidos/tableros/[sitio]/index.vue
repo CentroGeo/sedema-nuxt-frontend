@@ -261,7 +261,7 @@ cargarSitio();
         </template>
 
         <template #contenido-wms>
-          <TablerosAdminTabCapasWms v-if="sitio.id && activeTab === 'wms'" />
+          <TablerosAdminTabCapasWms v-if="sitio.id && activeTab === 'wms'" :site-id="sitio.id" />
         </template>
 
         <template #contenido-datos>

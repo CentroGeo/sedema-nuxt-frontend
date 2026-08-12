@@ -1,9 +1,48 @@
 <script setup>
+const props = defineProps({
+  siteId: {
+    type: [Number, String],
+    required: true,
+  },
+});
+
+const claveAlmacenamiento = computed(() => `sigic-tablero-wms-temporal:${props.siteId}`);
 const capasWms = ref([]);
 const capaEnEdicion = ref(null);
 const formularioVersion = ref(0);
 
 const valoresIniciales = computed(() => capaEnEdicion.value || {});
+
+function guardarCapasEnNavegador() {
+  if (!import.meta.client || !props.siteId) return;
+
+  localStorage.setItem(claveAlmacenamiento.value, JSON.stringify(capasWms.value));
+}
+
+function cargarCapasDelNavegador() {
+  if (!import.meta.client || !props.siteId) return;
+
+  const contenido = localStorage.getItem(claveAlmacenamiento.value);
+
+  if (!contenido) {
+    capasWms.value = [];
+    return;
+  }
+
+  try {
+    const capasGuardadas = JSON.parse(contenido);
+    capasWms.value = Array.isArray(capasGuardadas) ? capasGuardadas : [];
+  } catch (error) {
+    console.error('No fue posible recuperar las capas WMS temporales:', error);
+    capasWms.value = [];
+  }
+}
+
+watch(capasWms, guardarCapasEnNavegador, {
+  deep: true,
+});
+
+onMounted(cargarCapasDelNavegador);
 
 function guardarTemporal(datos) {
   if (capaEnEdicion.value) {
@@ -62,7 +101,8 @@ function cancelarEdicion() {
 <template>
   <section class="tab-capas-wms">
     <div class="tab-capas-wms__aviso" role="status">
-      Esta es una vista de prueba. Las capas agregadas todavía no se guardan al recargar la página.
+      Configuración temporal guardada únicamente en este navegador. Todavía no se sincroniza con el
+      servidor.
     </div>
 
     <div class="tab-capas-wms__columnas">
