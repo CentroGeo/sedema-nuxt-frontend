@@ -123,7 +123,7 @@ const aportesFiltrados = computed(() => {
 
 // Paginación
 const paginaActual = ref(1);
-const itemsPorPagina = 8;
+const itemsPorPagina = 5;
 
 const totalPaginas = computed(() => Math.ceil(aportesFiltrados.value.length / itemsPorPagina) || 1);
 
@@ -228,16 +228,22 @@ const puntoSeleccionado = computed(() => ({
         />
 
         <!--Contenedor del título-->
-        <div class="flex titulo-contenido-levantamiento m-b-3">
-          <h2>Aportes aprobados</h2>
-          <UiNumeroElementos :numero="aportesFiltrados.length" />
+        <div class="revision-aportes__header m-b-3">
+          <h2 class="revision-aportes__titulo">
+            Aportes aprobados
+          </h2>
+
+          <UiNumeroElementos
+            :numero="aportesFiltrados.length"
+            class="revision-aportes__contador"
+          />
         </div>
 
-        <div class="grid">
+        <div class="grid revision-aportes">
           <!--Columna de las cards -->
-          <div class="columna-5 flex flex-columna">
+          <div class="columna-5 flex flex-columna panel-aportes">
             <!-- Buscador -->
-            <div class="m-b-2">
+            <div class="panel-aportes__busqueda m-b-2">
               <input
                 v-model="busqueda"
                 type="text"
@@ -248,7 +254,7 @@ const puntoSeleccionado = computed(() => ({
             </div>
 
             <!-- Lista de tarjetas iteradas -->
-            <div class="flex flex-columna" style="gap: 12px; flex-grow: 1">
+            <div class="lista-aportes">
               <!-- Loader -->
               <div v-if="cargandoAportes" class="texto-centrado p-3" style="color: #888">
                 Cargando aportes aprobados...
@@ -262,7 +268,7 @@ const puntoSeleccionado = computed(() => ({
                 :class="{ seleccionada: aporteSeleccionado?.id === aporte.id }"
                 @click="verFichaAporte(aporte)"
               >
-                <div class="flex">
+                <div class="flex tarjeta-aporte__contenido m-b-1">
                   <div
                     class="icono-doc m-r-2"
                     style="
@@ -275,7 +281,7 @@ const puntoSeleccionado = computed(() => ({
                   >
                     <span class="pictograma-documento" aria-hidden="true"></span>
                   </div>
-                  <div style="flex-grow: 1; overflow: hidden">
+                  <div class="tarjeta-aporte__texto">
                     <p class="titulo m-0">
                       <strong>{{ aporte.titulo }}</strong>
                     </p>
@@ -327,9 +333,9 @@ const puntoSeleccionado = computed(() => ({
           <!--Ficha de proyecto aprobado-->
           <div class="columna-11">
             <div v-if="aporteSeleccionado">
-              <div class="flex m-b-2" style="justify-content: space-between; align-items: center">
+              <div class="detalle-aporte__header m-b-2">
                 <h3 class="m-0">Ficha de proyecto</h3>
-                <div class="flex botones-exportacion" style="gap: 8px">
+                <div class="detalle-aporte__acciones">
                   <LevantamientoBotonesDescargaAporte
                     :aporte-id="aporteSeleccionado.id"
                     :email="data?.user?.email || ''"
@@ -346,8 +352,7 @@ const puntoSeleccionado = computed(() => ({
               <!-- Mapa nativo con sisdai-mapas -->
               <div
                 v-if="aporteSeleccionado"
-                class="mapa-placeholder m-b-3"
-                style="padding: 0; overflow: hidden; height: 300px"
+                class="detalle-aporte__mapa m-b-3" 
               >
                 <ClientOnly>
                   <SisdaiMapa
@@ -398,7 +403,7 @@ const puntoSeleccionado = computed(() => ({
                 </div>
 
                 <!-- Galería de Fotografías -->
-                <div class="flex m-b-4" style="gap: 16px; justify-content: center">
+                <div class="detalle-aporte__galeria m-b-4">
                   <template v-if="aporteSeleccionado.fotos && aporteSeleccionado.fotos.length > 0">
                     <div
                       v-for="(foto, index) in aporteSeleccionado.fotos.slice(0, 3)"
@@ -416,8 +421,10 @@ const puntoSeleccionado = computed(() => ({
                 </div>
 
                 <!--Ficha de Información-->
+                
                 <h4 class="form-titulo m-b-2">Ficha de información:</h4>
-                <div class="grid" style="gap: 16px">
+                <div class="levantamiento-form">
+                  <div class="grid">
                   <div class="columna-16">
                     <label class="form-label">1.- PREGUNTA ABIERTA</label>
                     <input
@@ -463,8 +470,9 @@ const puntoSeleccionado = computed(() => ({
                         title="Opción 5"
                       />
                     </div>
+                    </div>
                   </div>
-                </div>
+                  </div>
               </div>
             </div>
             <!-- Estado vacío de la columna derecha -->
@@ -540,35 +548,138 @@ const puntoSeleccionado = computed(() => ({
 }
 
 /* Tarjetas laterales*/
+.revision-aportes{
+    align-items:flex-start;
+}
+.revision-aportes__header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+}
+.revision-aportes__titulo{
+    margin:0;
+}
+.panel-aportes{
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+    height:100%;
+}
+.panel-aportes__busqueda{
+    flex-shrink:0;
+}
+.lista-aportes{
+  display:flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 18px;
+}
+
+.lista-aportes>.tarjeta-aporte{
+
+    width:100%;
+
+    flex:none;
+}
+.tarjeta-aporte__contenido{
+    display:flex;
+    align-items:flex-start;
+    gap:.75rem;
+    min-width:0;
+}
+.tarjeta-aporte__texto{
+    flex:1;
+    min-width:0;
+}
+
 .tarjeta-aporte {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  min-height: 120px;
+
   background-color: #715b62;
   border: 1px solid #715b62;
-  transition: all 0.25s ease;
+  border-radius: 8px;
+
+  padding: 0.9rem;
+  transition:
+    background-color .25s ease,
+    border-color .25s ease,
+    box-shadow .25s ease,
+    transform .25s ease;
 
   .icono-doc,
   .titulo,
+  .texto-secundario,
+  .texto-porcentaje {
+    color: #fff !important;
+  }
+
+  .titulo {
+    line-height: 1.35;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
   .texto-secundario {
-    color: #ffffff !important;
+    line-height: 1.25;
+    word-break: break-word;
+  }
+
+  .barra-fondo {
+    height: 6px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(255,255,255,.20);
+  }
+
+  .barra-relleno {
+    height: 100%;
+    background: #d48d95;
+    transition: width .3s ease;
   }
 
   &:hover:not(.seleccionada) {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    filter: brightness(1.05);
+    box-shadow: 0 6px 18px rgba(0,0,0,.15);
   }
 
   &.seleccionada {
-    background-color: #d48d95;
+    background: #d48d95;
     border-color: #d48d95;
 
     .icono-doc,
     .titulo,
-    .texto-secundario {
+    .texto-secundario,
+    .texto-porcentaje {
       color: #391821 !important;
+    }
+
+    .barra-fondo {
+      background: rgba(255,255,255,.40);
+    }
+
+    .barra-relleno {
+      background: #391821;
     }
   }
 }
+.detalle-aporte__mapa{
 
+  min-height: 220px;
+
+}
+.detalle-aporte__mapa>div{
+  width:100%;
+  height:100%;
+
+  min-height:220px;
+}
 /* Paginación */
 .paginacion {
   justify-content: center;
@@ -613,6 +724,9 @@ const puntoSeleccionado = computed(() => ({
 .tarjeta-detalle {
   background-color: #f8fafc;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+  overflow:hidden;
+  min-width:0;
+  width:100%;
 }
 
 .badge-estado {
@@ -863,5 +977,318 @@ const puntoSeleccionado = computed(() => ({
   width: 100%;
   padding: 10px;
   border-radius: 6px;
+}
+// Responsive Tablets
+@media (max-width:991px){
+
+
+    // Layout
+    .revision-aportes{
+
+      display:flex;
+      flex-direction:column;
+
+    }
+
+    .revision-aportes>.columna-5{
+
+      width:100%;
+      max-width:100%;
+
+    }
+
+    .revision-aportes>.columna-11{
+      width:100%;
+      max-width:100%;
+
+    }
+
+    /*-----------------------------
+    Header
+    ------------------------------*/
+
+    .detalle-aporte__header{
+
+        flex-direction:column;
+        align-items:flex-start;
+
+    }
+
+    .detalle-aporte__acciones{
+
+        width:100%;
+
+        justify-content:flex-start;
+
+    }
+    .detalle-aporte__registrante{
+      margin-top: 12px;  
+    }
+    /*-----------------------------
+    Formulario
+    ------------------------------*/
+
+    .levantamiento-form .grid{
+
+        gap:16px;
+
+    }
+
+}
+// Celulares
+@media (max-width:767px){
+
+    h2{
+
+        font-size:1.25rem;
+
+    }
+
+    /*-----------------------------
+    Header principal
+    ------------------------------*/
+
+    .revision-aportes__header{
+
+        flex-direction:column;
+        align-items:flex-start;
+
+        gap:12px;
+
+    }
+
+    /*-----------------------------
+    Buscador
+    ------------------------------*/
+
+    .panel-aportes__busqueda{
+
+        width:100%;
+
+    }
+
+    .panel-aportes__busqueda input{
+
+        width:100%;
+
+    }
+
+    /*-----------------------------
+    Tarjetas
+    ------------------------------*/
+
+    .tarjeta-aporte{
+        padding:14px;
+    }
+
+    .tarjeta-aporte__contenido{
+
+        gap:10px;
+
+    }
+
+    /*-----------------------------
+    Header ficha
+    ------------------------------*/
+
+    .detalle-aporte__header{
+
+        display:flex;
+        flex-direction:column;
+        align-items:flex-start;
+        gap:16px;
+
+    }
+
+    .detalle-aporte__acciones{
+
+        display:flex;
+        flex-wrap:wrap;
+        gap:8px;
+        justify-content:flex-start;
+
+    }
+
+    .detalle-aporte__acciones>*{
+
+        width:auto !important;
+        flex:none;
+
+    }
+    .detalle-aporte__titulo{
+        width:80%;
+        margin: 0;
+    }
+
+    .detalle-aporte__titulo h2{
+
+        margin:0;
+        font-size:1.5rem;
+        line-height:1.35;
+        white-space:normal;
+        word-break:normal;
+        overflow-wrap:break-word;
+
+    }
+
+    .detalle-aporte__registrante{
+      margin-top:12px;
+    }
+    .detalle-aporte__galeria{
+
+      display:grid;
+
+      grid-template-columns:1fr;
+
+      gap:12px;
+
+      }
+
+      .imagen-miniatura{
+
+      width:100%;
+
+      height:220px;
+
+      }
+    /*-----------------------------
+    Formulario
+    ------------------------------*/
+
+    .levantamiento-form .grid{
+
+        display:flex;
+
+        flex-direction:column;
+
+    }
+
+    .levantamiento-form .grid>[class*="columna"]{
+
+        width:100%!important;
+        max-width:100%!important;
+        flex:0 0 100%!important;
+
+    }
+
+    /*-----------------------------
+    Botones
+    ------------------------------*/
+
+    .detalle-aporte__acciones-finales{
+
+        flex-direction:column;
+
+    }
+
+    .detalle-aporte__acciones-finales>*{
+
+        width:100%;
+
+    }
+
+    .grid-metadatos{
+
+      display:flex;
+      flex-direction:column;
+
+      row-gap:8px;
+
+      }
+
+      .meta-label{
+
+      margin-top:10px;
+
+      }
+
+}
+// Celulares pequeños
+@media (max-width:480px){
+
+    .revision-aportes{
+
+        gap:16px;
+
+    }
+
+    .tarjeta-aporte{
+
+        padding:12px;
+
+    }
+
+    .tarjeta-ficha{
+
+        padding:16px;
+
+    }
+
+    .detalle-aporte{
+
+        gap:18px;
+
+    }
+
+    .detalle-aporte__titulo h2{
+
+        font-size:1.1rem;
+
+    }
+
+    .detalle-aporte__mapa .leaflet-container{
+        height:220px;
+    }
+
+    .detalle-aporte__galeria{
+
+        grid-template-columns:1fr;
+
+    }
+
+    .detalle-aporte__acciones{
+
+        gap:10px;
+
+    }
+
+    .detalle-aporte__acciones>*{
+
+        width:100%;
+
+    }
+    .detalle-aporte__registrante{
+      margin-top:12px;
+    }
+}
+// celulares muy pequeños
+@media (max-width:360px){
+
+    h2{
+
+        font-size:1rem;
+
+    }
+
+    .tarjeta-aporte{
+
+        padding:10px;
+
+    }
+
+    .detalle-aporte{
+
+        gap:14px;
+
+    }
+
+    .detalle-aporte__galeria{
+
+        gap:10px;
+
+    }
+    .detalle-aporte__registrante{
+      margin-top:12px;
+    }
 }
 </style>

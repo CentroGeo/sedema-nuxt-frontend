@@ -215,16 +215,22 @@ const puntoSeleccionado = computed(() => ({
         />
 
         <!--Contenedor del título-->
-        <div class="flex titulo-contenido-levantamiento m-b-3">
-          <h2>Aportes rechazados</h2>
-          <UiNumeroElementos :numero="aportesFiltrados.length" />
+        <div class="revision-aportes__header m-b-3">
+          <h2 class="revision-aportes__titulo">
+            Aportes rechazados
+          </h2>
+
+          <UiNumeroElementos
+            :numero="aportesFiltrados.length"
+            class="revision-aportes__contador"
+          />
         </div>
 
-        <div class="grid">
+        <div class="grid revision-aportes">
           <!--Columna de las cards -->
-          <div class="columna-5 flex flex-columna">
+          <div class="columna-5 flex flex-columna panel-aportes">
             <!-- Buscador -->
-            <div class="m-b-2">
+            <div class="panel-aportes__busqueda m-b-2">
               <input
                 v-model="busqueda"
                 type="text"
@@ -235,7 +241,7 @@ const puntoSeleccionado = computed(() => ({
             </div>
 
             <!-- Lista de tarjetas iteradas -->
-            <div class="flex flex-columna" style="gap: 12px; flex-grow: 1">
+            <div class="lista-aportes">
               <!-- Loader -->
               <div v-if="cargandoAportes" class="texto-centrado p-3" style="color: #888">
                 Cargando aportes rechazados...
@@ -249,7 +255,7 @@ const puntoSeleccionado = computed(() => ({
                 :class="{ seleccionada: aporteSeleccionado?.id === aporte.id }"
                 @click="verFichaAporte(aporte)"
               >
-                <div class="flex">
+                <div class="flex tarjeta-aporte__contenido m-b-1">
                   <div
                     class="icono-doc m-r-2"
                     style="
@@ -525,33 +531,162 @@ const puntoSeleccionado = computed(() => ({
   flex-direction: column;
 }
 
+// Tarjetas laterales
+
+
+.revision-aportes{
+    align-items:flex-start;
+}
+.revision-aportes__header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+}
+.revision-aportes__titulo{
+    margin:0;
+}
+.panel-aportes{
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+    height:100%;
+}
+.panel-aportes__busqueda{
+    flex-shrink:0;
+}
+.lista-aportes{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    flex:1;
+}
+.tarjeta-aporte__contenido{
+    display:flex;
+    align-items:flex-start;
+    gap:.75rem;
+    min-width:0;
+}
+.tarjeta-aporte__texto{
+    flex:1;
+    min-width:0;
+}
 .tarjeta-aporte {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+
   background-color: #715b62;
   border: 1px solid #715b62;
-  transition: all 0.25s ease;
+  border-radius: 8px;
+
+  padding: 0.9rem;
+  transition:
+    background-color .25s ease,
+    border-color .25s ease,
+    box-shadow .25s ease,
+    transform .25s ease;
 
   .icono-doc,
   .titulo,
+  .texto-secundario,
+  .texto-porcentaje {
+    color: #fff !important;
+  }
+
+  .titulo {
+    line-height: 1.35;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
   .texto-secundario {
-    color: #ffffff !important;
+    line-height: 1.25;
+    word-break: break-word;
+  }
+
+  .barra-fondo {
+    height: 6px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(255,255,255,.20);
+  }
+
+  .barra-relleno {
+    height: 100%;
+    background: #d48d95;
+    transition: width .3s ease;
   }
 
   &:hover:not(.seleccionada) {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    filter: brightness(1.05);
+    box-shadow: 0 6px 18px rgba(0,0,0,.15);
   }
 
   &.seleccionada {
-    background-color: #d48d95;
+    background: #d48d95;
     border-color: #d48d95;
 
     .icono-doc,
     .titulo,
-    .texto-secundario {
+    .texto-secundario,
+    .texto-porcentaje {
       color: #391821 !important;
     }
+
+    .barra-fondo {
+      background: rgba(255,255,255,.40);
+    }
+
+    .barra-relleno {
+      background: #391821;
+    }
   }
+}
+// RESPONSIVE TARJETAS LATERALES (Smartphones)
+@media (max-width:575px){
+.revision-aportes__header{
+    align-items:flex-start;
+    flex-direction:column;
+}
+
+.panel-aportes{
+    width:100%;
+    padding-inline:0;
+}
+
+.lista-aportes{
+    gap:10px;
+}
+
+}
+// Tablets
+@media (max-width:991px){
+.revision-aportes{
+    display:flex;
+    flex-direction:column;
+    gap:24px;
+}
+
+.panel-aportes{
+    width:100%;
+}
+
+}
+// Monitores
+@media (min-width:1600px){
+  .tarjeta-aporte{
+    padding:1.1rem;
+    .titulo{
+      font-size:1.08rem;
+    }
+    .texto-secundario{
+      font-size:.82rem;
+    }
+  }
+
 }
 
 .paginacion {
