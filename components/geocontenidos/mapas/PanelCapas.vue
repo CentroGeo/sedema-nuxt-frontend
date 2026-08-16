@@ -12,6 +12,10 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  estadosCarga: {
+    type: Object,
+    default: () => ({}),
+  },
 });
 
 const emit = defineEmits([
@@ -104,6 +108,24 @@ const capasOrdenadas = computed(() =>
   [...props.capas].sort((a, b) => b.stack_order - a.stack_order)
 );
 
+function esCapaRemota(capa) {
+  return String(capa.dataset_sourcetype || '').toUpperCase() === 'REMOTE';
+}
+
+function estadoCarga(capa) {
+  return props.estadosCarga[capa.id] || 'idle';
+}
+
+function textoEstadoCarga(capa) {
+  const mensajes = {
+    loading: 'Cargando capa…',
+    success: 'Capa cargada',
+    error: 'No fue posible cargar esta capa',
+  };
+
+  return mensajes[estadoCarga(capa)] || '';
+}
+
 function alternarVisible(capa) {
   emit('toggle', { id: capa.id, visible: !capa.visible });
 }
@@ -144,7 +166,7 @@ const modalConfirmar = ref(null);
 async function eliminar(capa) {
   const ok = await modalConfirmar.value?.abrir({
     titulo: 'Eliminar capa',
-    mensaje: `¿Eliminar la capa "${capa.name}"?`,
+    mensaje: `¿Eliminar la capa "${capa.dataset_title || capa.name}"?`,
     textoConfirmar: 'Eliminar',
   });
   if (!ok) return;
@@ -218,39 +240,69 @@ async function eliminar(capa) {
 
     <ul class="lista-capas">
       <li v-for="(capa, idx) in capasOrdenadas" :key="capa.id" class="capa-item p-1">
-        <div class="capa-cabecera flex flex-contenido-separado">
-          <label class="capa-toggle flex">
-            <input
-              type="checkbox"
-              :checked="capa.visible"
-              :disabled="!editable"
-              @change="alternarVisible(capa)"
-            />
-            <span class="capa-nombre">{{ capa.name }}</span>
-          </label>
+        <div class="capa-cabecera">
+          <div class="capa-titulo-fila">
+            <span class="capa-nombre">
+              {{ capa.dataset_title || capa.name }}
+            </span>
 
-          <div class="capa-cabecera-acciones flex">
-            <span
-              v-if="capa.dataset_is_published != null"
-              class="etiqueta-visibilidad"
-              :class="capa.dataset_is_published ? 'es-publica' : 'es-privada'"
-            >
-              {{ capa.dataset_is_published ? 'Pública' : 'Privada' }}
-            </span>
-            <span v-if="tieneLados && capa.map_position" class="etiqueta-pos">
-              {{ capa.map_position === 'left' ? 'Izq' : 'Der' }}
-            </span>
             <button
               v-if="editable"
               class="boton-pictograma boton-sin-contenedor-secundario texto-color-error"
               type="button"
-              aria-label="Eliminar capa"
+              :aria-label="`Eliminar ${capa.dataset_title || capa.name}`"
               @click="eliminar(capa)"
             >
               <span class="pictograma-eliminar" aria-hidden="true"></span>
             </button>
           </div>
+
+          <p v-if="esCapaRemota(capa)" class="capa-identificador m-y-1">
+            WMS: {{ capa.wms_layer_name || capa.name }}
+          </p>
+
+          <div class="capa-metadatos">
+            <label class="control-visibilidad" :class="{ 'esta-deshabilitado': !editable }">
+              <input
+                class="switch-input"
+                type="checkbox"
+                :checked="capa.visible"
+                :disabled="!editable"
+                :aria-label="`${capa.visible ? 'Desactivar' : 'Activar'} ${capa.dataset_title || capa.name}`"
+                @change="alternarVisible(capa)"
+              />
+
+              <span class="switch-control" aria-hidden="true"></span>
+
+              <span class="switch-etiqueta">
+                {{ capa.visible ? 'Activa' : 'Inactiva' }}
+              </span>
+            </label>
+
+            <span v-if="esCapaRemota(capa)" class="etiqueta-remota">Remota</span>
+
+            <span
+              v-if="capa.dataset_is_published != null"
+              class="etiqueta-visibilidad"
+              :class="capa.dataset_is_published ? 'es-publica' : 'es-privada'"
+            >
+              {{ capa.dataset_is_published ? 'Publicada' : 'No publicada' }}
+            </span>
+
+            <span v-if="tieneLados && capa.map_position" class="etiqueta-pos">
+              {{ capa.map_position === 'left' ? 'Izq' : 'Der' }}
+            </span>
+          </div>
         </div>
+
+        <p
+          v-if="estadoCarga(capa) !== 'idle'"
+          class="estado-carga m-y-1"
+          :class="`es-${estadoCarga(capa)}`"
+          aria-live="polite"
+        >
+          {{ textoEstadoCarga(capa) }}
+        </p>
 
         <div class="capa-opacidad m-t-1">
           <label :for="`op-${capa.id}`" class="texto-secundario">
@@ -314,8 +366,9 @@ async function eliminar(capa) {
   border-left: 1px solid var(--color-neutro-1);
   overflow-y: auto;
   height: 100%;
-  max-width: 280px;
-  min-width: 280px;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
 }
 
 .panel-encabezado {
@@ -336,18 +389,132 @@ async function eliminar(capa) {
   background-color: var(--fondo-acento);
 }
 
-.capa-toggle {
-  align-items: center;
+.capa-titulo-fila {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 8px;
-  cursor: pointer;
-  flex: 1;
-  min-width: 0;
 }
 
 .capa-nombre {
-  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.capa-identificador {
+  font-size: 0.72rem;
+  color: var(--texto-secundario);
+  overflow-wrap: anywhere;
+}
+
+.capa-metadatos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.control-visibilidad {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.control-visibilidad.esta-deshabilitado {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.switch-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
   overflow: hidden;
-  text-overflow: ellipsis;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.switch-control {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 21px;
+  flex: 0 0 38px;
+  border: 1px solid var(--borde-secundario);
+  border-radius: 999px;
+  background-color: var(--color-neutro-3);
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+.switch-control::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background-color: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
+  transition: transform 160ms ease;
+}
+
+.switch-input:checked + .switch-control {
+  border-color: var(--texto-confirmacion);
+  background-color: var(--fondo-confirmacion);
+}
+
+.switch-input:checked + .switch-control::after {
+  transform: translateX(17px);
+}
+
+.switch-input:focus-visible + .switch-control {
+  outline: 2px solid var(--boton-primario-fondo);
+  outline-offset: 2px;
+}
+
+.switch-input:disabled + .switch-control {
+  cursor: not-allowed;
+}
+
+.switch-etiqueta {
+  min-width: 45px;
+}
+
+.etiqueta-remota {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 6px;
+  white-space: nowrap;
+  background-color: var(--color-secundario-2);
+  color: var(--color-primario-4);
+}
+
+.estado-carga {
+  font-size: 0.75rem;
+}
+
+.estado-carga.es-loading {
+  color: var(--texto-secundario);
+}
+
+.estado-carga.es-success {
+  color: var(--texto-confirmacion);
+}
+
+.estado-carga.es-error {
+  color: var(--texto-error);
 }
 
 .etiqueta-pos {
@@ -373,11 +540,6 @@ async function eliminar(capa) {
 .etiqueta-visibilidad.es-privada {
   background-color: var(--fondo-error);
   color: var(--texto-error);
-}
-
-.capa-cabecera-acciones {
-  align-items: center;
-  gap: 6px;
 }
 
 .capa-opacidad input[type='range'] {

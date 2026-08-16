@@ -41,7 +41,7 @@ const modalConfirmar = ref(null);
 async function eliminarExistente(capa) {
   const ok = await modalConfirmar.value?.abrir({
     titulo: 'Eliminar capa',
-    mensaje: `¿Eliminar la capa "${capa.name}" del mapa?`,
+    mensaje: `¿Eliminar la capa "${capa.dataset_title || capa.name}" del mapa?`,
     textoConfirmar: 'Eliminar',
   });
   if (!ok) return;
@@ -189,14 +189,14 @@ onBeforeUnmount(() => {
                           :checked="capa.visible"
                           @change="alternarVisible(capa)"
                         />
-                        <strong>{{ capa.name }}</strong>
+                        <strong>{{ capa.dataset_title || capa.name }}</strong>
                       </label>
                       <span
                         v-if="capa.dataset_is_published != null"
                         class="etiqueta-visibilidad"
                         :class="capa.dataset_is_published ? 'es-publica' : 'es-privada'"
                       >
-                        {{ capa.dataset_is_published ? 'Pública' : 'Privada' }}
+                        {{ capa.dataset_is_published ? 'Publicada' : 'No publicada' }}
                       </span>
                       <button
                         class="boton-pictograma boton-sin-contenedor-secundario"

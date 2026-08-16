@@ -58,12 +58,9 @@ async function cargarCapas() {
     page: String(pagina.value),
     page_size: String(tamPagina),
   });
-  // GeoNode no soporta el lookup `.in` con lista separada por comas;
-  // hay que repetir el parámetro por cada valor.
-  params.append('filter{subtype.in}', 'vector');
-  params.append('filter{subtype.in}', 'raster');
+
   if (busqueda.value.trim()) {
-    params.append('search', busqueda.value.trim());
+    params.append('filter{title.icontains}', busqueda.value.trim());
   } else if (categoriaSeleccionada.value) {
     params.append('filter{category.identifier}', categoriaSeleccionada.value.identifier);
   }
@@ -221,7 +218,7 @@ onMounted(async () => {
                       class="etiqueta"
                       :class="capa.is_published ? 'etiqueta-publica' : 'etiqueta-privada'"
                     >
-                      {{ capa.is_published ? 'Pública' : 'Privada' }}
+                      {{ capa.is_published ? 'Publicada' : 'No publicada' }}
                     </span>
                     <span class="texto-secundario">{{ capa.workspace }}</span>
                   </div>
