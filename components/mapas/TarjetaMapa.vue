@@ -46,7 +46,19 @@ const tipoEtiqueta = {
   dual: 'Dual',
 };
 
-const previewSrc = computed(() => props.mapa.preview || `${config.app.baseURL}img/icono_sigic.png`);
+const placeholderPreview = computed(() => `${config.app.baseURL}img/icono_sigic.png`);
+
+// Si la preview del backend no carga (aún no generada, borrada o sin permiso),
+// el navegador dibuja el texto del alt dentro del recuadro y se encima con las
+// etiquetas absolutas. Se cae al placeholder en vez de dejar el hueco.
+const previewFallo = ref(false);
+const previewSrc = computed(() =>
+  props.mapa.preview && !previewFallo.value ? props.mapa.preview : placeholderPreview.value
+);
+
+function alFallarPreview() {
+  previewFallo.value = true;
+}
 
 function abrirMapa() {
   navigateTo(`/geocontenidos/mapas/${props.mapa.id}`);
@@ -62,7 +74,12 @@ function visualizarMapa() {
   <div class="tarjeta columna-5 tarjeta-mapa">
     <div class="tarjeta-cuerpo">
       <div class="preview-contenedor">
-        <img :src="previewSrc" :alt="`Vista previa de ${mapa.name}`" class="preview" />
+        <img
+          :src="previewSrc"
+          :alt="`Vista previa de ${mapa.name}`"
+          class="preview"
+          @error="alFallarPreview"
+        />
         <span class="borde-redondeado-16 p-1 etiqueta-tipo">
           {{ tipoEtiqueta[mapa.map_type] || mapa.map_type }}
         </span>
@@ -144,6 +161,8 @@ function visualizarMapa() {
   position: absolute;
   top: 8px;
   right: 8px;
+  z-index: 1;
+  max-width: calc(100% - 16px);
   background-color: var(--color-secundario-2);
   color: var(--color-primario-4);
   border: solid 1px var(--color-primario-4);
@@ -154,6 +173,7 @@ function visualizarMapa() {
   position: absolute;
   top: 8px;
   left: 8px;
+  z-index: 1;
   // Sobre imagen arbitraria: overlay neutro translúcido con tokens sisdai.
   background-color: var(--opacidad-fuerte);
   color: var(--texto-inverso);
