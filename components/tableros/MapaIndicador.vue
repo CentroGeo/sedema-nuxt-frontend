@@ -54,14 +54,19 @@ const leyendaMinimizada = ref(false);
 const VISTA_DEFAULT = { centro: [-99.1332, 19.4326], acercamiento: 5 };
 
 const capasWmsActivas = computed(() =>
-  props.capasWms.filter(
-    (capa) => capa.at_start && capa.url && (capa.wms_or_tile === 'tile' || capa.wms_layers)
-  )
+  [...props.capasWms]
+    .filter((capa) => capa.at_start && capa.url && (capa.wms_or_tile === 'tile' || capa.wms_layers))
+    .sort((a, b) => Number(a.stack_order ?? 0) - Number(b.stack_order ?? 0))
 );
 
 const firmaCapasWms = computed(() =>
   capasWmsActivas.value
-    .map((capa) => `${capa.id || capa.name}:${capa.url}:${capa.wms_layers || ''}`)
+    .map(
+      (capa) =>
+        `${capa.id || capa.name}:${capa.url}:${
+          capa.wms_layers || ''
+        }:${capa.opacity ?? 1}:${capa.stack_order ?? 0}`
+    )
     .join('|')
 );
 

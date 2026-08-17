@@ -30,10 +30,17 @@ const consultaExterna = (url) => gnoxyFetch(url);
     :capa="configuracion.wms_layers"
     :posicion="posicion"
     :lado="lado"
+    :opacidad="configuracion.opacity ?? 1"
     :consulta="consultaExterna"
     @al-iniciar-carga="emit('iniciar-carga')"
     @al-finalizar-carga="(cargaExitosa) => emit('finalizar-carga', cargaExitosa)"
   />
 
-  <SisdaiCapaXyz v-else :fuente="configuracion.url" :posicion="posicion" :lado="lado" />
+  <SisdaiCapaXyz
+    v-else
+    :fuente="configuracion.url"
+    :posicion="posicion"
+    :lado="lado"
+    :opacidad="configuracion.opacity ?? 1"
+  />
 </template>

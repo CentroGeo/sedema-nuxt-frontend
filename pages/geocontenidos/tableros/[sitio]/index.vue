@@ -157,7 +157,7 @@ const pestanias = computed(() => [
   { id: 'identidad', titulo: 'Identidad del sitio' },
   { id: 'banda', titulo: 'Banda institucional', deshabilitada: esNuevo.value },
   { id: 'estructura', titulo: 'Estructura', deshabilitada: esNuevo.value },
-  { id: 'wms', titulo: 'Capas WMS', deshabilitada: esNuevo.value },
+  { id: 'wms', titulo: 'Capas de referencia', deshabilitada: esNuevo.value },
   { id: 'datos', titulo: 'Cuadros de datos', deshabilitada: esNuevo.value },
 ]);
 

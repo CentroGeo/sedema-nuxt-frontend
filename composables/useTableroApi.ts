@@ -88,7 +88,7 @@ export function useTableroApi() {
     togglePublic: (id: number, token?: string | null) =>
       jsonRequest(`${baseUrl}/sites/${id}/toggle-public/`, 'POST', {}, token),
 
-    // ---------- Capas WMS del tablero ----------
+    // ---------- Capas de referencia del tablero ----------
     fetchCapasWmsSitio: async (siteId: number | string) => {
       const data = await fetchJson(
         `${baseUrl}/site-external-wms/?site=${encodeURIComponent(siteId)}`
@@ -117,11 +117,15 @@ export function useTableroApi() {
       page: number = 1,
       token?: string | null,
       pageSize: number = 20,
-      category: string = ''
+      category: string = '',
+      sourceType: string = '',
+      subtype: string = ''
     ) => {
       const params = new URLSearchParams({ page_size: String(pageSize), page: String(page) });
       if (search) params.set('filter{title.icontains}', search);
       if (category) params.set('filter{category.identifier.in}', category);
+      if (sourceType) params.set('filter{sourcetype}', sourceType);
+      if (subtype) params.set('filter{subtype}', subtype);
       const url = `${config.public.geonodeApi}/datasets/?${params.toString()}`;
       if (token) {
         return gnoxyFetch(url, { headers: { Authorization: `Bearer ${token}` } }).then((r) =>
@@ -133,14 +137,6 @@ export function useTableroApi() {
 
     fetchDatasetAttributes: (id: number) =>
       fetchJson(`${config.public.geonodeApi}/datasets/${id}/`),
-
-    syncDatasetAttributes: (id: number, token?: string | null) =>
-      jsonRequest(
-        `${config.public.geonodeApi}/sigic-remote-datasets/${id}/sync-attributes/`,
-        'POST',
-        {},
-        token
-      ),
 
     // ---------- Site configuration ----------
     fetchConfigSitio: (siteId: number) => fetchJson(`${baseUrl}/site-configs/${siteId}/`),

@@ -9,13 +9,8 @@ const props = defineProps({
 const emit = defineEmits(['creado', 'cerrar']);
 
 const { data: userData } = useAuth();
-const {
-  crearIndicador,
-  recalcularIndicador,
-  fetchDatasetsPaginados,
-  fetchDatasetAttributes,
-  syncDatasetAttributes,
-} = useTableroApi();
+const { crearIndicador, recalcularIndicador, fetchDatasetsPaginados, fetchDatasetAttributes } =
+  useTableroApi();
 
 const modal = ref(null);
 const paso = ref(1);
@@ -56,8 +51,6 @@ const datasetSeleccionado = ref(null);
 const atributosDataset = ref([]);
 const cargandoAtributos = ref(false);
 const errorAtributos = ref(false);
-const sincronizandoAtributos = ref(false);
-const errorSincronizacion = ref('');
 
 const GEO_ATTRS = new Set(['the_geom', 'geometry', 'geom', 'wkb_geometry', 'shape']);
 
@@ -67,7 +60,15 @@ async function cargarDatasetsIniciales() {
   buscandoDataset.value = true;
   try {
     const token = userData.value?.accessToken;
-    const data = await fetchDatasetsPaginados('', 1, token, 20, categoriaFiltro.value);
+    const data = await fetchDatasetsPaginados(
+      '',
+      1,
+      token,
+      20,
+      categoriaFiltro.value,
+      'LOCAL',
+      'vector'
+    );
     resultadosDataset.value = data?.datasets ?? data?.results ?? [];
     paginaDataset.value = 1;
     const total = data?.total ?? data?.count ?? 0;
@@ -89,7 +90,9 @@ async function cargarMasDatasets() {
       siguientePag,
       token,
       20,
-      categoriaFiltro.value
+      categoriaFiltro.value,
+      'LOCAL',
+      'vector'
     );
     const nuevos = data?.datasets ?? data?.results ?? [];
     resultadosDataset.value = [...resultadosDataset.value, ...nuevos];
@@ -115,7 +118,9 @@ function buscarDatasets() {
         1,
         token,
         20,
-        categoriaFiltro.value
+        categoriaFiltro.value,
+        'LOCAL',
+        'vector'
       );
       resultadosDataset.value = data?.datasets ?? data?.results ?? [];
       const total = data?.total ?? data?.count ?? 0;
@@ -165,34 +170,6 @@ function limpiarDataset() {
   formulario.field_one = '';
   formulario.field_two = '';
   atributosDataset.value = [];
-  errorSincronizacion.value = '';
-}
-
-async function sincronizarAtributos() {
-  if (!datasetSeleccionado.value) return;
-  sincronizandoAtributos.value = true;
-  errorSincronizacion.value = '';
-  try {
-    const data = await syncDatasetAttributes(
-      datasetSeleccionado.value.pk,
-      userData.value?.accessToken
-    );
-    if (data?.attributes?.length) {
-      atributosDataset.value = data.attributes.filter((a) => !GEO_ATTRS.has(a.attribute));
-    } else if (data?.error === 'wfs_no_disponible') {
-      errorSincronizacion.value =
-        'El servicio WFS remoto no está disponible en este momento. ' +
-        'Inténtalo más tarde o contacta al administrador del recurso.';
-    } else {
-      errorSincronizacion.value =
-        data?.detail || 'No se encontraron atributos en el servicio remoto para esta capa.';
-    }
-  } catch {
-    errorSincronizacion.value =
-      'No se pudo conectar con el servidor. Verifica tu conexión e inténtalo de nuevo.';
-  } finally {
-    sincronizandoAtributos.value = false;
-  }
 }
 
 async function guardar() {
@@ -320,6 +297,11 @@ onMounted(async () => {
 
             <div class="seccion-titulo m-t-3">Capa de datos</div>
 
+            <p class="formulario-ayuda">
+              Selecciona una capa local vectorial con atributos. Los servicios WMS se administran
+              por separado en “Capas de referencia”.
+            </p>
+
             <div v-if="datasetSeleccionado" class="dataset-seleccionado">
               <div class="dataset-seleccionado__info">
                 <strong>{{ datasetSeleccionado.title }}</strong>
@@ -413,24 +395,14 @@ onMounted(async () => {
                 v-if="!cargandoAtributos && !errorAtributos && atributosDataset.length === 0"
                 class="sin-atributos-aviso"
               >
-                <p class="formulario-ayuda">
-                  Este recurso no tiene atributos registrados. Puedes sincronizarlos desde el
-                  servicio de origen.
-                </p>
-                <button
-                  type="button"
-                  class="boton boton-secundario boton-chico"
-                  :disabled="sincronizandoAtributos"
-                  @click="sincronizarAtributos"
-                >
-                  {{ sincronizandoAtributos ? 'Sincronizando...' : 'Sincronizar atributos' }}
-                </button>
-                <p v-if="errorSincronizacion" class="formulario-ayuda color-error">
-                  {{ errorSincronizacion }}
+                <p class="formulario-ayuda color-error">
+                  Este Dataset local no tiene atributos disponibles y no puede utilizarse para crear
+                  un indicador.
                 </p>
               </div>
 
               <div class="seccion-titulo m-t-3">Campos</div>
+
               <div class="form-grid-3">
                 <div class="campo">
                   <label for="ind-field-id"
