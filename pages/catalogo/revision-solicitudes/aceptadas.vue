@@ -80,6 +80,16 @@ watch(
   { deep: true }
 );
 
+function alCambiarVisibilidadPestania() {
+  if (document.visibilityState === 'visible') {
+    storeResources.getMyTotal('publicacion', {
+      'filter{status}': 'published',
+      'filter{reviewer}': `${userReviewerPk.value}`,
+    });
+    fetchNewData();
+  }
+}
+
 onMounted(async () => {
   await storeCatalogo.getUserInfo();
   userReviewerPk.value = storeCatalogo.userInfo.pk;
@@ -90,6 +100,11 @@ onMounted(async () => {
     'filter{reviewer}': `${userReviewerPk.value}`,
   });
   fetchNewData();
+  document.addEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
 });
 </script>
 

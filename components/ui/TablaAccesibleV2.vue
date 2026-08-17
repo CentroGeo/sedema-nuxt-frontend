@@ -435,9 +435,8 @@ async function confirmarEliminar() {
   if (wasDeletionSuccesful.value) {
     setTimeout(() => {
       modalEliminar.value?.cerrarModal();
-      const router = useRouter();
-      router.go(0);
-    }, 2000);
+      window.location.reload();
+    }, 1500);
   }
 }
 

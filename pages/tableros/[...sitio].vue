@@ -157,6 +157,20 @@ const indicadoresDelSubgrupo = computed(() => {
   return subgrupo?.indicators || [];
 });
 
+function alCambiarVisibilidadPestania() {
+  if (document.visibilityState === 'visible' && indicadorActivoId.value) {
+    cargarIndicador(indicadorActivoId.value, indicadorActivoNombre.value);
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
+
 watch(() => route.params.sitio, cargarSitio);
 cargarSitio();
 </script>

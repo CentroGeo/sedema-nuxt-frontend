@@ -26,14 +26,31 @@ const escena = reactive({
  */
 async function consultarEscena() {
   escena.cargando = true;
-  const respuesta = await gnoxyFetch(`${config.public.geonodeApi}/scenes/${escenaId}`);
+  const respuesta = await gnoxyFetch(
+    `${config.public.geonodeApi}/scenes/${escenaId}?t=${Date.now()}`
+  );
 
   const datos = await respuesta.json();
+  for (const key in escena.datos) delete escena.datos[key];
   Object.assign(escena.datos, datos);
 
   escena.cargando = false;
 }
-consultarEscena();
+
+function alCambiarVisibilidadPestania() {
+  if (document.visibilityState === 'visible') {
+    consultarEscena();
+  }
+}
+
+onMounted(() => {
+  consultarEscena();
+  document.addEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
 
 const marcador_visible = ref(null);
 

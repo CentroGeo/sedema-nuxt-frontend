@@ -56,6 +56,7 @@ function urlWms([minx, miny, maxx, maxy]) {
     HEIGHT: '256',
     FORMAT: 'image/png',
     TRANSPARENT: 'true',
+    _t: String(Date.now()),
   });
   return `${props.fuenteWms}${p.toString()}`;
 }
@@ -86,7 +87,7 @@ watch(
   () => source.refresh()
 );
 
-const capaOl = new TileLayer({ source, tipo: 'wms' });
+const capaOl = new TileLayer({ source, preload: 1, transition: 0, tipo: 'wms' });
 useCapa(capaOl, props);
 </script>
 
