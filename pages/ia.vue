@@ -2,23 +2,31 @@
 definePageMeta({
   middleware: 'redireccionar-modulo-ia',
 });
+
+const { cargarConfiguracionModulos, estaHabilitado, estaSubmoduloHabilitado } =
+  useConfiguracionModulos();
+const iaHabilitada = estaHabilitado('ia');
+const subPaginas = computed(() =>
+  [
+    { id: 'ia-chats', pictograma: 'pictograma-chat', ruta: '/ia/chats', globo: 'Chats' },
+    {
+      id: 'ia-proyectos',
+      pictograma: 'pictograma-proyectos',
+      ruta: '/ia/proyectos',
+      globo: 'Proyectos',
+    },
+  ].filter((pagina) => estaSubmoduloHabilitado(pagina.id).value)
+);
+
+onMounted(() => {
+  cargarConfiguracionModulos();
+});
 </script>
 <template>
-  <div class="modulo-ia flex">
+  <div v-if="iaHabilitada" class="modulo-ia flex">
     <UiNavegacionLateral
       :id-colapsable="`uinavegacionlateral-` + Math.random().toString(36).substring(2)"
-      :sub-paginas="[
-        {
-          pictograma: 'pictograma-chat',
-          ruta: '/ia/chats',
-          globo: 'Chats',
-        },
-        {
-          pictograma: 'pictograma-proyectos',
-          ruta: '/ia/proyectos',
-          globo: 'Proyectos',
-        },
-      ]"
+      :sub-paginas="subPaginas"
     />
     <div class="contenedor-contenido">
       <NuxtPage />

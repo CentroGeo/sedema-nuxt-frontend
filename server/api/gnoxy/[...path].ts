@@ -48,6 +48,14 @@ export default defineEventHandler(async (event) => {
 
   const headers: Record<string, string> = { cookie: '' };
 
+  // Las peticiones que modifican datos a través de gnoxy necesitan conservar
+  // su tipo de contenido. La autorización sigue siendo el token de la sesión,
+  // no un header aportado por el navegador.
+  const contentType = event.node.req.headers['content-type'];
+  if (typeof contentType === 'string') {
+    headers['Content-Type'] = contentType;
+  }
+
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }

@@ -5,6 +5,8 @@ const config = useRuntimeConfig();
 const { status } = useAuth();
 const storeCatalogo = useCatalogoStore();
 const storeLandingBuilder = useLandingBuilderStore();
+const { cargarConfiguracionModulos, estaHabilitado, estaSubmoduloHabilitado } =
+  useConfiguracionModulos();
 
 const ruta = '/geocontenidos';
 const route = useRoute();
@@ -23,6 +25,8 @@ if (!storeCatalogo.userInfo?.is_superuser) {
   await storeCatalogo.getUserInfo();
 }
 
+const geocontenidosHabilitados = estaHabilitado('geocontenidos');
+
 const esAdmin = computed(() => Boolean(storeCatalogo.userInfo?.is_superuser));
 const mostrarConstructor = computed(
   () => config.public.enableLandingBuilder && status.value === 'authenticated' && esAdmin.value
@@ -30,11 +34,12 @@ const mostrarConstructor = computed(
 
 const itemsMenu = computed(() => {
   const items = [
-    { nombre: 'Mapas', ruta: '/geocontenidos/mapas' },
-    { nombre: 'Panoramas', ruta: `${ruta}/panoramas` },
-    { nombre: 'Geo-historias', ruta: `${ruta}/geohistorias` },
-    { nombre: 'Tableros de datos', ruta: `${ruta}/tableros` },
-  ];
+    { id: 'geocontenidos-mapas', nombre: 'Mapas', ruta: '/geocontenidos/mapas' },
+    { id: 'geocontenidos-panoramas', nombre: 'Panoramas', ruta: `${ruta}/panoramas` },
+    { id: 'geocontenidos-geohistorias', nombre: 'Geo-historias', ruta: `${ruta}/geohistorias` },
+    { id: 'geocontenidos-tableros', nombre: 'Tableros de datos', ruta: `${ruta}/tableros` },
+    { id: 'geocontenidos-importar', nombre: 'Importar datos', ruta: `${ruta}/importar-datos` },
+  ].filter((item) => estaSubmoduloHabilitado(item.id).value);
 
   if (mostrarConstructor.value) {
     items.push({
@@ -44,7 +49,9 @@ const itemsMenu = computed(() => {
     });
   }
 
-  items.push({ nombre: 'Micrositios' });
+  if (estaSubmoduloHabilitado('geocontenidos-micrositios').value) {
+    items.push({ nombre: 'Micrositios' });
+  }
 
   return items;
 });
@@ -55,6 +62,10 @@ const accionConstructorAbierta = ref(null);
 const modalConfirmar = ref(null);
 
 const puedeCrearPagina = computed(() => storeLandingBuilder.puedeCrearPagina());
+
+onMounted(() => {
+  cargarConfiguracionModulos();
+});
 
 function alternarSubmenu(nombre) {
   submenusAbiertos[nombre] = !submenusAbiertos[nombre];
@@ -140,7 +151,7 @@ onClickOutside(menuLateralRef, () => {
 
 <template>
   <NuxtPage v-if="enMapaStandalone" />
-  <div v-else class="modulo-geocontenidos flex">
+  <div v-else-if="geocontenidosHabilitados" class="modulo-geocontenidos flex">
     <UiNavegacionLateral
       :funcion-colapsar="alternarColapsar"
       :estado-colapable="colapsado"

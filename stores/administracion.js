@@ -1,6 +1,14 @@
 import { defineStore } from 'pinia';
 
 export const useAdministracionStore = defineStore('administracion', () => {
+  const {
+    configuracion: configuracionModulos,
+    submodulos: configuracionSubmodulos,
+    cargarConfiguracionModulos,
+    actualizarModulo,
+    actualizarSubmodulo,
+  } = useConfiguracionModulos();
+
   // --- Módulos (con submódulos anidados) ---
   const modulos = reactive([
     {
@@ -126,6 +134,56 @@ export const useAdministracionStore = defineStore('administracion', () => {
     'curador-metadatos': ['catalogo', 'consulta'],
   });
 
+  function sincronizarModulos() {
+    modulos.forEach((modulo) => {
+      modulo.habilitado = configuracionModulos.value[modulo.id] ?? modulo.habilitado;
+      modulo.submodulos.forEach((submodulo) => {
+        submodulo.habilitado = configuracionSubmodulos.value[submodulo.id] ?? submodulo.habilitado;
+      });
+    });
+  }
+
+  watch([configuracionModulos, configuracionSubmodulos], sincronizarModulos, {
+    deep: true,
+    immediate: true,
+  });
+
+  async function cargarModulos() {
+    await cargarConfiguracionModulos();
+    sincronizarModulos();
+  }
+
+  async function actualizarEstadoModulo(moduloId, habilitado) {
+    const modulo = modulos.find((item) => item.id === moduloId);
+    if (!modulo) return;
+
+    const valorAnterior = modulo.habilitado;
+    modulo.habilitado = habilitado;
+
+    try {
+      await actualizarModulo(moduloId, habilitado);
+    } catch (error) {
+      modulo.habilitado = valorAnterior;
+      throw error;
+    }
+  }
+
+  async function actualizarEstadoSubmodulo(moduloId, submoduloId, habilitado) {
+    const modulo = modulos.find((item) => item.id === moduloId);
+    const submodulo = modulo?.submodulos.find((item) => item.id === submoduloId);
+    if (!submodulo) return;
+
+    const valorAnterior = submodulo.habilitado;
+    submodulo.habilitado = habilitado;
+
+    try {
+      await actualizarSubmodulo(submoduloId, habilitado);
+    } catch (error) {
+      submodulo.habilitado = valorAnterior;
+      throw error;
+    }
+  }
+
   function claseColorRol(color) {
     const mapa = {
       confirmacion:
@@ -194,6 +252,9 @@ export const useAdministracionStore = defineStore('administracion', () => {
     rolesPersonalizados,
     todosLosRoles,
     permisos,
+    cargarModulos,
+    actualizarEstadoModulo,
+    actualizarEstadoSubmodulo,
     claseColorRol,
     tienePermiso,
     alternarPermiso,

@@ -8,40 +8,57 @@ definePageMeta({
 
 const ruta = '/consulta';
 const route = useRoute();
+const config = useRuntimeConfig();
 
 const storeConsulta = useConsultaStore();
 
 const enVisualizarMapa = computed(() => /\/mapas\/[^/]+\/(visualizar|embed)$/.test(route.path));
 
+const { cargarConfiguracionModulos, estaHabilitado, estaSubmoduloHabilitado } =
+  useConfiguracionModulos();
+const consultaHabilitada = estaHabilitado('consulta');
+const subPaginas = computed(() => {
+  const paginas = [
+    {
+      id: 'consulta-capas',
+      pictograma: 'pictograma-capas',
+      ruta: `${ruta}/capas`,
+      globo: 'Capas geográficas',
+    },
+    {
+      id: 'consulta-documentos',
+      pictograma: 'pictograma-documento',
+      ruta: `${ruta}/documentos`,
+      globo: 'Documentos',
+    },
+    {
+      id: 'consulta-tablas',
+      pictograma: 'pictograma-tabla',
+      ruta: `${ruta}/tablas`,
+      globo: 'Tabulados de datos',
+    },
+  ].filter((pagina) => estaSubmoduloHabilitado(pagina.id).value);
+
+  // Mapas es propio de esta instancia: no existe como submódulo upstream, así
+  // que sigue dependiendo de su bandera de entorno (ver habilitar_modulos.global.ts).
+  if (config.public.enableMapas) {
+    paginas.push({ pictograma: 'pictograma-explorar', ruta: `${ruta}/mapas`, globo: 'Mapas' });
+  }
+
+  return paginas;
+});
+
+onMounted(() => {
+  cargarConfiguracionModulos();
+});
 onUnmounted(() => (document.querySelector('body').className = ''));
 </script>
 
 <template>
   <NuxtPage v-if="enVisualizarMapa" />
-  <div v-else class="modulo-consultas flex">
+  <div v-else-if="consultaHabilitada" class="modulo-consultas flex">
     <UiNavegacionLateral
-      :sub-paginas="[
-        {
-          pictograma: 'pictograma-capas',
-          ruta: `${ruta}/capas`,
-          globo: 'Capas geográficas',
-        },
-        {
-          pictograma: 'pictograma-tabla',
-          ruta: `${ruta}/tablas`,
-          globo: 'Tabulados de datos',
-        },
-        {
-          pictograma: 'pictograma-documento',
-          ruta: `${ruta}/documentos`,
-          globo: 'Documentos',
-        },
-        {
-          pictograma: 'pictograma-explorar',
-          ruta: `${ruta}/mapas`,
-          globo: 'Mapas',
-        },
-      ]"
+      :sub-paginas="subPaginas"
       :funcion-colapsar="storeConsulta.alternarCatalogoColapsable"
       :estado-colapable="storeConsulta.catalogoColapsado"
       id-colapsable="consulta-navegacion-lateral"
