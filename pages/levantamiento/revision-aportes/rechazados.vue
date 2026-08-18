@@ -319,29 +319,35 @@ const puntoSeleccionado = computed(() => ({
 
           <!--Ficha de proyecto rechazado-->
           <div class="columna-11">
-            <div v-if="aporteSeleccionado">
-              <div class="flex m-b-2" style="justify-content: space-between; align-items: center">
-                <h3 class="m-0">Ficha de proyecto</h3>
-                <div class="flex botones-exportacion" style="gap: 8px">
-                  <LevantamientoBotonesDescargaAporte
+            <div v-if="aporteSeleccionado"
+            class="tarjeta-ficha detalle-aporte p-4 borde-redondeado-8">
+             <div class="detalle-aporte__header m-b-2">
+              <div class="detalle-aporte__titulo">
+                <h3 class="m-0">
+                    Ficha de proyecto
+                </h3>
+                <span class="detalle-aporte__nombre">
+                    {{ aporteSeleccionado.titulo }}
+                </span>
+              </div>
+            <div class="detalle-aporte__acciones">
+                <LevantamientoBotonesDescargaAporte
                     :aporte-id="aporteSeleccionado.id"
                     :email="data?.user?.email || ''"
-                  />
-
-                  <button
+                />
+                <button
                     class="btn-moderno-chico btn-eliminar"
                     @click="eliminarAporteRechazado(aporteSeleccionado.id)"
-                  >
+                >
                     Eliminar
-                  </button>
+                </button>
                 </div>
               </div>
 
               <!-- Mapa nativo con sisdai-mapas -->
               <div
                 v-if="aporteSeleccionado"
-                class="mapa-placeholder m-b-3"
-                style="padding: 0; overflow: hidden; height: 300px"
+                class="detalle-aporte__mapa m-b-3"
               >
                 <ClientOnly>
                   <SisdaiMapa
@@ -391,7 +397,7 @@ const puntoSeleccionado = computed(() => ({
                   <div class="meta-value">{{ aporteSeleccionado.atendidoPor }}</div>
                 </div>
 
-                <div class="flex m-b-4" style="gap: 16px; justify-content: center">
+                <div class="detalle-aporte__galeria m-b-4">
                   <template v-if="aporteSeleccionado.fotos && aporteSeleccionado.fotos.length > 0">
                     <div
                       v-for="(foto, index) in aporteSeleccionado.fotos.slice(0, 3)"
@@ -410,7 +416,7 @@ const puntoSeleccionado = computed(() => ({
 
                 <!--Ficha de Información-->
                 <h4 class="form-titulo m-b-2">Ficha de información:</h4>
-                <div class="grid" style="gap: 16px">
+                <div class="levantamiento-form">
                   <div class="columna-16">
                     <label class="form-label">1.- PREGUNTA ABIERTA</label>
                     <input
@@ -644,49 +650,6 @@ const puntoSeleccionado = computed(() => ({
       background: #391821;
     }
   }
-}
-// RESPONSIVE TARJETAS LATERALES (Smartphones)
-@media (max-width:575px){
-.revision-aportes__header{
-    align-items:flex-start;
-    flex-direction:column;
-}
-
-.panel-aportes{
-    width:100%;
-    padding-inline:0;
-}
-
-.lista-aportes{
-    gap:10px;
-}
-
-}
-// Tablets
-@media (max-width:991px){
-.revision-aportes{
-    display:flex;
-    flex-direction:column;
-    gap:24px;
-}
-
-.panel-aportes{
-    width:100%;
-}
-
-}
-// Monitores
-@media (min-width:1600px){
-  .tarjeta-aporte{
-    padding:1.1rem;
-    .titulo{
-      font-size:1.08rem;
-    }
-    .texto-secundario{
-      font-size:.82rem;
-    }
-  }
-
 }
 
 .paginacion {
@@ -1002,5 +965,306 @@ const puntoSeleccionado = computed(() => ({
 }
 .btn-guinda-sisdai:hover {
   background-color: #271016;
+}
+.detalle-aporte__mapa{
+
+  min-height: 220px;
+
+}
+.detalle-aporte__mapa>div{
+  width:100%;
+  height:100%;
+
+  min-height:220px;
+}
+// Responsive Tablets
+@media (max-width:991px){
+
+
+    // Layout
+    .revision-aportes{
+
+      display:flex;
+      flex-direction:column;
+
+    }
+
+    .revision-aportes>.columna-5{
+
+      width:100%;
+      max-width:100%;
+
+    }
+
+    .revision-aportes>.columna-11{
+      width:100%;
+      max-width:100%;
+
+    }
+
+    /*-----------------------------
+    Header
+    ------------------------------*/
+
+    .detalle-aporte__header{
+
+        flex-direction:column;
+        align-items:flex-start;
+
+    }
+
+    .detalle-aporte__acciones{
+
+        width:100%;
+
+        justify-content:flex-start;
+
+    }
+    .detalle-aporte__registrante{
+      margin-top: 12px;
+    }
+    /*-----------------------------
+    Formulario
+    ------------------------------*/
+
+    .levantamiento-form .grid{
+
+        gap:16px;
+
+    }
+
+}
+// Celulares
+@media (max-width:767px){
+
+    h2{
+
+        font-size:1.25rem;
+
+    }
+
+    /*-----------------------------
+    Header principal
+    ------------------------------*/
+
+    .revision-aportes__header{
+
+        flex-direction:column;
+        align-items:flex-start;
+
+        gap:12px;
+
+    }
+
+    /*-----------------------------
+    Buscador
+    ------------------------------*/
+
+    .panel-aportes__busqueda{
+
+        width:100%;
+
+    }
+
+    .panel-aportes__busqueda input{
+
+        width:100%;
+
+    }
+
+    /*-----------------------------
+    Tarjetas
+    ------------------------------*/
+
+    .tarjeta-aporte{
+        padding:14px;
+    }
+
+    .tarjeta-aporte__contenido{
+
+        gap:10px;
+
+    }
+
+    /*-----------------------------
+    Header ficha
+    ------------------------------*/
+
+    .detalle-aporte__header{
+
+        display:flex;
+        flex-direction:column;
+        align-items:flex-start;
+        gap:16px;
+
+    }
+
+    .detalle-aporte__acciones{
+
+        display:flex;
+        flex-wrap:wrap;
+        gap:8px;
+        justify-content:flex-start;
+
+    }
+
+    .detalle-aporte__acciones>*{
+
+        width:auto !important;
+        flex:none;
+
+    }
+    .detalle-aporte__titulo{
+        width:100%;
+        margin: 0;
+    }
+
+    .detalle-aporte__titulo h2{
+
+        margin:0;
+        font-size:1.5rem;
+        line-height:1.35;
+        white-space:normal;
+        word-break:normal;
+        overflow-wrap:break-word;
+
+    }
+
+    .detalle-aporte__registrante{
+      margin-top:12px;
+    }
+
+    /*-----------------------------
+    Formulario
+    ------------------------------*/
+
+    .levantamiento-form .grid{
+
+        display:flex;
+
+        flex-direction:column;
+
+    }
+
+    .levantamiento-form .grid>[class*="columna"]{
+
+        width:100%!important;
+        max-width:100%!important;
+        flex:0 0 100%!important;
+
+    }
+
+    /*-----------------------------
+    Botones
+    ------------------------------*/
+
+    .detalle-aporte__acciones-finales{
+
+        flex-direction:column;
+
+    }
+
+    .detalle-aporte__acciones-finales>*{
+
+        width:100%;
+
+    }
+    .grid-metadatos{
+      display:flex;
+      flex-direction:column;
+      row-gap:8px;
+      }
+    .meta-label{
+      margin-top:10px;
+      }
+
+}
+// Celulares pequeños
+@media (max-width:480px){
+
+    .revision-aportes{
+
+        gap:16px;
+
+    }
+
+    .tarjeta-aporte{
+
+        padding:12px;
+
+    }
+
+    .tarjeta-ficha{
+
+        padding:16px;
+
+    }
+
+    .detalle-aporte{
+
+        gap:18px;
+
+    }
+
+    .detalle-aporte__titulo h2{
+
+        font-size:1.1rem;
+
+    }
+
+    .detalle-aporte__mapa .leaflet-container{
+        height:220px;
+    }
+
+    .detalle-aporte__galeria{
+
+        grid-template-columns:1fr;
+
+    }
+
+    .detalle-aporte__acciones{
+
+        gap:10px;
+
+    }
+
+    .detalle-aporte__acciones>*{
+
+        width:100%;
+
+    }
+    .detalle-aporte__registrante{
+      margin-top:12px;
+    }
+}
+// celulares muy pequeños
+@media (max-width:360px){
+
+    h2{
+
+        font-size:1rem;
+
+    }
+
+    .tarjeta-aporte{
+
+        padding:10px;
+
+    }
+
+    .detalle-aporte{
+
+        gap:14px;
+
+    }
+
+    .detalle-aporte__galeria{
+
+        gap:10px;
+
+    }
+    .detalle-aporte__registrante{
+      margin-top:12px;
+    }
 }
 </style>
