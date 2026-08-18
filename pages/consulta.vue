@@ -9,29 +9,27 @@ definePageMeta({
 const ruta = '/consulta';
 
 const storeConsulta = useConsultaStore();
+const { cargarConfiguracionModulos, estaHabilitado, estaSubmoduloHabilitado } =
+  useConfiguracionModulos();
+const consultaHabilitada = estaHabilitado('consulta');
+const subPaginas = computed(() =>
+  [
+    { id: 'consulta-capas', pictograma: 'pictograma-capas', ruta: `${ruta}/capas`, globo: 'Capas geográficas' },
+    { id: 'consulta-documentos', pictograma: 'pictograma-documento', ruta: `${ruta}/documentos`, globo: 'Documentos' },
+    { id: 'consulta-tablas', pictograma: 'pictograma-tabla', ruta: `${ruta}/tablas`, globo: 'Tabulados de datos' },
+  ].filter((pagina) => estaSubmoduloHabilitado(pagina.id).value)
+);
+
+onMounted(() => {
+  cargarConfiguracionModulos();
+});
 onUnmounted(() => (document.querySelector('body').className = ''));
 </script>
 
 <template>
-  <div class="modulo-consultas flex">
+  <div v-if="consultaHabilitada" class="modulo-consultas flex">
     <UiNavegacionLateral
-      :sub-paginas="[
-        {
-          pictograma: 'pictograma-capas',
-          ruta: `${ruta}/capas`,
-          globo: 'Capas geográficas',
-        },
-        {
-          pictograma: 'pictograma-tabla',
-          ruta: `${ruta}/tablas`,
-          globo: 'Tabulados de datos',
-        },
-        {
-          pictograma: 'pictograma-documento',
-          ruta: `${ruta}/documentos`,
-          globo: 'Documentos',
-        },
-      ]"
+      :sub-paginas="subPaginas"
       :funcion-colapsar="storeConsulta.alternarCatalogoColapsable"
       :estado-colapable="storeConsulta.catalogoColapsado"
       id-colapsable="consulta-navegacion-lateral"

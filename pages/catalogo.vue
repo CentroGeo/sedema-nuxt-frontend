@@ -9,9 +9,34 @@ definePageMeta({
 const ruta = '/catalogo';
 
 const storeCatalogo = useCatalogoStore();
+const { cargarConfiguracionModulos, estaHabilitado, estaSubmoduloHabilitado } =
+  useConfiguracionModulos();
 const esSuperusuaria = computed(() => storeCatalogo.userInfo.is_superuser);
+const catalogoHabilitado = estaHabilitado('catalogo');
+
+const subPaginas = computed(() =>
+  [
+    { id: 'catalogo-capas', pictograma: 'pictograma-explorar', ruta: `${ruta}/explorar`, globo: 'Explorar' },
+    { id: 'catalogo-capas', pictograma: 'pictograma-capas', ruta: `${ruta}/explorar/capas`, globo: 'Capas' },
+    { id: 'catalogo-documentos', pictograma: 'pictograma-documento', ruta: `${ruta}/explorar/documentos`, globo: 'Documentos' },
+    { id: 'catalogo-tablas', pictograma: 'pictograma-tabla', ruta: `${ruta}/explorar/tablas`, globo: 'Datos tabulados' },
+    { id: 'catalogo-externos', pictograma: 'pictograma-flkt', ruta: `${ruta}/explorar/catalogos-externos`, globo: 'Catálogos externos' },
+  ].filter((pagina) => estaSubmoduloHabilitado(pagina.id).value)
+);
+
+const paginasSesion = computed(() =>
+  [
+    { id: 'catalogo-mis-archivos', pictograma: 'pictograma-proyectos', ruta: `${ruta}/mis-archivos`, globo: 'Mis archivos' },
+    { id: 'catalogo-cargar', pictograma: 'pictograma-archivo-subir', ruta: `${ruta}/cargar-archivos`, globo: 'Carga de archivos' },
+    { id: 'catalogo-servicios-remotos', pictograma: 'pictograma-colaborar', ruta: `${ruta}/servicios-remotos`, globo: 'Carga de servicios remotos' },
+    esSuperusuaria.value
+      ? { id: 'catalogo-revision', pictograma: 'pictograma-buscar', ruta: `${ruta}/revision-solicitudes`, globo: 'Revisión de solicitudes' }
+      : null,
+  ].filter((pagina) => pagina && estaSubmoduloHabilitado(pagina.id).value)
+);
 
 onMounted(async () => {
+  await cargarConfiguracionModulos();
   await storeCatalogo.getUserInfo();
 });
 
@@ -19,59 +44,10 @@ onUnmounted(() => (document.querySelector('body').className = ''));
 </script>
 
 <template>
-  <div class="modulo-catalogo flex">
+  <div v-if="catalogoHabilitado" class="modulo-catalogo flex">
     <UiNavegacionLateral
-      :sub-paginas="[
-        {
-          pictograma: 'pictograma-explorar',
-          ruta: `${ruta}/explorar`,
-          globo: 'Explorar',
-        },
-        {
-          pictograma: 'pictograma-capas',
-          ruta: `${ruta}/explorar/capas`,
-          globo: 'Capas',
-        },
-        {
-          pictograma: 'pictograma-tabla',
-          ruta: `${ruta}/explorar/tablas`,
-          globo: 'Datos tabulados',
-        },
-        {
-          pictograma: 'pictograma-documento',
-          ruta: `${ruta}/explorar/documentos`,
-          globo: 'Documentos',
-        },
-        {
-          pictograma: 'pictograma-flkt',
-          ruta: `${ruta}/explorar/catalogos-externos`,
-          globo: 'Servicios Remotos',
-        },
-      ]"
-      :sesion-paginas="[
-        {
-          pictograma: 'pictograma-proyectos',
-          ruta: `${ruta}/mis-archivos`,
-          globo: 'Mis archivos',
-        },
-        {
-          pictograma: 'pictograma-archivo-subir',
-          ruta: `${ruta}/cargar-archivos`,
-          globo: 'Carga de archivos',
-        },
-        {
-          pictograma: 'pictograma-colaborar',
-          ruta: `${ruta}/servicios-remotos`,
-          globo: 'Carga de servicios remotos',
-        },
-        esSuperusuaria
-          ? {
-              pictograma: 'pictograma-buscar',
-              ruta: `${ruta}/revision-solicitudes`,
-              globo: 'Revisión de solicitudes',
-            }
-          : {},
-      ]"
+      :sub-paginas="subPaginas"
+      :sesion-paginas="paginasSesion"
       :id-colapsable="storeCatalogo.idNavegacionLateral"
       :estado-colapable="storeCatalogo.catalogoColapsado"
       :funcion-colapsar="storeCatalogo.alternarCatalogoColapsable"
