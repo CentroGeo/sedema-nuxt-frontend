@@ -125,7 +125,8 @@ async function buildResourceInfo() {
     resource.value['abstract'] = data.raw_abstract;
     resource.value['date_type'] = dateTypeDict[data.date_type];
     resource.value['date'] = data.date;
-    resource.value['category'] = categoriesInSpanish[data.category.gn_description];
+    resource.value['category'] =
+      categoriesInSpanish[data.category.gn_description] ?? data.category.gn_description;
     resource.value['keywords'] = getKeywords(data.keywords);
     resource.value['language'] = findLanguage(data.language);
     resource.value['license'] =

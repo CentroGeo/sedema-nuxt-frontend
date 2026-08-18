@@ -13,6 +13,8 @@ import {
   IDENTIDAD_PAGINA_VACIA,
   validarYObtenerMimetypeImagen,
   procesarImagenesDeBloques,
+  sanitizarColorTema,
+  sanitizarPiePagina,
 } from '../../../utils/landingBuilderConfig';
 
 export default defineEventHandler(async (event) => {
@@ -77,10 +79,8 @@ export default defineEventHandler(async (event) => {
         typeof identidadEntrante.logoCuartoRedirectUrl === 'string'
           ? identidadEntrante.logoCuartoRedirectUrl
           : null,
-      mostrarBarraGobMx:
-        typeof identidadEntrante.mostrarBarraGobMx === 'boolean'
-          ? identidadEntrante.mostrarBarraGobMx
-          : true,
+      colorTema: sanitizarColorTema(identidadEntrante.colorTema),
+      piePagina: sanitizarPiePagina(identidadEntrante.piePagina),
     };
 
     for (const slot of SLOTS_LOGO_PAGINA) {

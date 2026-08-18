@@ -17,11 +17,7 @@ let urlTemporal;
 const datosPorDefecto = {
   parrafo: {
     texto: 'Escribe aquí la descripción de la sección.',
-    alineacion: 'left',
     color: '#FFFFFF',
-    negrita: false,
-    tamano: 'normal',
-    tipoLista: 'ninguna',
   },
   posicionImagen: 'derecha',
   imagen: {

@@ -20,10 +20,70 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  featuresUrl: {
+    type: String,
+    default: null,
+  },
+  basemap: {
+    type: String,
+    default: null,
+  },
+  vistaConfigurada: {
+    type: Object,
+    default: null,
+  },
+  mapPanel: {
+    type: Number,
+    default: null,
+  },
+  plotPanel: {
+    type: Number,
+    default: null,
+  },
+  emitirVista: {
+    type: Boolean,
+    default: false,
+  },
+  revisionVista: {
+    type: Number,
+    default: 0,
+  },
 });
+
+const emit = defineEmits(['vista']);
 
 const rangoActivoColor = ref(null);
 let _hoverTimer = null;
+
+const MAP_PANEL_DEFAULT = 65;
+
+const basemapEfectivo = computed(() => props.basemap || props.datos?.map_basemap || 'gray');
+
+const vistaEfectiva = computed(() => {
+  if (props.vistaConfigurada) return props.vistaConfigurada;
+  const d = props.datos;
+  if (!d) return null;
+  return {
+    zoom: d.map_zoom,
+    centerLat: d.map_center_lat,
+    centerLong: d.map_center_long,
+    bbox: d.map_bbox,
+  };
+});
+
+/**
+ * Reparto de ancho mapa/gráfica. Un indicador anterior a esta configuración no
+ * trae los campos, así que cae al 65/35 por defecto.
+ */
+const anchoPaneles = computed(() => {
+  const mapa = Number(props.mapPanel ?? props.datos?.map_panel ?? MAP_PANEL_DEFAULT);
+  const valido = isFinite(mapa) && mapa > 0 && mapa < 100 ? mapa : MAP_PANEL_DEFAULT;
+  const grafica = Number(props.plotPanel ?? props.datos?.plot_panel ?? 100 - valido);
+  return {
+    '--map-panel': `${valido}fr`,
+    '--plot-panel': `${isFinite(grafica) && grafica > 0 ? grafica : 100 - valido}fr`,
+  };
+});
 
 function onHoverRango(color) {
   clearTimeout(_hoverTimer);
@@ -60,7 +120,7 @@ watch(
         :datos-indicador="datos"
       />
 
-      <div class="tablero-indicador__visual">
+      <div class="tablero-indicador__visual" :style="anchoPaneles">
         <div class="tablero-indicador__mapa">
           <TablerosMapaIndicador
             :indicador-id="indicadorId"
@@ -73,7 +133,13 @@ watch(
             :filters="datos.filters"
             :rango-activo-color="rangoActivoColor"
             :capas-wms="capasWms"
+            :basemap="basemapEfectivo"
+            :vista-configurada="vistaEfectiva"
+            :features-url="featuresUrl"
+            :emitir-vista="emitirVista"
+            :revision-vista="revisionVista"
             @hover-rango="onHoverRango"
+            @vista="emit('vista', $event)"
           />
         </div>
 
@@ -120,7 +186,14 @@ watch(
 
   &__visual {
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    // El reparto lo fija el indicador (variables inline); 65/35 es el respaldo.
+    // Se expresa en `fr` y no en `%` para que el `gap` no desborde el contenedor.
+    // El `minmax(0, …)` no es opcional: un `fr` a secas nunca baja del ancho
+    // mínimo del contenido, y la gráfica no se deja encoger, así que se quedaba
+    // con el espacio y el mapa recibía las sobras sin importar el porcentaje.
+    grid-template-columns:
+      minmax(0, var(--map-panel, 65fr))
+      minmax(0, var(--plot-panel, 35fr));
     gap: 1rem;
     margin-top: 1rem;
     background: var(--tablero-interface-bg, #ffffff);
@@ -131,6 +204,14 @@ watch(
     @media (max-width: 960px) {
       grid-template-columns: 1fr;
     }
+  }
+
+  // Sin esto, el contenido de cada celda vuelve a imponer su ancho mínimo y
+  // deshace el reparto que fijan las columnas.
+  &__mapa,
+  &__grafica {
+    min-width: 0;
+    overflow: hidden;
   }
 
   &__grafica {

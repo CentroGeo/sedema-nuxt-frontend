@@ -119,7 +119,12 @@ const valorFormateado = computed(() => {
   }
 
   &__icono {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
+    width: 2rem;
+    height: 2rem;
     font-size: 1.5rem;
     opacity: 0.7;
   }

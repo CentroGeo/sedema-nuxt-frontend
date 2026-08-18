@@ -3,23 +3,13 @@ import SisdaiMenuAccesibilidad from '~/components/base/SisdaiMenuAccesibilidad.v
 import SisdaiNavegacionGobMx from '@centrogeomx/sisdai-componentes/src/componentes/navegacion-gob-mx/SisdaiNavegacionGobMx.vue';
 import SisdaiPiePaginaGobMx from '~/components/base/SisdaiPiePaginaGobMxCustom.vue';
 import MainNavegacion from '~/components/base/MainNavegacion.vue';
+import MainPiePagina from '~/components/base/MainPiePagina.vue';
 import { useAccesibilidadStore } from '~/stores/accesibilidad';
-import { useLandingBuilderStore } from '~/stores/landingBuilder';
 
 const accesibilidadStore = useAccesibilidadStore();
-const storeLandingBuilder = useLandingBuilderStore();
 const route = useRoute();
 const currentPath = computed(() => route.fullPath);
-
-// La barra de Gobierno de México puede desactivarse por página desde el
-// constructor de páginas (ver LandingBuilderPaginaIdentidad); en el resto del
-// sitio se muestra siempre, como antes.
-const esConstructor = computed(() => route.path.startsWith('/landing-builder'));
-const mostrarBarraGobMx = computed(() =>
-  esConstructor.value
-    ? storeLandingBuilder.mostrarBarraGobMx
-    : storeLandingBuilder.mostrarBarraGobMxPublica
-);
+const { mostrarIdentidadGobMx } = useIdentidadGobMx();
 
 useHead(() => ({
   meta: [
@@ -32,7 +22,7 @@ useHead(() => ({
 <template>
   <div>
     <a href="#principal" class="ir-contenido-principal"> Ir a contenido principal </a>
-    <SisdaiNavegacionGobMx v-if="mostrarBarraGobMx" />
+    <SisdaiNavegacionGobMx v-if="mostrarIdentidadGobMx" />
 
     <MainNavegacion />
 
@@ -40,11 +30,13 @@ useHead(() => ({
       <slot />
     </div>
 
+    <MainPiePagina />
+
     <!-- parece que botón flotante agrega un id al elemento html que no
     coincide al hacer server side rendering -->
     <client-only>
       <SisdaiMenuAccesibilidad :objeto-store="accesibilidadStore" perfil-color="sigic" />
     </client-only>
-    <SisdaiPiePaginaGobMx />
+    <SisdaiPiePaginaGobMx v-if="mostrarIdentidadGobMx" />
   </div>
 </template>

@@ -103,10 +103,9 @@ services:
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
       NUXT_AUTH_SECRET: ${NUXT_AUTH_SECRET}
       NUXT_APP_BASE_URL: /app/
-      NUXT_PUBLIC_OLLAMA_MODEL: "${OLLAMA_MODEL:-deepseek-r1}"
+      NUXT_PUBLIC_OLLAMA_MODEL: '${OLLAMA_MODEL:-deepseek-r1}'
     networks:
       - sigic
-
 
 networks:
   sigic:
@@ -115,4 +114,4 @@ networks:
 
 volumes:
   landing_builder_data:
-
+    name: ${COMPOSE_PROJECT_NAME}-landing_builder_data

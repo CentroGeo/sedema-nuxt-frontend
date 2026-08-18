@@ -21,12 +21,14 @@ const props = defineProps({
 const emit = defineEmits(['crear', 'eliminar']);
 
 const { data: userData } = useAuth();
-const { eliminarIndicador, recalcularIndicador } = useTableroApi();
+const { eliminarIndicador, recalcularIndicador, fetchIndicador } = useTableroApi();
 
 const filtro = ref('');
 const filtroGrupo = ref('');
 const mostrarModalNuevo = ref(false);
 const indicadorEditando = ref(null);
+const abriendoEdicionId = ref(null);
+const errorEdicion = ref('');
 const recalculandoId = ref(null);
 const mensajeRecalculo = ref('');
 
@@ -99,6 +101,28 @@ function mostrarAviso(mensaje) {
   setTimeout(() => {
     mensajeRecalculo.value = '';
   }, 8000);
+}
+
+/**
+ * La lista viene de `IndicatorListSerializer`, que no incluye la capa ni los
+ * campos: abrir el editor con ese objeto dejaba media configuración vacía. Se
+ * pide el detalle antes de abrir.
+ */
+async function abrirEdicion(ind) {
+  abriendoEdicionId.value = ind.id;
+  errorEdicion.value = '';
+  try {
+    const detalle = await fetchIndicador(ind.id);
+    if (!detalle?.id) {
+      errorEdicion.value = 'No se pudo cargar la configuración del indicador.';
+      return;
+    }
+    indicadorEditando.value = detalle;
+  } catch (e) {
+    errorEdicion.value = e?.message || 'No se pudo cargar la configuración del indicador.';
+  } finally {
+    abriendoEdicionId.value = null;
+  }
 }
 
 async function recalcular(ind) {
@@ -191,9 +215,13 @@ async function recalcular(ind) {
             type="button"
             class="boton boton-secundario boton-chico"
             title="Editar indicador"
-            @click="indicadorEditando = ind"
+            :disabled="abriendoEdicionId === ind.id"
+            @click="abrirEdicion(ind)"
           >
-            <span class="pictograma-editar" />
+            <span
+              class="pictograma-editar"
+              :class="{ 'repo-indicadores__spin': abriendoEdicionId === ind.id }"
+            />
           </button>
           <button
             type="button"
@@ -207,16 +235,19 @@ async function recalcular(ind) {
     </ul>
 
     <p v-if="mensajeRecalculo" class="repo-indicadores__feedback">{{ mensajeRecalculo }}</p>
+    <p v-if="errorEdicion" class="repo-indicadores__feedback">{{ errorEdicion }}</p>
 
-    <TablerosAdminModalNuevoIndicador
+    <TablerosAdminModalIndicador
       v-if="mostrarModalNuevo"
       :site-id="siteId"
       @creado="alCrear"
       @cerrar="mostrarModalNuevo = false"
     />
 
-    <TablerosAdminFormularioIndicador
+    <TablerosAdminModalIndicador
       v-if="indicadorEditando"
+      :key="indicadorEditando.id"
+      :site-id="siteId"
       :indicador="indicadorEditando"
       @guardado="alGuardarEdicion"
       @cerrar="indicadorEditando = null"
@@ -338,6 +369,12 @@ async function recalcular(ind) {
       width: 28px;
       height: 28px;
       padding: 0;
+
+      // Sin texto junto al ícono: anula el padding-left que sisdai reserva
+      // para separar ícono y texto, que aquí descentraba el pictograma.
+      [class*='pictograma-'] {
+        padding: 0;
+      }
     }
   }
 

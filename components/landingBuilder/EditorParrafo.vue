@@ -8,30 +8,38 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue']);
 
+const { sanitizarHtmlEnriquecido } = useTextoEnriquecido();
+
 const editableParrafo = ref(null);
+const negritaActiva = ref(false);
+const listaActiva = ref(false);
+const alineacionActiva = ref('left');
+const tamanoActivo = ref('normal');
 
-const tamanosParrafo = {
-  pequeno: '0.875rem',
-  normal: '1rem',
-  mediano: '1.125rem',
-  grande: '1.25rem',
+// document.execCommand('fontSize') solo soporta la escala legada 1-7 vía
+// <font size="N">; se usa como mecanismo (con estilos propios en CSS) porque
+// es lo único que aplica de forma nativa y confiable a la selección actual
+// en vez de a todo el bloque.
+const TAMANO_A_LEGADO = { pequeno: '3', normal: '4', mediano: '5', grande: '6' };
+const LEGADO_A_TAMANO = { 3: 'pequeno', 4: 'normal', 5: 'mediano', 6: 'grande' };
+
+const COMANDOS_ALINEACION = {
+  left: 'justifyLeft',
+  center: 'justifyCenter',
+  right: 'justifyRight',
+  justify: 'justifyFull',
 };
-
-const esLista = computed(() => props.modelValue.tipoLista === 'vinetas');
 
 function colorTextoResuelto(color) {
   return color && color !== '#FFFFFF' ? color : 'var(--texto-primario)';
 }
 
 const estilosParrafo = computed(() => ({
-  textAlign: props.modelValue.alineacion || 'left',
   color: colorTextoResuelto(props.modelValue.color),
-  fontWeight: props.modelValue.negrita ? 700 : 400,
-  fontSize: tamanosParrafo[props.modelValue.tamano] || tamanosParrafo.normal,
 }));
 
 function obtenerTextoModelo() {
-  return String(props.modelValue?.texto ?? '').replace(/\r/g, '');
+  return String(props.modelValue?.texto ?? '');
 }
 
 function actualizarPropiedad(clave, valor) {
@@ -41,108 +49,106 @@ function actualizarPropiedad(clave, valor) {
   });
 }
 
-function escaparHtml(texto) {
-  return String(texto)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
-}
-
-function obtenerLineas(texto) {
-  const lineas = String(texto).replace(/\r/g, '').split('\n');
-
-  return lineas.length ? lineas : [''];
-}
-
-function crearHtmlLista(texto) {
-  return obtenerLineas(texto)
-    .map((linea) => `<li>${linea ? escaparHtml(linea) : '<br>'}</li>`)
-    .join('');
-}
-
-function obtenerTextoLista(elemento) {
-  const elementosLista = Array.from(elemento.querySelectorAll(':scope > li'));
-
-  if (!elementosLista.length) {
-    return elemento.innerText ?? '';
-  }
-
-  return elementosLista
-    .map((elementoLista) => elementoLista.innerText.replace(/\n/g, ' '))
-    .join('\n');
-}
-
-function obtenerTextoEditable(elemento) {
-  if (esLista.value) {
-    return obtenerTextoLista(elemento);
-  }
-
-  return elemento.innerText ?? '';
-}
-
 function sincronizarContenido() {
   nextTick(() => {
     const elemento = editableParrafo.value;
 
     if (!elemento || document.activeElement === elemento) return;
 
-    const texto = obtenerTextoModelo();
+    const html = obtenerTextoModelo();
 
-    if (esLista.value) {
-      const textoActual = obtenerTextoLista(elemento);
-      const tieneElementosLista = Boolean(elemento.querySelector(':scope > li'));
-
-      if (textoActual !== texto || !tieneElementosLista) {
-        elemento.innerHTML = crearHtmlLista(texto);
-      }
-
-      return;
-    }
-
-    if (elemento.innerText !== texto) {
-      elemento.innerText = texto;
+    if (elemento.innerHTML !== html) {
+      elemento.innerHTML = html;
     }
   });
 }
 
 function actualizarParrafo(event) {
-  const elemento = event.currentTarget;
-  const texto = obtenerTextoEditable(elemento).replaceAll('\u00a0', ' ');
+  const html = sanitizarHtmlEnriquecido(event.currentTarget?.innerHTML ?? '');
 
-  actualizarPropiedad('texto', texto);
+  actualizarPropiedad('texto', html);
 }
 
-watch([() => props.modelValue?.texto, () => props.modelValue?.tipoLista], sincronizarContenido, {
+function calcularAlineacionActiva() {
+  if (document.queryCommandState('justifyCenter')) return 'center';
+  if (document.queryCommandState('justifyRight')) return 'right';
+  if (document.queryCommandState('justifyFull')) return 'justify';
+  return 'left';
+}
+
+function actualizarEstadoFormato() {
+  const activo = document.activeElement === editableParrafo.value;
+
+  negritaActiva.value = activo && document.queryCommandState('bold');
+  listaActiva.value = activo && document.queryCommandState('insertUnorderedList');
+  alineacionActiva.value = activo ? calcularAlineacionActiva() : 'left';
+  tamanoActivo.value =
+    (activo && LEGADO_A_TAMANO[document.queryCommandValue('fontSize')]) || 'normal';
+}
+
+function alternarNegrita() {
+  editableParrafo.value?.focus();
+  document.execCommand('bold');
+  actualizarParrafo({ currentTarget: editableParrafo.value });
+  actualizarEstadoFormato();
+}
+
+function alternarLista() {
+  editableParrafo.value?.focus();
+  document.execCommand('insertUnorderedList');
+  actualizarParrafo({ currentTarget: editableParrafo.value });
+  actualizarEstadoFormato();
+}
+
+function cambiarAlineacion(alineacion) {
+  editableParrafo.value?.focus();
+  document.execCommand(COMANDOS_ALINEACION[alineacion] || 'justifyLeft');
+  actualizarParrafo({ currentTarget: editableParrafo.value });
+  actualizarEstadoFormato();
+}
+
+function cambiarTamano(tamano) {
+  editableParrafo.value?.focus();
+  document.execCommand('fontSize', false, TAMANO_A_LEGADO[tamano] || '4');
+  actualizarParrafo({ currentTarget: editableParrafo.value });
+  actualizarEstadoFormato();
+}
+
+watch(() => props.modelValue?.texto, sincronizarContenido, {
   immediate: true,
 });
 
-onMounted(sincronizarContenido);
+onMounted(() => {
+  sincronizarContenido();
+  // Fuerza que negritas/etc. produzcan etiquetas semánticas (<b>) en vez de
+  // `style` inline; el saneador solo conserva <b> y no atributos de estilo
+  // arbitrarios, así que sin esto la negrita se perdía al guardar.
+  document.execCommand('styleWithCSS', false, false);
+  document.addEventListener('selectionchange', actualizarEstadoFormato);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('selectionchange', actualizarEstadoFormato);
+});
 </script>
 
 <template>
   <section class="editor-parrafo contenedor ancho-fijo">
     <LandingBuilderBarraHerramientasTexto
       tipo="parrafo"
-      :negrita="Boolean(props.modelValue.negrita)"
-      :alineacion="props.modelValue.alineacion || 'left'"
-      :tamano="props.modelValue.tamano || 'normal'"
-      :tipo-lista="props.modelValue.tipoLista || 'ninguna'"
-      @update:negrita="actualizarPropiedad('negrita', $event)"
-      @update:alineacion="actualizarPropiedad('alineacion', $event)"
-      @update:tamano="actualizarPropiedad('tamano', $event)"
-      @update:tipo-lista="actualizarPropiedad('tipoLista', $event)"
+      :negrita="negritaActiva"
+      :alineacion="alineacionActiva"
+      :tamano="tamanoActivo"
+      :tipo-lista="listaActiva ? 'vinetas' : 'ninguna'"
+      @update:negrita="alternarNegrita"
+      @update:alineacion="cambiarAlineacion"
+      @update:tamano="cambiarTamano"
+      @update:tipo-lista="alternarLista"
     />
 
-    <component
-      :is="esLista ? 'ul' : 'p'"
+    <div
       ref="editableParrafo"
       class="editor-parrafo__contenido"
-      :class="{
-        'editor-parrafo__contenido--lista': esLista,
-        'editor-parrafo__contenido--vacio': !obtenerTextoModelo().trim(),
-      }"
       :style="estilosParrafo"
       data-placeholder="Escribe un párrafo..."
       contenteditable="true"
@@ -191,11 +197,9 @@ onMounted(sincronizarContenido);
     outline: none;
     line-height: 1.6;
     overflow-wrap: anywhere;
-    white-space: pre-wrap;
-    transition:
-      color 0.15s ease,
-      font-size 0.15s ease,
-      font-weight 0.15s ease;
+    font-size: 1rem;
+    text-align: left;
+    transition: color 0.15s ease;
 
     &:empty::before {
       color: var(--texto-secundario);
@@ -208,24 +212,38 @@ onMounted(sincronizarContenido);
       outline: none;
     }
 
-    &--lista {
+    :deep(ul) {
+      margin: 0.4em 0;
       padding-left: 1.75rem;
-      white-space: normal;
-
-      li {
-        min-height: 1.6em;
-        padding-left: 0.2rem;
-      }
     }
 
-    &--lista#{&}--vacio::after {
-      position: absolute;
-      top: 8px;
-      left: 1.75rem;
-      color: var(--texto-secundario);
-      content: attr(data-placeholder);
-      opacity: 0.75;
-      pointer-events: none;
+    :deep(li) {
+      min-height: 1.6em;
+      padding-left: 0.2rem;
+    }
+
+    :deep(font[size='3']) {
+      font-size: 0.875rem;
+    }
+
+    :deep(font[size='4']) {
+      font-size: 1rem;
+    }
+
+    :deep(font[size='5']) {
+      font-size: 1.125rem;
+    }
+
+    :deep(font[size='6']) {
+      font-size: 1.25rem;
+    }
+
+    // sisdai-css define b/strong con font-weight: 500, pero la tipografía
+    // real no tiene esa variante y el navegador cae a 400 (se ve igual que
+    // el texto normal); se fuerza 700 para que la negrita sea visible.
+    :deep(b),
+    :deep(strong) {
+      font-weight: 700;
     }
   }
 }

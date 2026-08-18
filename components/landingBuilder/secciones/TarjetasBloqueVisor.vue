@@ -1,5 +1,6 @@
 <script setup>
 const store = useLandingBuilderStore();
+const { sanitizarHtmlEnriquecido } = useTextoEnriquecido();
 
 defineProps({
   datos: {
@@ -7,20 +8,6 @@ defineProps({
     required: true,
   },
 });
-
-const tamanosTitulo = {
-  pequeno: '1.125rem',
-  mediano: '1.25rem',
-  grande: '1.5rem',
-  'extra-grande': '1.875rem',
-};
-
-const tamanosParrafo = {
-  pequeno: '0.8125rem',
-  normal: '0.875rem',
-  mediano: '1rem',
-  grande: '1.125rem',
-};
 
 function estiloImagenTarjeta(tarjeta) {
   const posicion = tarjeta.imagenPosicion || { x: 50, y: 50 };
@@ -74,27 +61,15 @@ function colorTextoResuelto(color) {
           <div class="visor-tarjeta-cuerpo">
             <h3
               class="visor-tarjeta-titulo"
-              :style="{
-                textAlign: tarjeta.tituloAlineacion || 'left',
-                color: colorTextoResuelto(tarjeta.tituloColor),
-                fontWeight: tarjeta.tituloNegrita ? '700' : '400',
-                fontSize: tamanosTitulo[tarjeta.tituloTamano] || '1.375rem',
-              }"
-            >
-              {{ tarjeta.titulo }}
-            </h3>
+              :style="{ color: colorTextoResuelto(tarjeta.tituloColor) }"
+              v-html="sanitizarHtmlEnriquecido(tarjeta.titulo)"
+            />
 
-            <p
+            <div
               class="visor-tarjeta-descripcion"
-              :style="{
-                textAlign: tarjeta.descripcionAlineacion || 'left',
-                color: colorTextoResuelto(tarjeta.descripcionColor),
-                fontWeight: tarjeta.descripcionNegrita ? '700' : '400',
-                fontSize: tamanosParrafo[tarjeta.descripcionTamano] || '0.875rem',
-              }"
-            >
-              {{ tarjeta.descripcion }}
-            </p>
+              :style="{ color: colorTextoResuelto(tarjeta.descripcionColor) }"
+              v-html="sanitizarHtmlEnriquecido(tarjeta.descripcion)"
+            />
 
             <div v-if="tarjeta.botonTexto" class="visor-tarjeta-pie flex flex-contenido-centrado">
               <NuxtLink
@@ -147,6 +122,65 @@ function colorTextoResuelto(color) {
 .visor-tarjeta-titulo,
 .visor-tarjeta-descripcion {
   margin: 0;
+  text-align: left;
+}
+
+.visor-tarjeta-titulo {
+  font-size: 1.5rem;
+
+  :deep(font[size='3']) {
+    font-size: 1.125rem;
+  }
+
+  :deep(font[size='4']) {
+    font-size: 1.25rem;
+  }
+
+  :deep(font[size='5']) {
+    font-size: 1.5rem;
+  }
+
+  :deep(font[size='6']) {
+    font-size: 1.875rem;
+  }
+
+  // sisdai-css define b/strong con font-weight: 500, pero la tipografía
+  // real no tiene esa variante y el navegador cae a 400 (se ve igual que
+  // el texto normal); se fuerza 700 para que la negrita sea visible.
+  :deep(b),
+  :deep(strong) {
+    font-weight: 700;
+  }
+}
+
+.visor-tarjeta-descripcion {
+  font-size: 0.875rem;
+
+  :deep(ul) {
+    margin: 0.4em 0;
+    padding-left: 1.5rem;
+  }
+
+  :deep(font[size='3']) {
+    font-size: 0.8125rem;
+  }
+
+  :deep(font[size='4']) {
+    font-size: 0.875rem;
+  }
+
+  :deep(font[size='5']) {
+    font-size: 1rem;
+  }
+
+  :deep(font[size='6']) {
+    font-size: 1.125rem;
+  }
+
+  :deep(b),
+  :deep(strong) {
+    font-weight: 700;
+  }
 }
 
 .visor-tarjeta-titulo-h1 {

@@ -1,5 +1,6 @@
 <script setup>
 const store = useLandingBuilderStore();
+const { sanitizarHtmlEnriquecido } = useTextoEnriquecido();
 
 defineProps({
   bloques: {
@@ -13,52 +14,16 @@ function estiloFondoPortada(bloque) {
   return { objectPosition: `${posicion.x}% ${posicion.y}%` };
 }
 
-const tamanosTitulo = {
-  pequeno: '1.5rem',
-  mediano: '2rem',
-  grande: '2.5rem',
-  'extra-grande': '3rem',
-};
-
-const tamanosParrafo = {
-  pequeno: '0.875rem',
-  normal: '1rem',
-  mediano: '1.125rem',
-  grande: '1.25rem',
-};
-
 function colorTextoResuelto(color) {
   return color && color !== '#FFFFFF' ? color : 'var(--texto-primario)';
 }
 
 function obtenerEstilosTitulo(bloque) {
-  const datos = bloque.datos || {};
-  const tamano = datos.tamano || 'grande';
-
-  return {
-    textAlign: datos.alineacion || 'left',
-    color: colorTextoResuelto(datos.color),
-    fontWeight: datos.negrita ? 700 : 400,
-    fontSize: tamanosTitulo[tamano] || tamanosTitulo.grande,
-  };
+  return { color: colorTextoResuelto(bloque.datos?.color) };
 }
 
 function obtenerEstilosParrafo(bloque) {
-  const datos = bloque.datos || {};
-  const tamano = datos.tamano || 'normal';
-
-  return {
-    textAlign: datos.alineacion || 'left',
-    color: colorTextoResuelto(datos.color),
-    fontWeight: datos.negrita ? 700 : 400,
-    fontSize: tamanosParrafo[tamano] || tamanosParrafo.normal,
-  };
-}
-
-function obtenerLineasParrafo(bloque) {
-  return String(bloque.datos?.texto ?? '')
-    .replace(/\r/g, '')
-    .split('\n');
+  return { color: colorTextoResuelto(bloque.datos?.color) };
 }
 
 function obtenerParrafoTextoImagen(bloque) {
@@ -66,21 +31,7 @@ function obtenerParrafoTextoImagen(bloque) {
 }
 
 function obtenerEstilosParrafoTextoImagen(bloque) {
-  const parrafo = obtenerParrafoTextoImagen(bloque);
-  const tamano = parrafo.tamano || 'normal';
-
-  return {
-    textAlign: parrafo.alineacion || 'left',
-    color: colorTextoResuelto(parrafo.color),
-    fontWeight: parrafo.negrita ? 700 : 400,
-    fontSize: tamanosParrafo[tamano] || tamanosParrafo.normal,
-  };
-}
-
-function obtenerLineasParrafoTextoImagen(bloque) {
-  return String(obtenerParrafoTextoImagen(bloque).texto ?? '')
-    .replace(/\r/g, '')
-    .split('\n');
+  return { color: colorTextoResuelto(obtenerParrafoTextoImagen(bloque).color) };
 }
 </script>
 
@@ -112,8 +63,22 @@ function obtenerLineasParrafoTextoImagen(bloque) {
 
         <div class="visor-portada__degradado">
           <div class="visor-portada__contenido">
-            <h1 :style="{ color: bloque.datos.colorTitulo }">{{ bloque.datos.titulo }}</h1>
-            <p :style="{ color: bloque.datos.colorSubtitulo }">{{ bloque.datos.subtitulo }}</p>
+            <h1
+              :style="{
+                color: bloque.datos.colorTitulo,
+                textShadow: calcularSombraTexto(bloque.datos.colorTitulo),
+              }"
+            >
+              {{ bloque.datos.titulo }}
+            </h1>
+            <p
+              :style="{
+                color: bloque.datos.colorSubtitulo,
+                textShadow: calcularSombraTexto(bloque.datos.colorSubtitulo),
+              }"
+            >
+              {{ bloque.datos.subtitulo }}
+            </p>
           </div>
         </div>
       </section>
@@ -122,31 +87,22 @@ function obtenerLineasParrafoTextoImagen(bloque) {
         v-else-if="bloque.tipo === 'titulo'"
         class="visor-titulo contenedor ancho-fijo m-y-6"
       >
-        <h2 class="visor-titulo__contenido" :style="obtenerEstilosTitulo(bloque)">
-          {{ bloque.datos?.texto }}
-        </h2>
+        <h2
+          class="visor-titulo__contenido"
+          :style="obtenerEstilosTitulo(bloque)"
+          v-html="sanitizarHtmlEnriquecido(bloque.datos?.texto)"
+        />
       </section>
 
       <section
         v-else-if="bloque.tipo === 'parrafo'"
         class="visor-parrafo contenedor ancho-fijo m-y-6"
       >
-        <ul
-          v-if="bloque.datos?.tipoLista === 'vinetas'"
-          class="visor-parrafo__lista"
+        <div
+          class="visor-parrafo__contenido"
           :style="obtenerEstilosParrafo(bloque)"
-        >
-          <li
-            v-for="(linea, indice) in obtenerLineasParrafo(bloque)"
-            :key="`${bloque.id}-linea-${indice}`"
-          >
-            {{ linea }}
-          </li>
-        </ul>
-
-        <p v-else class="visor-parrafo__contenido" :style="obtenerEstilosParrafo(bloque)">
-          {{ bloque.datos?.texto }}
-        </p>
+          v-html="sanitizarHtmlEnriquecido(bloque.datos?.texto)"
+        />
       </section>
 
       <section
@@ -156,26 +112,11 @@ function obtenerLineasParrafoTextoImagen(bloque) {
       >
         <div class="visor-texto-imagen__rejilla">
           <div class="visor-texto-imagen__texto">
-            <ul
-              v-if="bloque.datos?.parrafo?.tipoLista === 'vinetas'"
-              class="visor-texto-imagen__lista"
-              :style="obtenerEstilosParrafoTextoImagen(bloque)"
-            >
-              <li
-                v-for="(linea, indice) in obtenerLineasParrafoTextoImagen(bloque)"
-                :key="`${bloque.id}-texto-imagen-linea-${indice}`"
-              >
-                {{ linea }}
-              </li>
-            </ul>
-
-            <p
-              v-else
+            <div
               class="visor-texto-imagen__parrafo"
               :style="obtenerEstilosParrafoTextoImagen(bloque)"
-            >
-              {{ bloque.datos?.parrafo?.texto }}
-            </p>
+              v-html="sanitizarHtmlEnriquecido(obtenerParrafoTextoImagen(bloque).texto)"
+            />
           </div>
 
           <div v-if="bloque.datos?.imagen?.url" class="visor-texto-imagen__media">
@@ -231,27 +172,75 @@ function obtenerLineasParrafoTextoImagen(bloque) {
     margin: 0;
     line-height: 1.25;
     overflow-wrap: anywhere;
+    font-size: 2.5rem;
+    text-align: left;
+
+    :deep(font[size='3']) {
+      font-size: 1.5rem;
+    }
+
+    :deep(font[size='4']) {
+      font-size: 2rem;
+    }
+
+    :deep(font[size='5']) {
+      font-size: 2.5rem;
+    }
+
+    :deep(font[size='6']) {
+      font-size: 3rem;
+    }
+
+    // sisdai-css define b/strong con font-weight: 500, pero la tipografía
+    // real no tiene esa variante y el navegador cae a 400 (se ve igual que
+    // el texto normal); se fuerza 700 para que la negrita sea visible.
+    :deep(b),
+    :deep(strong) {
+      font-weight: 700;
+    }
   }
 }
 
 .visor-parrafo {
-  &__contenido,
-  &__lista {
+  &__contenido {
     margin: 0;
     line-height: 1.6;
     overflow-wrap: anywhere;
-  }
+    font-size: 1rem;
+    text-align: left;
 
-  &__contenido {
-    white-space: pre-wrap;
-  }
+    :deep(ul) {
+      margin: 0.4em 0;
+      padding-left: 1.75rem;
+    }
 
-  &__lista {
-    padding-left: 1.75rem;
-
-    li {
+    :deep(li) {
       min-height: 1.6em;
       padding-left: 0.2rem;
+    }
+
+    :deep(font[size='3']) {
+      font-size: 0.875rem;
+    }
+
+    :deep(font[size='4']) {
+      font-size: 1rem;
+    }
+
+    :deep(font[size='5']) {
+      font-size: 1.125rem;
+    }
+
+    :deep(font[size='6']) {
+      font-size: 1.25rem;
+    }
+
+    // sisdai-css define b/strong con font-weight: 500, pero la tipografía
+    // real no tiene esa variante y el navegador cae a 400 (se ve igual que
+    // el texto normal); se fuerza 700 para que la negrita sea visible.
+    :deep(b),
+    :deep(strong) {
+      font-weight: 700;
     }
   }
 }
@@ -273,23 +262,45 @@ function obtenerLineasParrafoTextoImagen(bloque) {
     min-width: 0;
   }
 
-  &__parrafo,
-  &__lista {
+  &__parrafo {
     margin: 0;
     line-height: 1.6;
     overflow-wrap: anywhere;
-  }
+    font-size: 1rem;
+    text-align: left;
 
-  &__parrafo {
-    white-space: pre-wrap;
-  }
+    :deep(ul) {
+      margin: 0.4em 0;
+      padding-left: 1.75rem;
+    }
 
-  &__lista {
-    padding-left: 1.75rem;
-
-    li {
+    :deep(li) {
       min-height: 1.6em;
       padding-left: 0.2rem;
+    }
+
+    :deep(font[size='3']) {
+      font-size: 0.875rem;
+    }
+
+    :deep(font[size='4']) {
+      font-size: 1rem;
+    }
+
+    :deep(font[size='5']) {
+      font-size: 1.125rem;
+    }
+
+    :deep(font[size='6']) {
+      font-size: 1.25rem;
+    }
+
+    // sisdai-css define b/strong con font-weight: 500, pero la tipografía
+    // real no tiene esa variante y el navegador cae a 400 (se ve igual que
+    // el texto normal); se fuerza 700 para que la negrita sea visible.
+    :deep(b),
+    :deep(strong) {
+      font-weight: 700;
     }
   }
 
@@ -358,11 +369,14 @@ function obtenerLineasParrafoTextoImagen(bloque) {
     align-items: center;
     justify-content: center;
     padding: 32px 24px;
+    // Oscurece de forma pareja en todo el marco (no solo abajo) para que el
+    // texto centrado siga siendo legible incluso sobre imágenes con mucho
+    // detalle/contraste propio, no solo fotografías uniformes.
     background: linear-gradient(
       180deg,
-      rgb(0 0 0 / 18%) 0%,
-      rgb(0 0 0 / 38%) 55%,
-      rgb(0 0 0 / 65%) 100%
+      rgb(0 0 0 / 45%) 0%,
+      rgb(0 0 0 / 55%) 50%,
+      rgb(0 0 0 / 70%) 100%
     );
   }
 

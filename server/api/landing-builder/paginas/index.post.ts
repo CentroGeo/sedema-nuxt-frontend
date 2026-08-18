@@ -9,6 +9,8 @@ import {
   CAMPO_IDENTIDAD_POR_SLOT,
   IDENTIDAD_PAGINA_VACIA,
   validarYObtenerMimetypeImagen,
+  sanitizarColorTema,
+  sanitizarPiePagina,
 } from '../../../utils/landingBuilderConfig';
 import type { LandingBuilderPaginaIdentidad } from '../../../utils/landingBuilderConfig';
 
@@ -46,6 +48,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const paginaId = `pagina-${Date.now()}`;
+  const nombre = fields.nombre?.[0]?.trim() || undefined;
 
   const identidad: LandingBuilderPaginaIdentidad = {
     ...IDENTIDAD_PAGINA_VACIA,
@@ -80,10 +83,8 @@ export default defineEventHandler(async (event) => {
       typeof identidadEntrante.logoCuartoRedirectUrl === 'string'
         ? identidadEntrante.logoCuartoRedirectUrl
         : null,
-    mostrarBarraGobMx:
-      typeof identidadEntrante.mostrarBarraGobMx === 'boolean'
-        ? identidadEntrante.mostrarBarraGobMx
-        : true,
+    colorTema: sanitizarColorTema(identidadEntrante.colorTema),
+    piePagina: sanitizarPiePagina(identidadEntrante.piePagina),
   };
 
   for (const slot of SLOTS_LOGO_PAGINA) {
@@ -106,5 +107,5 @@ export default defineEventHandler(async (event) => {
     identidad[CAMPO_IDENTIDAD_POR_SLOT[slot]] = url;
   }
 
-  return crearLandingBuilderPagina(bloques, identidad, paginaId);
+  return crearLandingBuilderPagina(bloques, identidad, paginaId, nombre);
 });

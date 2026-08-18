@@ -193,21 +193,14 @@ function crearDatosPortada() {
 function crearDatosTitulo() {
   return {
     texto: '',
-    alineacion: 'left',
     color: '#FFFFFF',
-    negrita: true,
-    tamano: 'grande',
   };
 }
 
 function crearDatosParrafo() {
   return {
     texto: '',
-    alineacion: 'left',
     color: '#FFFFFF',
-    negrita: false,
-    tamano: 'normal',
-    tipoLista: 'ninguna',
   };
 }
 
@@ -215,11 +208,7 @@ function crearDatosTextoImagen() {
   return {
     parrafo: {
       texto: 'Escribe aquí la descripción de la sección.',
-      alineacion: 'left',
       color: '#FFFFFF',
-      negrita: false,
-      tamano: 'normal',
-      tipoLista: 'ninguna',
     },
     posicionImagen: 'derecha',
     imagen: {
@@ -255,9 +244,7 @@ function crearDatosTarjetas() {
         descripcion: '',
         imagenUrl: '/inicio/tarjeta_visualiza.png',
         tituloTipo: 'h2',
-        tituloAlineacion: 'left',
         descripcionTipo: 'p',
-        descripcionAlineacion: 'left',
       },
     ],
   };

@@ -148,13 +148,22 @@ const dictCategoriaOGC = [
   { location: 'Ubicación' },
 ];
 
-const dictCategoriaSIGIC = [
-  { medioAmbienteRecursosNaturales: 'Medio ambiente y recursos naturales' },
-  { infraestructuraServiciosUrbanosRegionales: 'Infraestructura y servicios urbanos regionales' },
-  { territorioLimitesCatastro: 'Territorio, límites y catastro' },
-  { sociedadDemografiaEconomia: 'Sociedad, demografía y economía' },
-  { sensoresRemotosMapasBase: 'Sensores remotos y mapas base' },
-];
+// Categoría SIGIC: a diferencia de la OGC (estándar ISO, fija), sus opciones
+// son las categorías publicadas del conjunto activo en Gestión de
+// categorías, así que se cargan desde la API en vez de venir hardcodeadas.
+const dictCategoriaSIGIC = ref([]);
+
+onMounted(async () => {
+  try {
+    const categoriasApi = useCategoriasApi();
+    const visibles = await categoriasApi.fetchCategoriasVisibles();
+    dictCategoriaSIGIC.value = visibles.map((categoria) => ({
+      [categoria.identifier]: categoria.nombre,
+    }));
+  } catch (err) {
+    console.error('No se pudieron cargar las categorías SIGIC:', err);
+  }
+});
 
 // Categorías sincronizadas con el store
 const categoriaOGC = computed({
@@ -187,7 +196,9 @@ const categoriaSIGIC = computed({
 
     const savedCategory =
       storeMetadatos.metadata.category?.identifier || storeMetadatos.metadata.category;
-    const existsInSIGIC = dictCategoriaSIGIC.some((item) => Object.keys(item)[0] === savedCategory);
+    const existsInSIGIC = dictCategoriaSIGIC.value.some(
+      (item) => Object.keys(item)[0] === savedCategory
+    );
 
     return existsInSIGIC ? savedCategory : '';
   },
@@ -363,7 +374,6 @@ async function guardarImagen(files) {
           <ClientOnly>
             <!-- Selector 1: Categoría OGC -->
             <SisdaiSelector v-model="categoriaOGC" etiqueta="Categoría OGC *">
-              <option value="">Selecciona una categoría OGC</option>
               <option
                 v-for="value in dictCategoriaOGC"
                 :key="Object.keys(value)[0]"
@@ -375,7 +385,6 @@ async function guardarImagen(files) {
 
             <!-- Selector 2: Categoría SIGIC -->
             <SisdaiSelector v-model="categoriaSIGIC" class="m-t-3" etiqueta="Categoría SIGIC *">
-              <option value="">Selecciona una categoría SIGIC</option>
               <option
                 v-for="value in dictCategoriaSIGIC"
                 :key="Object.keys(value)[0]"

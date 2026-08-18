@@ -51,6 +51,19 @@ function manejarSeleccionImagen(id, archivo) {
   diapositiva.imagenTipo = archivo.type.startsWith('video/') ? 'video' : 'imagen';
 }
 
+function manejarSeleccionEnlace(id, { url, tipo }) {
+  const diapositiva = diapositivas.value.find((d) => d.id === id);
+  if (!diapositiva) return;
+
+  if (diapositiva.imagenUrl?.startsWith('blob:')) {
+    URL.revokeObjectURL(diapositiva.imagenUrl);
+  }
+
+  diapositiva.imagenArchivo = null;
+  diapositiva.imagenUrl = url;
+  diapositiva.imagenTipo = tipo === 'video' ? 'video' : 'imagen';
+}
+
 function alIniciarArrastre(id) {
   idArrastrado.value = id;
 }
@@ -176,6 +189,7 @@ defineExpose({
                 :imagen-url="diapositiva.imagenUrl"
                 :imagen-tipo="diapositiva.imagenTipo"
                 @seleccionar-imagen="(archivo) => manejarSeleccionImagen(diapositiva.id, archivo)"
+                @seleccionar-enlace="(payload) => manejarSeleccionEnlace(diapositiva.id, payload)"
               />
             </div>
 

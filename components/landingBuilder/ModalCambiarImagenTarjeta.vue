@@ -8,6 +8,7 @@ const inputArchivo = ref(null);
 
 const pestanaActiva = ref('subir');
 const urlImagen = ref('');
+const tipoEnlace = ref('imagen');
 const error = ref('');
 const arrastrandoArchivo = ref(false);
 
@@ -18,9 +19,16 @@ const TIPOS_IMAGEN_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp'];
 const TIPOS_VIDEO_PERMITIDOS = ['video/mp4', 'video/webm'];
 const tiposPermitidos = [...TIPOS_IMAGEN_PERMITIDOS, ...TIPOS_VIDEO_PERMITIDOS];
 
+const REGEX_EXTENSION_VIDEO = /\.(mp4|webm|ogv|mov)(\?|#|$)/i;
+
+function detectarTipoPorUrl() {
+  tipoEnlace.value = REGEX_EXTENSION_VIDEO.test(urlImagen.value.trim()) ? 'video' : 'imagen';
+}
+
 function abrirModal() {
   pestanaActiva.value = 'subir';
   urlImagen.value = '';
+  tipoEnlace.value = 'imagen';
   error.value = '';
 
   if (inputArchivo.value) {
@@ -134,7 +142,7 @@ function aplicarEnlace() {
   }
 
   error.value = '';
-  emit('seleccionar-enlace', enlace);
+  emit('seleccionar-enlace', { url: enlace, tipo: tipoEnlace.value });
   cerrarModal();
 }
 
@@ -270,17 +278,49 @@ defineExpose({
           aria-labelledby="pestana-enlace-tarjeta"
         >
           <div class="modal-tarjeta-imagen__campo">
-            <label for="tarjeta-enlace">Enlace de la imagen</label>
+            <label for="tarjeta-enlace">Enlace de la imagen o video</label>
 
             <input
               id="tarjeta-enlace"
               v-model.trim="urlImagen"
               type="url"
               placeholder="https://ejemplo.com/imagen.jpg"
+              @blur="detectarTipoPorUrl"
               @keyup.enter="aplicarEnlace"
             />
 
-            <p class="formulario-ayuda">Pega un enlace directo a una imagen pública.</p>
+            <p class="formulario-ayuda">
+              Pega un enlace directo a una imagen pública o a un video MP4/WEBM.
+            </p>
+          </div>
+
+          <div
+            class="modal-tarjeta-imagen__campo"
+            role="group"
+            aria-label="Tipo de contenido del enlace"
+          >
+            <span class="formulario-ayuda">Tipo de contenido:</span>
+
+            <div class="modal-tarjeta-imagen__tipo-enlace">
+              <button
+                type="button"
+                class="modal-tarjeta-imagen__boton-tipo"
+                :class="{ 'modal-tarjeta-imagen__boton-tipo--activo': tipoEnlace === 'imagen' }"
+                :aria-pressed="tipoEnlace === 'imagen'"
+                @click="tipoEnlace = 'imagen'"
+              >
+                Imagen
+              </button>
+              <button
+                type="button"
+                class="modal-tarjeta-imagen__boton-tipo"
+                :class="{ 'modal-tarjeta-imagen__boton-tipo--activo': tipoEnlace === 'video' }"
+                :aria-pressed="tipoEnlace === 'video'"
+                @click="tipoEnlace = 'video'"
+              >
+                Video
+              </button>
+            </div>
           </div>
 
           <button
@@ -288,7 +328,7 @@ defineExpose({
             class="boton-primario boton-chico modal-tarjeta-imagen__boton-enlace"
             @click="aplicarEnlace"
           >
-            Usar imagen
+            Usar enlace
           </button>
         </section>
 
@@ -578,6 +618,37 @@ defineExpose({
 
   &__boton-enlace {
     margin-top: 20px;
+  }
+
+  &__tipo-enlace {
+    display: inline-flex;
+    gap: 8px;
+  }
+
+  &__boton-tipo {
+    padding: 4px 12px;
+    border: 1px solid var(--color-neutro-2, #e0e0e0);
+    background: var(--color-neutro-0, #ffffff);
+    border-radius: 4px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-neutro-5, #616161);
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      border-color 0.15s,
+      color 0.15s;
+
+    &:hover {
+      background: var(--color-neutro-1, #f5f5f5);
+      border-color: var(--color-neutro-3, #bdbdbd);
+    }
+
+    &--activo {
+      background: rgb(105 28 50);
+      border-color: rgb(105 28 50);
+      color: #ffffff;
+    }
   }
 
   &__error {
