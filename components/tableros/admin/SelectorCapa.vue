@@ -66,9 +66,7 @@ async function cargarCapas() {
       pagina.value,
       userData.value?.accessToken,
       TAM_PAGINA,
-      categoriaSeleccionada.value?.identifier ?? '',
-      'LOCAL',
-      'vector'
+      categoriaSeleccionada.value?.identifier ?? ''
     );
     capas.value = data?.datasets ?? data?.results ?? [];
     totalCapas.value = data?.total ?? data?.count ?? capas.value.length;
