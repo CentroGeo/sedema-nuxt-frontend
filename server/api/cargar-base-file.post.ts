@@ -1,6 +1,7 @@
 import formidable from 'formidable';
 import { promises as fsp } from 'fs';
 import { createError } from 'h3';
+import { getServerSession } from '#auth';
 import { LIMITE_CARGA_ARCHIVOS_BYTES } from '#shared/utils/limiteCargaArchivos';
 import { parseUploadForm } from '../utils/parseUploadForm';
 
@@ -10,6 +11,11 @@ export const config = {
   },
 };
 
+async function getAccessToken(event) {
+  const session = await getServerSession(event);
+  return session?.accessToken;
+}
+
 export default defineEventHandler(async (event) => {
   const configEnv = useRuntimeConfig();
   const form = formidable({ multiples: false, maxFileSize: LIMITE_CARGA_ARCHIVOS_BYTES });
@@ -18,10 +24,10 @@ export default defineEventHandler(async (event) => {
   const data = await parseUploadForm(form, event.node.req);
 
   const { base_file } = data.files;
-  const token = data?.fields?.token?.[0];
+  const token = await getAccessToken(event);
 
   if (!base_file || !token) {
-    throw createError({ statusCode: 400, message: 'Archivo o token faltante' });
+    throw createError({ statusCode: 400, message: 'Archivo o sesión faltante' });
   }
 
   const quotaRes = await fetch(`${configEnv.public.geonodeApi}/data-importer/jobs/quota/`, {
@@ -85,11 +91,13 @@ export default defineEventHandler(async (event) => {
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       await delay(5000);
+      // Se vuelve a pedir la sesión en cada intento: si el accessToken estaba por
+      // expirar, el callback jwt() ya lo habrá refrescado entre un intento y otro.
+      const pollToken = (await getAccessToken(event)) || token;
       const statusRes = await fetch(statusUrl, {
         method: 'GET',
-
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${pollToken}`,
         },
       });
 
@@ -104,6 +112,10 @@ export default defineEventHandler(async (event) => {
       if (statusJson?.status === 'finished' && statusJson?.output_params?.resources?.length > 0) {
         break;
       }
+
+      if (statusJson?.status === 'failed') {
+        break;
+      }
     }
 
     // 3️⃣ Devolver resultado final al frontend
@@ -115,6 +127,12 @@ export default defineEventHandler(async (event) => {
         id: resource.id,
         url: `${configEnv.public.geonodeUrl}${resource.detail_url}`,
         time: statusJson.finished,
+      };
+    } else if (statusJson?.status === 'failed') {
+      return {
+        success: false,
+        message: statusJson?.log || 'GeoNode no pudo procesar el archivo.',
+        status: 'failed',
       };
     } else {
       return {

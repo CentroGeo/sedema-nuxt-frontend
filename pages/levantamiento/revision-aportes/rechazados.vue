@@ -25,6 +25,7 @@ onMounted(async () => {
     console.log('[BACKEND] Solicitando aportes RECHAZADOS...');
 
     const { aportes } = await storeLevantamiento.obtenerAportesRevision(email, 'RECHAZADO');
+    const aportes = await storeLevantamiento.obtenerAportesPorEstado(email, 'RECHAZADO');
 
     console.log('[BACKEND] Datos crudos obtenidos de Rechazados:', aportes);
     if (aportes.length > 0) {

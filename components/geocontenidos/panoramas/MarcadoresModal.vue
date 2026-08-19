@@ -1,7 +1,7 @@
 <script setup>
 import SisdaiModal from '@centrogeomx/sisdai-componentes/src/componentes/modal/SisdaiModal.vue';
-import pictogramas from '~/utils/geocontenidos/pictogramas.json';
 import { iconosTematicaPanorama } from '~/utils/geocontenidos/basemapsPanorama';
+import pictogramas from '~/utils/geocontenidos/pictogramas.json';
 
 const props = defineProps({
   capa: { type: Object, required: true },
@@ -51,7 +51,7 @@ const marcadoresMapa = computed(() => {
   if (formulario.lat !== null && formulario.lng !== null) {
     lista.push({
       id: 'nuevo',
-      title: formulario.title || 'Nuevo marcador',
+      title: formulario.title || 'Nueva ubicación',
       content: formulario.narrative,
       icon: caracterPictograma(formulario.icon),
       color: formulario.color,
@@ -166,7 +166,7 @@ async function eliminarMarcador(id) {
   guardando.value = false;
 
   if (!respuesta.ok) {
-    alert('No se pudo eliminar el marcador.');
+    alert('No se pudo eliminar la ubicación.');
     return;
   }
 
@@ -179,113 +179,161 @@ async function eliminarMarcador(id) {
   <ClientOnly>
     <SisdaiModal ref="modal" tamanio-modal="modal-grande">
       <template #encabezado>
-        <h2 class="m-t-0">Marcadores de la capa: {{ capa.dataset_title || capa.name }}</h2>
+        <h2 class="m-t-0 m-b-0">Ubicaciones de la capa: {{ capa.dataset_title || capa.name }}</h2>
       </template>
 
       <template #cuerpo>
-        <p class="m-0">
-          Haz click en el mapa para ubicar un marcador nuevo, o selecciona uno existente de la lista
-          para editarlo.
+        <p class="marcadores-modal__instruccion">
+          Selecciona un punto en el mapa para crear una ubicación o elige una ubicación guardada
+          para editarla.
         </p>
 
-        <div class="flex m-t-4">
-          <div class="marcadores-modal__contenedor-mapa columna-8">
-            <MapasVisor
-              class="borde borde-color-secundario"
-              :vista="{ centro: [-103.5, 23.6], acercamiento: 5 }"
-              :capas="capaMapa"
-              :marcadores="marcadoresMapa"
-              base-layer="satellite"
-              :opciones="{ info: false, cambiarBase: false, leyenda: false, coordenadas: false }"
-              @click-vista="clickVista"
-            />
-          </div>
+        <div class="marcadores-modal__distribucion">
+          <!-- Mapa -->
+          <section class="marcadores-modal__mapa-panel" aria-label="Mapa de ubicaciones">
+            <div class="marcadores-modal__contenedor-mapa">
+              <MapasVisor
+                class="borde borde-color-secundario"
+                :vista="{ centro: [-103.5, 23.6], acercamiento: 5 }"
+                :capas="capaMapa"
+                :marcadores="marcadoresMapa"
+                base-layer="satellite"
+                :opciones="{
+                  info: false,
+                  cambiarBase: false,
+                  leyenda: false,
+                  coordenadas: false,
+                }"
+                @click-vista="clickVista"
+              />
+            </div>
 
-          <div class="columna-6">
-            <h3>{{ formulario.id ? 'Editar marcador' : 'Nuevo marcador' }}</h3>
-
-            <p v-if="errorGuardado" class="texto-color-error">{{ errorGuardado }}</p>
-
-            <form @submit.prevent="guardarMarcador">
-              <div class="m-b-4">
-                <label for="marcador-titulo">Título</label>
-                <input id="marcador-titulo" v-model="formulario.title" type="text" required />
-              </div>
-
-              <div class="m-b-4">
-                <label>Narrativa</label>
-                <UiEditorTexto v-model="formulario.narrative" />
-              </div>
-
-              <div class="flex flex-contenido-separado m-b-4">
-                <div class="columna-8">
-                  <label for="marcador-icono">Ícono</label>
-                  <GeocontenidosSelectorIcono
-                    id="marcador-icono"
-                    v-model="formulario.icon"
-                    por-nombre
-                  />
-                </div>
-
-                <div>
-                  <label for="marcador-color">Color</label>
-                  <input id="marcador-color" v-model="formulario.color" type="color" />
-                </div>
-              </div>
-
-              <div class="flex flex-contenido-final">
-                <button
-                  v-if="formulario.id"
-                  type="button"
-                  class="boton boton-secundario"
-                  @click="cancelarSeleccion"
-                >
-                  Cancelar edición
-                </button>
-                <input
-                  type="submit"
-                  class="boton-primario"
-                  :value="formulario.id ? 'Guardar cambios' : 'Agregar marcador'"
-                  :disabled="guardando"
-                />
-              </div>
-            </form>
-
-            <h3>Marcadores existentes</h3>
-
-            <GeocontenidosLoader v-if="cargando" />
-
-            <p v-else-if="marcadores.length === 0" class="texto-tamanio-2">
-              Esta capa no tiene marcadores.
+            <p class="marcadores-modal__ayuda-mapa texto-color-secundario">
+              Selecciona directamente sobre el mapa el punto que deseas registrar.
             </p>
+          </section>
 
-            <ul v-else class="lista-sin-estilo">
-              <li
-                v-for="marcador in marcadores"
-                :key="marcador.id"
-                class="fondo-color-acento borde-redondeado-8 p-2 m-b-2 flex flex-contenido-separado"
-              >
-                <button
-                  type="button"
-                  class="boton-sin-contenedor-secundario"
-                  style="text-align: left"
-                  @click="seleccionarMarcador(marcador)"
-                >
-                  {{ marcador.title }}
-                </button>
+          <!-- Panel lateral -->
+          <aside class="marcadores-modal__panel">
+            <section
+              class="marcadores-modal__seccion fondo-color-neutro borde borde-color-secundario texto-color-primario"
+            >
+              <h3 class="m-t-0">
+                {{ formulario.id ? 'Editar ubicación' : 'Nueva ubicación' }}
+              </h3>
 
-                <button
-                  aria-label="Eliminar marcador"
-                  title="Eliminar marcador"
-                  type="button"
-                  class="boton-pictograma boton-sin-contenedor-secundario"
-                  @click="eliminarMarcador(marcador.id)"
+              <p v-if="errorGuardado" class="texto-color-error" role="alert">
+                {{ errorGuardado }}
+              </p>
+
+              <form @submit.prevent="guardarMarcador">
+                <div class="m-b-4">
+                  <label for="marcador-titulo">Título</label>
+                  <input id="marcador-titulo" v-model="formulario.title" type="text" required />
+                </div>
+
+                <div class="m-b-4">
+                  <label>Narrativa</label>
+                  <UiEditorTexto v-model="formulario.narrative" />
+                </div>
+
+                <div class="marcadores-modal__personalizacion m-b-4">
+                  <div>
+                    <label for="marcador-icono">Ícono</label>
+                    <GeocontenidosSelectorIcono
+                      id="marcador-icono"
+                      v-model="formulario.icon"
+                      por-nombre
+                    />
+                  </div>
+
+                  <div class="marcadores-modal__campo-color">
+                    <label for="marcador-color">Color</label>
+                    <input id="marcador-color" v-model="formulario.color" type="color" />
+                  </div>
+                </div>
+
+                <div class="marcadores-modal__acciones">
+                  <button
+                    v-if="formulario.id"
+                    type="button"
+                    class="boton boton-secundario"
+                    @click="cancelarSeleccion"
+                  >
+                    Cancelar edición
+                  </button>
+
+                  <button type="submit" class="boton boton-primario" :disabled="guardando">
+                    <svg
+                      v-if="!guardando"
+                      class="marcadores-modal__icono-boton"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M20 6 9 17l-5-5"
+                        stroke="currentColor"
+                        stroke-width="2.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+
+                    {{
+                      guardando
+                        ? 'Guardando...'
+                        : formulario.id
+                          ? 'Guardar cambios'
+                          : 'Guardar ubicación'
+                    }}
+                  </button>
+                </div>
+              </form>
+            </section>
+
+            <section
+              class="marcadores-modal__seccion fondo-color-neutro borde borde-color-secundario texto-color-primario"
+            >
+              <h3 class="m-t-0">Ubicaciones guardadas</h3>
+
+              <GeocontenidosLoader v-if="cargando" />
+
+              <p v-else-if="marcadores.length === 0" class="texto-tamanio-2 m-b-0">
+                Esta capa aún no tiene ubicaciones.
+              </p>
+
+              <ul v-else class="lista-sin-estilo marcadores-modal__lista">
+                <li
+                  v-for="marcador in marcadores"
+                  :key="marcador.id"
+                  class="marcadores-modal__item"
+                  :class="{
+                    'marcadores-modal__item--activo': formulario.id === marcador.id,
+                  }"
                 >
-                  <span class="pictograma-eliminar" aria-hidden="true" />
-                </button>
-              </li>
-            </ul>
-          </div>
+                  <button
+                    type="button"
+                    class="boton-sin-contenedor-secundario marcadores-modal__seleccionar texto-color-primario"
+                    @click="seleccionarMarcador(marcador)"
+                  >
+                    <span class="pictograma-editar m-r-1" aria-hidden="true" />
+                    <span>{{ marcador.title }}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="boton-pictograma boton-sin-contenedor-secundario marcadores-modal__eliminar"
+                    aria-label="Eliminar ubicación"
+                    title="Eliminar ubicación"
+                    @click="eliminarMarcador(marcador.id)"
+                  >
+                    <span class="pictograma-eliminar" aria-hidden="true" />
+                  </button>
+                </li>
+              </ul>
+            </section>
+          </aside>
         </div>
       </template>
     </SisdaiModal>
@@ -293,10 +341,180 @@ async function eliminarMarcador(id) {
 </template>
 
 <style lang="scss">
-.marcadores-modal__contenedor-mapa {
-  height: 480px;
+.marcadores-modal__instruccion {
+  margin: 0 0 1rem;
+  max-width: 70ch;
 }
+
+.marcadores-modal__distribucion {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.marcadores-modal__mapa-panel {
+  position: sticky;
+  top: 0;
+  min-width: 0;
+}
+
+.marcadores-modal__contenedor-mapa {
+  height: clamp(340px, 50vh, 480px);
+  overflow: hidden;
+  border-radius: 0.5rem;
+}
+
 .marcadores-modal__contenedor-mapa .visor-mapa-contenedor {
   height: 100%;
+}
+
+.marcadores-modal__ayuda-mapa {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+.marcadores-modal__panel {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.marcadores-modal__seccion {
+  padding: 1.25rem;
+  border-radius: 0.5rem;
+}
+
+.marcadores-modal__personalizacion {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: end;
+}
+
+.marcadores-modal__campo-color {
+  min-width: 72px;
+}
+
+.marcadores-modal__campo-color input[type='color'] {
+  display: block;
+  width: 100%;
+  min-width: 64px;
+  height: 44px;
+  padding: 0.25rem;
+  cursor: pointer;
+}
+
+.marcadores-modal__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.marcadores-modal__icono-boton {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-right: 0.4rem;
+  flex-shrink: 0;
+}
+
+.marcadores-modal__lista {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.marcadores-modal__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--borde-color-secundario);
+  border-radius: 0.5rem;
+  background-color: transparent;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.marcadores-modal__item:hover {
+  border-color: var(--borde-color-acento);
+}
+
+.marcadores-modal__item--activo {
+  border-color: var(--borde-color-acento);
+  box-shadow: inset 4px 0 0 var(--borde-color-acento);
+}
+
+.marcadores-modal__seleccionar {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.marcadores-modal__seleccionar span:last-child {
+  overflow-wrap: anywhere;
+}
+
+.marcadores-modal__seleccionar:focus-visible,
+.marcadores-modal__eliminar:focus-visible {
+  outline: 3px solid var(--borde-color-acento);
+  outline-offset: 2px;
+}
+
+.marcadores-modal__eliminar {
+  flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+  .marcadores-modal__distribucion {
+    grid-template-columns: 1fr;
+  }
+
+  .marcadores-modal__mapa-panel {
+    position: static;
+  }
+
+  .marcadores-modal__contenedor-mapa {
+    height: 360px;
+  }
+}
+
+@media (max-width: 600px) {
+  .marcadores-modal__distribucion {
+    gap: 1rem;
+  }
+
+  .marcadores-modal__contenedor-mapa {
+    height: 300px;
+  }
+
+  .marcadores-modal__seccion {
+    padding: 1rem;
+  }
+
+  .marcadores-modal__personalizacion {
+    grid-template-columns: 1fr;
+  }
+
+  .marcadores-modal__campo-color {
+    width: 100%;
+  }
+
+  .marcadores-modal__acciones {
+    flex-direction: column-reverse;
+  }
+
+  .marcadores-modal__acciones .boton {
+    justify-content: center;
+    width: 100%;
+  }
 }
 </style>

@@ -27,6 +27,7 @@ const sld_files = ['.sld'];
 const xml_files = ['.xml'];
 const FORMATOS_TABULARES = ['csv', 'xlsx', 'xls', 'json'];
 const SHAPEFILE_PARTS = new Set(['shp', 'dbf', 'shx', 'prj', 'cpg', 'sbn', 'sbx']);
+const REQUIRED_SHAPEFILE_EXTENSIONS = ['shp', 'dbf', 'shx', 'prj'];
 
 const cuota = ref(null);
 const cuotaCargando = ref(true);
@@ -64,31 +65,37 @@ watch(
   { immediate: true }
 );
 
+const EXTENSIONES_AVISABLES = new Set(['sld', 'xml']);
+
 async function limpiarZipShapefile(file) {
-  if (!file.name.toLowerCase().endsWith('.zip')) return file;
+  if (!file.name.toLowerCase().endsWith('.zip')) return { file, excluidos: [] };
 
   const { default: JSZip } = await import('jszip');
   let zip;
   try {
     zip = await JSZip.loadAsync(await file.arrayBuffer());
   } catch {
-    return file;
+    return { file, excluidos: [] };
   }
 
   const nombres = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
   const tieneShp = nombres.some((n) => n.split('/').pop()?.toLowerCase().endsWith('.shp'));
-  if (!tieneShp) return file;
+  if (!tieneShp) return { file, excluidos: [] };
 
   const nuevoZip = new JSZip();
+  const excluidos = [];
   for (const nombre of nombres) {
+    const nombreBase = nombre.split('/').pop();
     const ext = nombre.split('.').pop()?.toLowerCase() || '';
     if (SHAPEFILE_PARTS.has(ext)) {
-      nuevoZip.file(nombre.split('/').pop(), await zip.files[nombre].async('arraybuffer'));
+      nuevoZip.file(nombreBase, await zip.files[nombre].async('arraybuffer'));
+    } else if (EXTENSIONES_AVISABLES.has(ext)) {
+      excluidos.push(nombreBase);
     }
   }
 
   const blob = await nuevoZip.generateAsync({ type: 'blob' });
-  return new File([blob], file.name, { type: 'application/zip' });
+  return { file: new File([blob], file.name, { type: 'application/zip' }), excluidos };
 }
 
 async function agruparShapefilesSueltos(archivos) {
@@ -99,8 +106,9 @@ async function agruparShapefilesSueltos(archivos) {
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
     if (!SHAPEFILE_PARTS.has(ext)) continue;
     const base = file.name.slice(0, file.name.lastIndexOf('.'));
-    if (!grupos.has(base)) grupos.set(base, []);
-    grupos.get(base).push(file);
+    const claveGrupo = base.toLowerCase();
+    if (!grupos.has(claveGrupo)) grupos.set(claveGrupo, { displayBase: base, partes: [] });
+    grupos.get(claveGrupo).partes.push(file);
   }
 
   const noShapefile = archivos.filter((f) => {
@@ -111,21 +119,26 @@ async function agruparShapefilesSueltos(archivos) {
   const resultados = [...noShapefile];
   const errores = [];
 
-  for (const [base, partes] of grupos.entries()) {
-    const tieneShp = partes.some((f) => f.name.toLowerCase().endsWith('.shp'));
-    if (!tieneShp) {
+  for (const { displayBase, partes } of grupos.values()) {
+    const extensionesPresentes = new Set(partes.map((f) => f.name.split('.').pop().toLowerCase()));
+    const faltantes = REQUIRED_SHAPEFILE_EXTENSIONS.filter((ext) => !extensionesPresentes.has(ext));
+    if (faltantes.length) {
       errores.push({
         nombre: partes.map((f) => f.name).join(', '),
-        motivo: 'Falta el archivo .shp principal',
+        motivo: `Faltan archivos requeridos del shapefile: ${faltantes.map((e) => `.${e}`).join(', ')}`,
       });
       continue;
     }
     const zip = new JSZip();
     for (const f of partes) {
-      zip.file(f.name, await f.arrayBuffer());
+      // GeoNode empareja las partes del shapefile por nombre base exacto (sensible a
+      // mayúsculas); se normalizan todas al mismo nombre para que las reconozca como
+      // un solo shapefile aunque el usuario las haya nombrado con distinto casing.
+      const ext = f.name.split('.').pop().toLowerCase();
+      zip.file(`${displayBase}.${ext}`, await f.arrayBuffer());
     }
     const blob = await zip.generateAsync({ type: 'blob' });
-    const zipFile = new File([blob], `${base}.zip`, { type: 'application/zip' });
+    const zipFile = new File([blob], `${displayBase}.zip`, { type: 'application/zip' });
     resultados.push(zipFile);
   }
 
@@ -139,10 +152,14 @@ async function guardarArchivo(files) {
 
   // Limpiar ZIPs de INEGI (y similares) que traen archivos extra no reconocidos por GeoNode
   const archivosLimpios = await Promise.all(archivosRaw.map((f) => limpiarZipShapefile(f)));
+  const excluidosPorArchivo = new Map(
+    archivosLimpios.map(({ file, excluidos }) => [file, excluidos])
+  );
 
   // Agrupar shapefiles sueltos en ZIPs antes de validar cuota
-  const { archivos: listaArchivos, errores: erroresShapefile } =
-    await agruparShapefilesSueltos(archivosLimpios);
+  const { archivos: listaArchivos, errores: erroresShapefile } = await agruparShapefilesSueltos(
+    archivosLimpios.map(({ file }) => file)
+  );
 
   await actualizarCuota();
 
@@ -188,13 +205,17 @@ async function guardarArchivo(files) {
     );
   }
 
-  const nuevosArchivos = listaArchivos.map((file) =>
-    reactive({
+  const nuevosArchivos = listaArchivos.map((file) => {
+    const excluidos = excluidosPorArchivo.get(file);
+    return reactive({
       nombre: file.name,
       extension: file.name.split('.').slice(-1)[0],
       tamanio: convertirBytes(file.size),
       estatus: 'pendiente',
       mensaje: 'Preparando carga...',
+      notaExcluidos: excluidos?.length
+        ? `Se excluyeron del zip por no ser parte del shapefile: ${excluidos.join(', ')}. Súbelos por separado con "Elige Archivo".`
+        : '',
       IdRutaArchivo: null,
       numero_geometrias: null,
       proyeccion: null,
@@ -210,8 +231,8 @@ async function guardarArchivo(files) {
       busquedaDataset: '',
       // Referencia al File original (no reactivo)
       _file: file,
-    })
-  );
+    });
+  });
 
   archivosEnCarga.value.push(...nuevosArchivos);
 
@@ -639,6 +660,7 @@ async function monitorLayerImport(executionId, archivo) {
                     />
                     <b>{{ archivo.mensaje }}</b>
                   </div>
+                  <p v-if="archivo.notaExcluidos" class="m-t-1">{{ archivo.notaExcluidos }}</p>
 
                   <!-- Estilos SLD: campo de nombre + botón de carga -->
                   <div

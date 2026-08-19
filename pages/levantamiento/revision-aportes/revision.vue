@@ -26,6 +26,7 @@ onMounted(async () => {
   cargandoAportes.value = true;
   try {
     const { aportes } = await storeLevantamiento.obtenerAportesRevision(email, 'NO REVISADO');
+    const aportes = await storeLevantamiento.obtenerAportesPorEstado(email, 'NO REVISADO');
 
     aportesEnRevision.value = aportes.map((aporte, index) => {
       let fotosArray = [];

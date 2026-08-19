@@ -399,6 +399,7 @@ async function guardarCambios() {
     text-align: left;
     padding: 12px 16px;
     background: none;
+    color: inherit;
     border: none;
     cursor: pointer;
     border-left: 3px solid transparent;

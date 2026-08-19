@@ -25,6 +25,7 @@ onMounted(async () => {
     console.log('Solicitando aportes APROBADOS...');
 
     const { aportes } = await storeLevantamiento.obtenerAportesRevision(email, 'APROBADO');
+    const aportes = await storeLevantamiento.obtenerAportesPorEstado(email, 'APROBADO');
 
     // Inspección de data cruda
     console.log('Datos crudos obtenidos de Aprobados:', aportes);

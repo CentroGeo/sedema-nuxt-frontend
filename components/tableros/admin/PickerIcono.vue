@@ -98,6 +98,7 @@ const todos = Object.values(GRUPOS).flat();
 
 const busqueda = ref('');
 const abierto = ref(false);
+const raiz = ref(null);
 
 const iconsVisibles = computed(() => {
   const q = busqueda.value.trim().toLowerCase();
@@ -115,15 +116,44 @@ function seleccionar(ic) {
 function limpiar() {
   emit('update:modelValue', '');
 }
+
+function alternar() {
+  abierto.value = !abierto.value;
+  if (abierto.value) busqueda.value = '';
+}
+
+function cerrar() {
+  abierto.value = false;
+}
+
+function alClickFuera(evento) {
+  if (abierto.value && raiz.value && !raiz.value.contains(evento.target)) {
+    cerrar();
+  }
+}
+
+onMounted(() => document.addEventListener('click', alClickFuera));
+onBeforeUnmount(() => document.removeEventListener('click', alClickFuera));
 </script>
 
 <template>
-  <div class="picker-icono">
-    <div class="picker-icono__actual" @click="abierto = !abierto">
-      <span v-if="modelValue" :class="modelValue" class="picker-icono__preview" />
+  <div ref="raiz" class="picker-icono" @keydown.esc="cerrar">
+    <button
+      type="button"
+      class="picker-icono__actual"
+      aria-haspopup="listbox"
+      :aria-expanded="abierto"
+      @click="alternar"
+    >
+      <span
+        v-if="modelValue"
+        :class="modelValue"
+        class="picker-icono__preview"
+        aria-hidden="true"
+      />
       <span v-else class="picker-icono__vacio">Sin ícono</span>
-      <span class="picker-icono__flecha">{{ abierto ? '▲' : '▼' }}</span>
-    </div>
+      <span class="picker-icono__flecha" aria-hidden="true">{{ abierto ? '▲' : '▼' }}</span>
+    </button>
 
     <div v-if="abierto" class="picker-icono__panel">
       <div class="picker-icono__busqueda">
@@ -184,6 +214,14 @@ function limpiar() {
     background: #fff;
     min-width: 120px;
     user-select: none;
+    font: inherit;
+    text-align: left;
+    color: inherit;
+
+    &:focus-visible {
+      outline: 2px solid var(--color-primario, #691c32);
+      outline-offset: 2px;
+    }
   }
 
   &__preview {

@@ -18,11 +18,50 @@ defineProps({
   },
 });
 
-const emit = defineEmits(['seleccionar-imagen']);
+const emit = defineEmits(['seleccionar-imagen', 'seleccionar-enlace']);
 
 const inputArchivo = ref(null);
 const arrastrandoArchivo = ref(false);
 const error = ref('');
+
+const modo = ref('subir');
+const urlEnlace = ref('');
+const tipoEnlace = ref('imagen');
+
+const REGEX_EXTENSION_VIDEO = /\.(mp4|webm|ogv|mov)(\?|#|$)/i;
+
+function cambiarModo(nuevoModo) {
+  modo.value = nuevoModo;
+  error.value = '';
+}
+
+function detectarTipoPorUrl() {
+  tipoEnlace.value = REGEX_EXTENSION_VIDEO.test(urlEnlace.value.trim()) ? 'video' : 'imagen';
+}
+
+function aplicarEnlace() {
+  const enlace = urlEnlace.value.trim();
+
+  if (!enlace) {
+    error.value = 'Ingresa el enlace de una imagen o video.';
+    return;
+  }
+
+  try {
+    const url = new URL(enlace);
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      throw new Error('Protocolo no permitido');
+    }
+  } catch {
+    error.value = 'Ingresa un enlace válido que comience con http:// o https://.';
+    return;
+  }
+
+  error.value = '';
+  emit('seleccionar-enlace', { url: enlace, tipo: tipoEnlace.value });
+  urlEnlace.value = '';
+  modo.value = 'subir';
+}
 
 function abrirSelectorArchivos() {
   inputArchivo.value?.click();
@@ -74,8 +113,66 @@ function soltarArchivo(event) {
 
 <template>
   <div class="selector-imagen-carrusel">
+    <div class="selector-imagen-carrusel__pestanas" role="tablist" aria-label="Origen de la imagen">
+      <button
+        type="button"
+        role="tab"
+        class="selector-imagen-carrusel__pestana"
+        :class="{ 'selector-imagen-carrusel__pestana--activa': modo === 'subir' }"
+        :aria-selected="modo === 'subir'"
+        @click="cambiarModo('subir')"
+      >
+        Subir
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="selector-imagen-carrusel__pestana"
+        :class="{ 'selector-imagen-carrusel__pestana--activa': modo === 'enlace' }"
+        :aria-selected="modo === 'enlace'"
+        @click="cambiarModo('enlace')"
+      >
+        Enlace
+      </button>
+    </div>
+
+    <div v-if="modo === 'enlace'" class="selector-imagen-carrusel__enlace">
+      <input
+        v-model.trim="urlEnlace"
+        type="url"
+        placeholder="https://ejemplo.com/imagen.jpg"
+        @blur="detectarTipoPorUrl"
+        @keyup.enter="aplicarEnlace"
+      />
+
+      <div class="selector-imagen-carrusel__tipo-enlace">
+        <button
+          type="button"
+          class="selector-imagen-carrusel__boton-tipo"
+          :class="{ 'selector-imagen-carrusel__boton-tipo--activo': tipoEnlace === 'imagen' }"
+          :aria-pressed="tipoEnlace === 'imagen'"
+          @click="tipoEnlace = 'imagen'"
+        >
+          Imagen
+        </button>
+        <button
+          type="button"
+          class="selector-imagen-carrusel__boton-tipo"
+          :class="{ 'selector-imagen-carrusel__boton-tipo--activo': tipoEnlace === 'video' }"
+          :aria-pressed="tipoEnlace === 'video'"
+          @click="tipoEnlace = 'video'"
+        >
+          Video
+        </button>
+      </div>
+
+      <button type="button" class="boton-secundario boton-chico" @click="aplicarEnlace">
+        Usar enlace
+      </button>
+    </div>
+
     <div
-      v-if="imagenUrl"
+      v-else-if="imagenUrl"
       class="selector-imagen-carrusel__previsualizacion"
       role="button"
       tabindex="0"
@@ -137,6 +234,68 @@ function soltarArchivo(event) {
 
 <style scoped lang="scss">
 .selector-imagen-carrusel {
+  &__pestanas {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  &__pestana {
+    padding: 4px 12px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: inherit;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    opacity: 0.7;
+
+    &:hover {
+      opacity: 1;
+    }
+
+    &--activa {
+      opacity: 1;
+      font-weight: 600;
+      border-bottom-color: currentcolor;
+    }
+  }
+
+  &__enlace {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border: 1px dashed rgb(255 255 255 / 40%);
+    border-radius: 10px;
+
+    input {
+      width: 100%;
+      box-sizing: border-box;
+    }
+  }
+
+  &__tipo-enlace {
+    display: inline-flex;
+    gap: 8px;
+  }
+
+  &__boton-tipo {
+    padding: 4px 12px;
+    border: 1px solid rgb(255 255 255 / 30%);
+    background: transparent;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: inherit;
+    cursor: pointer;
+
+    &--activo {
+      background: rgb(255 255 255 / 20%);
+      border-color: rgb(255 255 255 / 60%);
+    }
+  }
+
   &__previsualizacion {
     position: relative;
     overflow: hidden;

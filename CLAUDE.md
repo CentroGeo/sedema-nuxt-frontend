@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**sigic-nuxt-frontend** is the web frontend for the SIGIC platform (_Sistema Integral de Gestión de Información Científica_, CentroGeo). Runs with SSR enabled on Nuxt 3 + Vue 3 + TypeScript. Authentication is handled server-side via `@sidebase/nuxt-auth` with a Keycloak OIDC provider. Modules can be toggled on/off per deployment via feature flags.
+**geosuite-nuxt-frontend** is the web frontend for the **GeoSuite** platform (CentroGeo). Runs with SSR enabled on Nuxt 3 + Vue 3 + TypeScript. Authentication is handled server-side via `@sidebase/nuxt-auth` with a Keycloak OIDC provider. Modules can be toggled on/off per deployment via feature flags.
+
+> **Naming note:** the repository was renamed from `sigic-nuxt-frontend` (the platform was previously _SIGIC — Sistema Integral de Gestión de Información Científica_). Environment values still reference `sigic` (Keycloak realm `sigic`, ia-engine host `sigic.ia.*`); those are intentional and should not be renamed unless explicitly asked.
 
 ## Common Commands
 
