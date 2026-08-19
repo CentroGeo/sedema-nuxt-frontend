@@ -15,10 +15,19 @@ const { cargarConfiguracionModulos, estaHabilitado, estaSubmoduloHabilitado } =
 const esSuperusuaria = computed(() => storeCatalogo.userInfo.is_superuser);
 const catalogoHabilitado = estaHabilitado('catalogo');
 
-const subPaginas = computed(() => {
-  const paginas = [
+// El acceso "Explorar" es el hub de la sección: se muestra mientras quede
+// habilitado al menos uno de sus submódulos, no solo el de capas.
+const SUBMODULOS_EXPLORAR = [
+  'catalogo-capas',
+  'catalogo-documentos',
+  'catalogo-tablas',
+  'catalogo-externos',
+];
+
+const subPaginas = computed(() =>
+  [
     {
-      id: 'catalogo-capas',
+      ids: SUBMODULOS_EXPLORAR,
       pictograma: 'pictograma-explorar',
       ruta: `${ruta}/explorar`,
       globo: 'Explorar',
@@ -41,28 +50,26 @@ const subPaginas = computed(() => {
       ruta: `${ruta}/explorar/tablas`,
       globo: 'Datos tabulados',
     },
-  ].filter((pagina) => estaSubmoduloHabilitado(pagina.id).value);
-
-  // Mapas es propio de esta instancia: no existe como submódulo upstream, así
-  // que sigue dependiendo de su bandera de entorno (ver habilitar_modulos.global.ts).
-  if (config.public.enableMapas) {
-    paginas.push({
+    // Mapas es propio de esta instancia: no existe como submódulo upstream, así
+    // que se filtra por su bandera de entorno (ver habilitar_modulos.global.ts).
+    {
+      bandera: Boolean(config.public.enableMapas),
       pictograma: 'pictograma-explorar',
       ruta: `${ruta}/explorar/mapas`,
       globo: 'Mapas',
-    });
-  }
-
-  if (estaSubmoduloHabilitado('catalogo-externos').value) {
-    paginas.push({
+    },
+    {
+      id: 'catalogo-externos',
       pictograma: 'pictograma-flkt',
       ruta: `${ruta}/explorar/catalogos-externos`,
-      globo: 'Servicios remotos',
-    });
-  }
-
-  return paginas;
-});
+      globo: 'Catálogos externos',
+    },
+  ].filter((pagina) =>
+    pagina.bandera !== undefined
+      ? pagina.bandera
+      : (pagina.ids ?? [pagina.id]).some((id) => estaSubmoduloHabilitado(id).value)
+  )
+);
 
 const paginasSesion = computed(() =>
   [
