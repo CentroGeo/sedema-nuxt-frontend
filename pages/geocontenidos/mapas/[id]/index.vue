@@ -4,7 +4,7 @@ definePageMeta({ middleware: 'auth' });
 const route = useRoute();
 const store = useMapasStore();
 const { data: session } = useAuth();
-const { esAdmin, cargarEsAdmin } = useEsAdmin();
+const storeAdministracion = useAdministracionStore();
 
 const mapaId = computed(() => Number(route.params.id));
 const mapa = computed(() => store.activeMap);
@@ -20,7 +20,9 @@ const esOwner = computed(() => {
 });
 
 // Un mapa público solo es editable por su dueño o por un administrador.
-const puedeEditar = computed(() => esAdmin.value || esOwner.value);
+const puedeEditar = computed(
+  () => storeAdministracion.perfilActual?.can_administer_content === true || esOwner.value
+);
 
 const modalEditar = ref(null);
 const modalCompartir = ref(null);
@@ -83,7 +85,7 @@ async function eliminarMapa() {
 }
 
 onMounted(async () => {
-  await Promise.all([recargar(), cargarEsAdmin()]);
+  await Promise.all([recargar(), storeAdministracion.cargarPerfilActual().catch(() => null)]);
 });
 
 onUnmounted(() => {

@@ -3,14 +3,19 @@ definePageMeta({ middleware: ['auth', 'redireccionar-modulo-geocontenidos'] });
 
 const config = useRuntimeConfig();
 const { status } = useAuth();
-const storeCatalogo = useCatalogoStore();
+const storeAdministracion = useAdministracionStore();
 const storeLandingBuilder = useLandingBuilderStore();
 
 const ruta = '/geocontenidos';
 
-const esAdmin = computed(() => Boolean(storeCatalogo.userInfo?.is_superuser));
+const puedeAdministrarPlataforma = computed(
+  () => storeAdministracion.perfilActual?.can_access_administration === true
+);
 const mostrarConstructor = computed(
-  () => config.public.enableLandingBuilder && status.value === 'authenticated' && esAdmin.value
+  () =>
+    config.public.enableLandingBuilder &&
+    status.value === 'authenticated' &&
+    puedeAdministrarPlataforma.value
 );
 
 const itemsMenu = computed(() => {
@@ -38,6 +43,8 @@ const submenusAbiertos = reactive({});
 // Dentro del submenú del Constructor de Páginas: null | 'ver' | 'editar' | 'eliminar'
 const accionConstructorAbierta = ref(null);
 const modalConfirmar = ref(null);
+
+onMounted(() => storeAdministracion.cargarPerfilActual().catch(() => null));
 
 const puedeCrearPagina = computed(() => storeLandingBuilder.puedeCrearPagina());
 
@@ -107,11 +114,7 @@ async function eliminarPaginaDesdeMenu(pagina) {
 
 function verPaginaDesdeMenu(pagina) {
   cerrarMenuConstructor();
-  // navigateTo(..., { open }) no resuelve rutas string contra el baseURL de la
-  // app (queda como /paginas/x en vez de /admin/paginas/x en producción, y el
-  // nginx externo la manda a GeoNode como 404); router.resolve() sí lo aplica.
-  const router = useRouter();
-  window.open(router.resolve(`/paginas/${pagina.slug}`).href, '_blank');
+  navigateTo(`/paginas/${pagina.slug}`, { open: { target: '_blank' } });
 }
 
 const menuLateralRef = ref(null);

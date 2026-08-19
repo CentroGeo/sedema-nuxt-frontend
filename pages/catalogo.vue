@@ -9,10 +9,16 @@ definePageMeta({
 const ruta = '/catalogo';
 
 const storeCatalogo = useCatalogoStore();
-const esSuperusuaria = computed(() => storeCatalogo.userInfo.is_superuser);
+const storeAdministracion = useAdministracionStore();
+const puedeRevisarSolicitudes = computed(() =>
+  ['superuser', 'administrator', 'editor'].includes(storeAdministracion.perfilActual?.profile)
+);
 
 onMounted(async () => {
-  await storeCatalogo.getUserInfo();
+  await Promise.all([
+    storeCatalogo.getUserInfo(),
+    storeAdministracion.cargarPerfilActual().catch(() => null),
+  ]);
 });
 
 onUnmounted(() => (document.querySelector('body').className = ''));
@@ -64,7 +70,7 @@ onUnmounted(() => (document.querySelector('body').className = ''));
           ruta: `${ruta}/servicios-remotos`,
           globo: 'Carga de servicios remotos',
         },
-        esSuperusuaria
+        puedeRevisarSolicitudes
           ? {
               pictograma: 'pictograma-buscar',
               ruta: `${ruta}/revision-solicitudes`,
