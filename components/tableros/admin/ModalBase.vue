@@ -33,8 +33,7 @@ function sincronizarTemaModal() {
   }
 
   temaOscuro.value =
-    document.body.dataset.tema === 'oscuro' ||
-    document.body.classList.contains('a11y-oscura');
+    document.body.dataset.tema === 'oscuro' || document.body.classList.contains('a11y-oscura');
 }
 
 function abrir() {
@@ -222,6 +221,7 @@ defineExpose({ abrir, cerrar });
 
     .pictograma-cerrar {
       font-size: 1.1rem;
+      padding: 0;
     }
   }
 

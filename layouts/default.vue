@@ -3,6 +3,7 @@ import SisdaiMenuAccesibilidad from '~/components/base/SisdaiMenuAccesibilidad.v
 import SisdaiNavegacionGobMx from '@centrogeomx/sisdai-componentes/src/componentes/navegacion-gob-mx/SisdaiNavegacionGobMx.vue';
 import SisdaiPiePaginaGobMx from '~/components/base/SisdaiPiePaginaGobMxCustom.vue';
 import MainNavegacion from '~/components/base/MainNavegacion.vue';
+import MainPiePagina from '~/components/base/MainPiePagina.vue';
 import { useAccesibilidadStore } from '~/stores/accesibilidad';
 
 const accesibilidadStore = useAccesibilidadStore();
@@ -28,6 +29,8 @@ useHead(() => ({
     <div class="contenido">
       <slot />
     </div>
+
+    <MainPiePagina />
 
     <!-- parece que botón flotante agrega un id al elemento html que no
     coincide al hacer server side rendering -->

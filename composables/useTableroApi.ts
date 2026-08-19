@@ -1,5 +1,5 @@
 export function useTableroApi() {
-  const { gnoxyFetch } = useGnoxyUrl();
+  const { gnoxyFetch, gnoxyUrl } = useGnoxyUrl();
   const config = useRuntimeConfig();
   const baseUrl = `${config.public.geonodeApi}/dashboard`;
 
@@ -104,6 +104,7 @@ export function useTableroApi() {
       const params = new URLSearchParams({ page_size: String(pageSize), page: String(page) });
       if (search) params.set('filter{title.icontains}', search);
       if (category) params.set('filter{category.identifier.in}', category);
+      params.set('_t', String(Date.now()));
       const url = `${config.public.geonodeApi}/datasets/?${params.toString()}`;
       if (token) {
         return gnoxyFetch(url, { headers: { Authorization: `Bearer ${token}` } }).then((r) =>
@@ -115,6 +116,8 @@ export function useTableroApi() {
 
     fetchDatasetAttributes: (id: number) =>
       fetchJson(`${config.public.geonodeApi}/datasets/${id}/`),
+
+    fetchCategorias: () => fetchJson(`${config.public.geonodeApi}/categories/?page_size=200`),
 
     syncDatasetAttributes: (id: number, token?: string | null) =>
       jsonRequest(
@@ -224,7 +227,7 @@ export function useTableroApi() {
     fetchIndicador: (id: number) => fetchJson(`${baseUrl}/indicators/${id}/`),
 
     fetchDatosIndicador: (indicatorId: number) =>
-      fetchJson(`${baseUrl}/indicators/${indicatorId}/view-data/`),
+      fetchJson(`${baseUrl}/indicators/${indicatorId}/view-data/?t=${Date.now()}`),
 
     fetchInfoIndicador: (indicatorId: number) =>
       fetchJson(`${baseUrl}/indicators/${indicatorId}/info/`),
@@ -243,6 +246,22 @@ export function useTableroApi() {
 
     recalcularIndicador: (id: number, token?: string | null) =>
       jsonRequest(`${baseUrl}/indicators/${id}/recompute/`, 'POST', {}, token),
+
+    /**
+     * Calcula la tematización de una configuración sin persistirla.
+     * Sirve igual al crear (aún no hay id) que al editar.
+     */
+    previsualizarIndicador: (datos: unknown, token?: string | null) =>
+      jsonRequest(`${baseUrl}/indicators/preview/`, 'POST', datos, token),
+
+    /**
+     * URL del GeoJSON de una capa para pintarla en el mapa de previsualización.
+     * Se devuelve la URL —no el contenido— porque `SisdaiCapaVectorial` recibe
+     * una `fuente`. El proxy gnoxy le inyecta el Bearer de la sesión, así que el
+     * fetch anónimo del componente llega autenticado al backend.
+     */
+    urlCapaFeatures: (layerPk: number | string) =>
+      gnoxyUrl(`${baseUrl}/indicators/layer-features/?layer=${layerPk}`),
 
     construirDatosIndicador: (id: number, datos: unknown, token?: string | null) =>
       jsonRequest(`${baseUrl}/indicators/${id}/build-data/`, 'POST', datos, token),

@@ -180,7 +180,8 @@ onMounted(async () => {
                   <p v-if="resourceElement" class="tarjeta-texto-secundario m-0">
                     {{
                       resourceElement?.category
-                        ? categoriesInSpanish[resourceElement?.category.gn_description]
+                        ? (categoriesInSpanish[resourceElement?.category.gn_description] ??
+                          resourceElement?.category.gn_description)
                         : 'Sin Clasificar'
                     }}
                   </p>

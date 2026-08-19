@@ -497,6 +497,12 @@ defineExpose({
       width: 28px;
       height: 28px;
       padding: 0;
+
+      // Sin texto junto al ícono: anula el padding-left que sisdai reserva
+      // para separar ícono y texto, que aquí descentraba el pictograma.
+      [class*='pictograma-'] {
+        padding: 0;
+      }
     }
   }
 

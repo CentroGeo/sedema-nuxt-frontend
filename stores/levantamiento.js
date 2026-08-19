@@ -185,7 +185,7 @@ export const useLevantamientoStore = defineStore('levantamiento', () => {
     async actualizarStatusAporte(payload, idAporte) {
       try {
         const response = await fetch(`${apiUrl}/raising/reviewer/status/${idAporte}`, {
-          method: 'POST', 
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },

@@ -63,8 +63,22 @@ function obtenerEstilosParrafoTextoImagen(bloque) {
 
         <div class="visor-portada__degradado">
           <div class="visor-portada__contenido">
-            <h1 :style="{ color: bloque.datos.colorTitulo }">{{ bloque.datos.titulo }}</h1>
-            <p :style="{ color: bloque.datos.colorSubtitulo }">{{ bloque.datos.subtitulo }}</p>
+            <h1
+              :style="{
+                color: bloque.datos.colorTitulo,
+                textShadow: calcularSombraTexto(bloque.datos.colorTitulo),
+              }"
+            >
+              {{ bloque.datos.titulo }}
+            </h1>
+            <p
+              :style="{
+                color: bloque.datos.colorSubtitulo,
+                textShadow: calcularSombraTexto(bloque.datos.colorSubtitulo),
+              }"
+            >
+              {{ bloque.datos.subtitulo }}
+            </p>
           </div>
         </div>
       </section>
@@ -355,11 +369,14 @@ function obtenerEstilosParrafoTextoImagen(bloque) {
     align-items: center;
     justify-content: center;
     padding: 32px 24px;
+    // Oscurece de forma pareja en todo el marco (no solo abajo) para que el
+    // texto centrado siga siendo legible incluso sobre imágenes con mucho
+    // detalle/contraste propio, no solo fotografías uniformes.
     background: linear-gradient(
       180deg,
-      rgb(0 0 0 / 18%) 0%,
-      rgb(0 0 0 / 38%) 55%,
-      rgb(0 0 0 / 65%) 100%
+      rgb(0 0 0 / 45%) 0%,
+      rgb(0 0 0 / 55%) 50%,
+      rgb(0 0 0 / 70%) 100%
     );
   }
 

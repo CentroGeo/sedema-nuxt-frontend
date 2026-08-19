@@ -170,6 +170,7 @@ export const useResourcesCatalogoStore = defineStore('resourcesCatalogo', () => 
       const queryParams = {
         ...query,
         page_size: 1,
+        _t: String(Date.now()),
       };
 
       //TODO: Eliminar cuando se habilite el filtro de orden en el endpointde solicitudes de publicación
@@ -217,6 +218,7 @@ export const useResourcesCatalogoStore = defineStore('resourcesCatalogo', () => 
         ...query,
         page: pageNum,
         page_size: pageSize,
+        _t: String(Date.now()),
       };
 
       //TODO: Eliminar cuando se habilite el filtro de orden en el endpointde solicitudes de publicación

@@ -435,9 +435,8 @@ async function confirmarEliminar() {
   if (wasDeletionSuccesful.value) {
     setTimeout(() => {
       modalEliminar.value?.cerrarModal();
-      const router = useRouter();
-      router.go(0);
-    }, 2000);
+      window.location.reload();
+    }, 1500);
   }
 }
 
@@ -622,7 +621,8 @@ async function volverAEditar() {
             <div v-if="variable === 'categoria'">
               {{
                 datum[variable] !== null
-                  ? categoriesInSpanish[datum[variable].gn_description]
+                  ? (categoriesInSpanish[datum[variable].gn_description] ??
+                    datum[variable].gn_description)
                   : 'Sin Clasificar'
               }}
             </div>

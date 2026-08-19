@@ -122,9 +122,10 @@ const capasOrdenadas = computed(() =>
       >
         <SisdaiCapaXyz :key="`base-${baseLayerActual}`" :posicion="0" :fuente="baseLayerUrl" />
 
-        <template v-for="capa in capasOrdenadas" :key="capa.id">
+        <template v-for="capa in capasOrdenadas" :key="`swipe-${capa.id}-${capa.style || 'def'}`">
           <SisdaiCapaWms
             v-if="capa.layer_type === 'wms'"
+            :key="`wms-${capa.id}-${capa.style || 'def'}`"
             :capa="capa.name"
             :fuente="wmsFuente"
             :consulta="consultaCapa(capa)"
@@ -139,6 +140,7 @@ const capasOrdenadas = computed(() =>
           <GeocontenidosMapasCapaTeselada
             v-else-if="capa.layer_type === 'wmts'"
             :id="`capa-${capa.id}`"
+            :key="`wmts-${capa.id}-${capa.style || 'def'}`"
             :fuente-wmts="mapasStore.buildWmtsUrl(capa)"
             :fuente-wms="wmsFuente"
             :capa="capa.name"

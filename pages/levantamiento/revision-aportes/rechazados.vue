@@ -3,19 +3,15 @@ import { ref, computed, watch, onMounted, shallowRef } from 'vue';
 import { SisdaiCapaVectorial, SisdaiCapaXyz, SisdaiMapa } from '@centrogeomx/sisdai-mapas';
 import SisdaiModal from '@centrogeomx/sisdai-componentes/src/componentes/modal/SisdaiModal.vue';
 
-
-
 definePageMeta({
   middleware: 'auth',
 });
 
 const storeLevantamiento = useLevantamientoStore();
-const { data } = useAuth(); 
-
+const { data } = useAuth();
 
 const aportesRechazados = shallowRef([]);
 const cargandoAportes = ref(false);
-
 
 const modalConfirmacion = ref(null);
 const mensajeConfirmacion = ref('');
@@ -29,17 +25,19 @@ onMounted(async () => {
     console.log('[BACKEND] Solicitando aportes RECHAZADOS...');
 
     const aportes = await storeLevantamiento.obtenerAportesPorEstado(email, 'RECHAZADO');
-    
+
     console.log('[BACKEND] Datos crudos obtenidos de Rechazados:', aportes);
-    if(aportes.length > 0) {
+    if (aportes.length > 0) {
       console.log('Estructura del primer aporte rechazado:', aportes[0]);
     }
-    
-    aportesRechazados.value = aportes.map(aporte => {
+
+    aportesRechazados.value = aportes.map((aporte) => {
       let fotosArray = [];
       try {
         fotosArray = aporte.media_array ? JSON.parse(aporte.media_array) : [];
-      } catch(e) { console.warn('Error al parsear media_array', e); }
+      } catch (e) {
+        console.warn('Error al parsear media_array', e);
+      }
 
       const fechaObj = new Date(aporte.fecha_guardado);
       const fechaFormateada = isNaN(fechaObj) ? 'Fecha inválida' : fechaObj.toLocaleString('es-MX');
@@ -60,8 +58,8 @@ onMounted(async () => {
         detalle: {
           preguntaAbierta: 'Información pendiente de mapear desde respuestas_ficha',
           preguntaOpcion: 'N/A',
-          seleccionMultiple: 'N/A'
-        }
+          seleccionMultiple: 'N/A',
+        },
       };
     });
 
@@ -75,7 +73,6 @@ onMounted(async () => {
   }
 });
 
-
 async function eliminarAporteRechazado(idAporte) {
   try {
     const email = data.value?.user?.email;
@@ -83,18 +80,17 @@ async function eliminarAporteRechazado(idAporte) {
 
     await storeLevantamiento.eliminarAporte(idAporte);
     console.log(`[DB] El aporte ${idAporte} fue eliminado correctamente`);
-    
-    aportesRechazados.value = aportesRechazados.value.filter(a => a.id !== idAporte);
-    
+
+    aportesRechazados.value = aportesRechazados.value.filter((a) => a.id !== idAporte);
+
     if (aportesRechazados.value.length > 0) {
       aporteSeleccionado.value = aportesRechazados.value[0];
     } else {
       aporteSeleccionado.value = null;
     }
-    
+
     mensajeConfirmacion.value = 'El aporte rechazado fue eliminado permanentemente del sistema.';
     modalConfirmacion.value?.abrirModal();
-    
   } catch (error) {
     console.error('Error al eliminar el aporte:', error);
     mensajeConfirmacion.value = 'Ocurrió un error de conexión al intentar eliminar el aporte.';
@@ -106,23 +102,19 @@ function cerrarModalConfirmacion() {
   modalConfirmacion.value?.cerrarModal();
 }
 
-
 const busqueda = ref('');
 
 const aportesFiltrados = computed(() => {
   if (!busqueda.value) return aportesRechazados.value;
-  return aportesRechazados.value.filter(aporte => 
+  return aportesRechazados.value.filter((aporte) =>
     aporte.titulo?.toLowerCase().includes(busqueda.value.toLowerCase())
   );
 });
 
-
 const paginaActual = ref(1);
-const itemsPorPagina = 8; 
+const itemsPorPagina = 8;
 
-const totalPaginas = computed(() => 
-  Math.ceil(aportesFiltrados.value.length / itemsPorPagina) || 1
-);
+const totalPaginas = computed(() => Math.ceil(aportesFiltrados.value.length / itemsPorPagina) || 1);
 
 const aportesPaginados = computed(() => {
   const inicio = (paginaActual.value - 1) * itemsPorPagina;
@@ -140,13 +132,11 @@ function irAPagina(pagina) {
   }
 }
 
-
 const aporteSeleccionado = ref(null);
 
 function verFichaAporte(aporte) {
   aporteSeleccionado.value = aporte;
 }
-
 
 const imagenAmpliada = ref(null);
 
@@ -162,8 +152,8 @@ function cerrarImagen() {
 //Lógica de los mapas Sisdai
 const coordenadasValidas = computed(() => {
   // Evitamos errores si aporteSeleccionado es null (al cargar la página)
-  if (!aporteSeleccionado.value) return false; 
-  
+  if (!aporteSeleccionado.value) return false;
+
   const lat = Number(aporteSeleccionado.value.latitud);
   const lng = Number(aporteSeleccionado.value.longitud);
   return Number.isFinite(lat) && Number.isFinite(lng);
@@ -171,9 +161,12 @@ const coordenadasValidas = computed(() => {
 
 const vistaMapa = computed(() =>
   coordenadasValidas.value
-    ? { 
-        centro: [Number(aporteSeleccionado.value.longitud), Number(aporteSeleccionado.value.latitud)], 
-        acercamiento: 17 
+    ? {
+        centro: [
+          Number(aporteSeleccionado.value.longitud),
+          Number(aporteSeleccionado.value.latitud),
+        ],
+        acercamiento: 17,
       }
     : { extension: '-118.3651,14.5321,-86.7104,32.7187' }
 );
@@ -187,7 +180,10 @@ const puntoSeleccionado = computed(() => ({
           properties: {},
           geometry: {
             type: 'Point',
-            coordinates: [Number(aporteSeleccionado.value.longitud), Number(aporteSeleccionado.value.latitud)],
+            coordinates: [
+              Number(aporteSeleccionado.value.longitud),
+              Number(aporteSeleccionado.value.latitud),
+            ],
           },
         },
       ]
@@ -209,7 +205,7 @@ const puntoSeleccionado = computed(() => ({
             { texto: 'Aprobados', ruta: '/levantamiento/revision-aportes' },
             {
               texto: 'En revisión',
-              ruta: '/levantamiento/revision-aportes/revision'
+              ruta: '/levantamiento/revision-aportes/revision',
             },
             {
               texto: 'Rechazados',
@@ -225,43 +221,51 @@ const puntoSeleccionado = computed(() => ({
         </div>
 
         <div class="grid">
-          
           <!--Columna de las cards -->
           <div class="columna-5 flex flex-columna">
-            
             <!-- Buscador -->
             <div class="m-b-2">
-              <input 
-                v-model="busqueda" 
-                type="text" 
-                placeholder="Búsqueda de aportes" 
-                class="ancho-completo p-1 form-input m-b-1" 
-                style="background: white; border-color: #cbd5e1; color: #333;"
+              <input
+                v-model="busqueda"
+                type="text"
+                placeholder="Búsqueda de aportes"
+                class="ancho-completo p-1 form-input m-b-1"
+                style="background: white; border-color: #cbd5e1; color: #333"
               />
             </div>
 
             <!-- Lista de tarjetas iteradas -->
-            <div class="flex flex-columna" style="gap: 12px; flex-grow: 1;">
-              
+            <div class="flex flex-columna" style="gap: 12px; flex-grow: 1">
               <!-- Loader -->
-              <div v-if="cargandoAportes" class="texto-centrado p-3" style="color: #888;">
+              <div v-if="cargandoAportes" class="texto-centrado p-3" style="color: #888">
                 Cargando aportes rechazados...
               </div>
 
-              <div 
+              <div
+                v-for="aporte in aportesPaginados"
                 v-else
-                v-for="aporte in aportesPaginados" 
                 :key="aporte.id"
                 class="tarjeta-aporte cursor-pointer p-2 borde borde-redondeado-8"
-                :class="{ 'seleccionada': aporteSeleccionado?.id === aporte.id }"
+                :class="{ seleccionada: aporteSeleccionado?.id === aporte.id }"
                 @click="verFichaAporte(aporte)"
               >
                 <div class="flex">
-                  <div class="icono-doc m-r-2" style="font-size: 2rem; display: flex; align-items: center; justify-content: center; min-width: 40px;">
+                  <div
+                    class="icono-doc m-r-2"
+                    style="
+                      font-size: 2rem;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      min-width: 40px;
+                    "
+                  >
                     <span class="pictograma-documento" aria-hidden="true"></span>
                   </div>
-                  <div style="flex-grow: 1; overflow: hidden;">
-                    <p class="titulo m-0"><strong>{{ aporte.titulo }}</strong></p>
+                  <div style="flex-grow: 1; overflow: hidden">
+                    <p class="titulo m-0">
+                      <strong>{{ aporte.titulo }}</strong>
+                    </p>
                     <p class="texto-secundario m-0 text-chico">{{ aporte.fecha }}</p>
                     <p class="texto-secundario m-0 text-chico">{{ aporte.folio }}</p>
                     <p class="texto-secundario m-0 text-chico">{{ aporte.proyecto }}</p>
@@ -270,38 +274,54 @@ const puntoSeleccionado = computed(() => ({
               </div>
 
               <!-- Mensaje sin resultados -->
-              <div v-if="!cargandoAportes && aportesFiltrados.length === 0" class="texto-centrado p-3" style="color: #888;">
+              <div
+                v-if="!cargandoAportes && aportesFiltrados.length === 0"
+                class="texto-centrado p-3"
+                style="color: #888"
+              >
                 No se encontraron aportes rechazados.
               </div>
             </div>
 
             <!-- Controles de Paginación -->
-            <div class="paginacion flex m-t-3" v-if="totalPaginas > 1">
-              <button @click="irAPagina(paginaActual - 1)" :disabled="paginaActual === 1" class="btn-paginacion">&lt;</button>
-              <button 
-                v-for="pagina in totalPaginas" 
-                :key="pagina"
-                @click="irAPagina(pagina)"
+            <div v-if="totalPaginas > 1" class="paginacion flex m-t-3">
+              <button
+                :disabled="paginaActual === 1"
                 class="btn-paginacion"
-                :class="{ 'activa': paginaActual === pagina }"
+                @click="irAPagina(paginaActual - 1)"
+              >
+                &lt;
+              </button>
+              <button
+                v-for="pagina in totalPaginas"
+                :key="pagina"
+                class="btn-paginacion"
+                :class="{ activa: paginaActual === pagina }"
+                @click="irAPagina(pagina)"
               >
                 {{ pagina }}
               </button>
-              <button @click="irAPagina(paginaActual + 1)" :disabled="paginaActual === totalPaginas" class="btn-paginacion">&gt;</button>
+              <button
+                :disabled="paginaActual === totalPaginas"
+                class="btn-paginacion"
+                @click="irAPagina(paginaActual + 1)"
+              >
+                &gt;
+              </button>
             </div>
           </div>
 
           <!--Ficha de proyecto rechazado-->
           <div class="columna-11">
             <div v-if="aporteSeleccionado">
-              <div class="flex m-b-2" style="justify-content: space-between; align-items: center;">
+              <div class="flex m-b-2" style="justify-content: space-between; align-items: center">
                 <h3 class="m-0">Ficha de proyecto</h3>
-                <div class="flex botones-exportacion" style="gap: 8px;">
+                <div class="flex botones-exportacion" style="gap: 8px">
                   <button class="boton-secundario boton-chico">GeoJson</button>
                   <button class="boton-secundario boton-chico">KML</button>
                   <button class="boton-secundario boton-chico">Shapefile</button>
-                  
-                  <button 
+
+                  <button
                     class="btn-moderno-chico btn-eliminar"
                     @click="eliminarAporteRechazado(aporteSeleccionado.id)"
                   >
@@ -311,12 +331,16 @@ const puntoSeleccionado = computed(() => ({
               </div>
 
               <!-- Mapa nativo con sisdai-mapas -->
-              <div v-if="aporteSeleccionado" class="mapa-placeholder m-b-3" style="padding: 0; overflow: hidden; height: 300px;">
+              <div
+                v-if="aporteSeleccionado"
+                class="mapa-placeholder m-b-3"
+                style="padding: 0; overflow: hidden; height: 300px"
+              >
                 <ClientOnly>
                   <SisdaiMapa
                     id="aportesmapa"
                     class="gema"
-                    style="height: 100%; width: 100%" 
+                    style="height: 100%; width: 100%"
                     descripcion="Ubicación del aporte"
                     :vista="vistaMapa"
                   >
@@ -338,67 +362,103 @@ const puntoSeleccionado = computed(() => ({
 
               <!-- Panel de Detalles del Aporte -->
               <div class="tarjeta-detalle p-4 borde borde-redondeado-8">
-                
                 <!-- Cabecera del panel interno -->
-                <div class="flex m-b-4" style="justify-content: space-between; align-items: center;">
-                  <div class="flex" style="gap: 12px; align-items: center;">
+                <div class="flex m-b-4" style="justify-content: space-between; align-items: center">
+                  <div class="flex" style="gap: 12px; align-items: center">
                     <span class="badge-estado badge-rechazado">{{ aporteSeleccionado.folio }}</span>
                   </div>
-                  <span class="text-chico" style="color: #64748b; font-weight: 500;">{{ aporteSeleccionado.fecha }}</span>
+                  <span class="text-chico" style="color: #64748b; font-weight: 500">{{
+                    aporteSeleccionado.fecha
+                  }}</span>
                 </div>
 
                 <!-- Metadatos -->
                 <div class="grid-metadatos m-b-4">
                   <div class="meta-label">TÍTULO:</div>
                   <div class="meta-value">{{ aporteSeleccionado.titulo }}</div>
-                  
+
                   <div class="meta-label">NOMBRE DEL REGISTRANTE:</div>
                   <div class="meta-value">{{ aporteSeleccionado.registrante }}</div>
-                  
+
                   <div class="meta-label">ATENDIDO POR:</div>
                   <div class="meta-value">{{ aporteSeleccionado.atendidoPor }}</div>
                 </div>
 
-                <div class="flex m-b-4" style="gap: 16px; justify-content: center;">
+                <div class="flex m-b-4" style="gap: 16px; justify-content: center">
                   <template v-if="aporteSeleccionado.fotos && aporteSeleccionado.fotos.length > 0">
-                    <div 
-                      v-for="(foto, index) in aporteSeleccionado.fotos.slice(0, 3)" 
+                    <div
+                      v-for="(foto, index) in aporteSeleccionado.fotos.slice(0, 3)"
                       :key="index"
-                      class="imagen-miniatura bg-imagen miniatura-interactiva" 
+                      class="imagen-miniatura bg-imagen miniatura-interactiva"
                       :style="{ backgroundImage: `url(${foto})` }"
                       @click="abrirImagen(foto)"
                     ></div>
                   </template>
-                  <div v-else class="imagen-miniatura bg-placeholder" style="width: 100%;">
-                    <span style="color: #94a3b8; font-size: 0.85rem;">Este aporte no contiene fotografías</span>
+                  <div v-else class="imagen-miniatura bg-placeholder" style="width: 100%">
+                    <span style="color: #94a3b8; font-size: 0.85rem"
+                      >Este aporte no contiene fotografías</span
+                    >
                   </div>
                 </div>
 
                 <!--Ficha de Información-->
                 <h4 class="form-titulo m-b-2">Ficha de información:</h4>
-                <div class="grid" style="gap: 16px;">
+                <div class="grid" style="gap: 16px">
                   <div class="columna-16">
                     <label class="form-label">1.- PREGUNTA ABIERTA</label>
-                    <input type="text" class="ancho-completo form-input" readonly :value="aporteSeleccionado.detalle.preguntaAbierta" :title="aporteSeleccionado.detalle.preguntaAbierta" />
+                    <input
+                      type="text"
+                      class="ancho-completo form-input"
+                      readonly
+                      :value="aporteSeleccionado.detalle.preguntaAbierta"
+                      :title="aporteSeleccionado.detalle.preguntaAbierta"
+                    />
                   </div>
                   <div class="columna-16">
                     <label class="form-label">2.- PREGUNTA DE OPCIÓN</label>
-                    <input type="text" class="ancho-completo form-input" readonly :value="aporteSeleccionado.detalle.preguntaOpcion" :title="aporteSeleccionado.detalle.preguntaOpcion" />
+                    <input
+                      type="text"
+                      class="ancho-completo form-input"
+                      readonly
+                      :value="aporteSeleccionado.detalle.preguntaOpcion"
+                      :title="aporteSeleccionado.detalle.preguntaOpcion"
+                    />
                   </div>
                   <div class="columna-16">
                     <label class="form-label">5.- PREGUNTA DE SELECCIÓN MÚLTIPLE</label>
-                    <div class="flex flex-columna" style="gap: 8px;">
-                      <input type="text" class="ancho-completo form-input" readonly value="Opción 1" title="Opción 1" />
-                      <input type="text" class="ancho-completo form-input" readonly value="Opción 3" title="Opción 3" />
-                      <input type="text" class="ancho-completo form-input" readonly value="Opción 5" title="Opción 5" />
+                    <div class="flex flex-columna" style="gap: 8px">
+                      <input
+                        type="text"
+                        class="ancho-completo form-input"
+                        readonly
+                        value="Opción 1"
+                        title="Opción 1"
+                      />
+                      <input
+                        type="text"
+                        class="ancho-completo form-input"
+                        readonly
+                        value="Opción 3"
+                        title="Opción 3"
+                      />
+                      <input
+                        type="text"
+                        class="ancho-completo form-input"
+                        readonly
+                        value="Opción 5"
+                        title="Opción 5"
+                      />
                     </div>
                   </div>
                 </div>
-
               </div>
             </div>
             <!-- Estado vacío de la columna derecha -->
-            <div v-else class="flex flex-vertical-centrado flex-contenido-centrado" style="height: 100%; min-height: 400px; color: #94a3b8;">
+            <div
+              v-else
+              class="flex flex-vertical-centrado flex-contenido-centrado"
+              style="height: 100%; min-height: 400px; color: #94a3b8"
+            >
               <p>Selecciona un aporte para ver sus detalles.</p>
             </div>
           </div>
@@ -406,26 +466,30 @@ const puntoSeleccionado = computed(() => ({
       </main>
       <!-- Confirmación de aporte elimnado -->
       <ClientOnly>
-              <SisdaiModal ref="modalConfirmacion">
-                <template #encabezado>
-                  <h3 class="m-0" style="color: #d48d95; font-weight: 600;">¡Aporte Actualizado!</h3>
-                </template>
-                
-                <template #cuerpo>
-                  <div class="p-y-3 texto-centrado">
-                    <p class="m-b-3" style="color: #d48d95; font-size: 1.05rem;">
-                      {{ mensajeConfirmacion }}
-                    </p>
-                  </div>
-                </template>
-                
-                <template #pie>
-                  <button class="btn-moderno btn-guinda-sisdai" type="button" @click="cerrarModalConfirmacion">
-                    Entendido
-                  </button>
-                </template>
-              </SisdaiModal>
-            </ClientOnly>
+        <SisdaiModal ref="modalConfirmacion">
+          <template #encabezado>
+            <h3 class="m-0" style="color: #d48d95; font-weight: 600">¡Aporte Actualizado!</h3>
+          </template>
+
+          <template #cuerpo>
+            <div class="p-y-3 texto-centrado">
+              <p class="m-b-3" style="color: #d48d95; font-size: 1.05rem">
+                {{ mensajeConfirmacion }}
+              </p>
+            </div>
+          </template>
+
+          <template #pie>
+            <button
+              class="btn-moderno btn-guinda-sisdai"
+              type="button"
+              @click="cerrarModalConfirmacion"
+            >
+              Entendido
+            </button>
+          </template>
+        </SisdaiModal>
+      </ClientOnly>
 
       <!--Modal de imágenes-->
       <Teleport to="body">
@@ -436,7 +500,6 @@ const puntoSeleccionado = computed(() => ({
           </div>
         </div>
       </Teleport>
-
     </template>
   </UiLayoutPaneles>
 </template>
@@ -444,46 +507,56 @@ const puntoSeleccionado = computed(() => ({
 <style lang="scss" scoped>
 .titulo-contenido-levantamiento {
   align-items: center;
-  gap: 8px; 
+  gap: 8px;
 }
 
-
-.cursor-pointer { cursor: pointer; }
-.text-chico { font-size: 0.75rem; }
-.ancho-completo { width: 100%; box-sizing: border-box; }
-.flex-columna { flex-direction: column; }
-
+.cursor-pointer {
+  cursor: pointer;
+}
+.text-chico {
+  font-size: 0.75rem;
+}
+.ancho-completo {
+  width: 100%;
+  box-sizing: border-box;
+}
+.flex-columna {
+  flex-direction: column;
+}
 
 .tarjeta-aporte {
-  background-color: #715B62;
-  border: 1px solid #715B62;
+  background-color: #715b62;
+  border: 1px solid #715b62;
   transition: all 0.25s ease;
-  
-  .icono-doc, .titulo, .texto-secundario {
-    color: #FFFFFF !important;
+
+  .icono-doc,
+  .titulo,
+  .texto-secundario {
+    color: #ffffff !important;
   }
 
   &:hover:not(.seleccionada) {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
     filter: brightness(1.05);
   }
 
   &.seleccionada {
-    background-color: #D48D95;
-    border-color: #D48D95;
-    
-    .icono-doc, .titulo, .texto-secundario {
+    background-color: #d48d95;
+    border-color: #d48d95;
+
+    .icono-doc,
+    .titulo,
+    .texto-secundario {
       color: #391821 !important;
     }
   }
 }
 
-
 .paginacion {
   justify-content: center;
   gap: 8px;
-  
+
   .btn-paginacion {
     background: transparent;
     border: 1px solid #ccc;
@@ -494,32 +567,35 @@ const puntoSeleccionado = computed(() => ({
     font-weight: 500;
     color: #444;
 
-    &:hover:not(:disabled) { background: #eee; }
-    &:disabled { opacity: 0.5; cursor: not-allowed; }
+    &:hover:not(:disabled) {
+      background: #eee;
+    }
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
     &.activa {
-      background-color: #715B62;
-      color: #FFFFFF;
-      border-color: #715B62;
+      background-color: #715b62;
+      color: #ffffff;
+      border-color: #715b62;
     }
   }
 }
 
-
 .mapa-placeholder {
-  height: 250px; 
-  background-color: #f1f5f9; 
+  height: 250px;
+  background-color: #f1f5f9;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
-  display: flex; 
-  align-items: center; 
+  display: flex;
+  align-items: center;
   justify-content: center;
 }
 
 .tarjeta-detalle {
   background-color: #f8fafc;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
 }
-
 
 .badge-estado {
   padding: 4px 12px;
@@ -529,8 +605,8 @@ const puntoSeleccionado = computed(() => ({
   letter-spacing: 0.5px;
 }
 .badge-rechazado {
-  background-color: #ef4444; 
-  color: #ffffff; 
+  background-color: #ef4444;
+  color: #ffffff;
 }
 
 .grid-metadatos {
@@ -538,7 +614,7 @@ const puntoSeleccionado = computed(() => ({
   grid-template-columns: 220px 1fr;
   row-gap: 12px;
   font-size: 0.85rem;
-  
+
   .meta-label {
     font-weight: 700;
     color: #64748b;
@@ -548,7 +624,6 @@ const puntoSeleccionado = computed(() => ({
     font-weight: 500;
   }
 }
-
 
 .imagen-miniatura {
   width: 140px;
@@ -572,16 +647,18 @@ const puntoSeleccionado = computed(() => ({
 
 .miniatura-interactiva {
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+
   &:hover {
     transform: scale(1.03);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
   }
 }
 
-
-.modal-imagen-overlay, .modal-overlay {
+.modal-imagen-overlay,
+.modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -643,17 +720,22 @@ const puntoSeleccionado = computed(() => ({
 }
 
 @keyframes fadeInZoom {
-  from { opacity: 0; transform: scale(0.9); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
-
 
 .modal-confirmacion-contenido {
   background: #ffffff;
-  width: 100%; 
-  max-width: 400px; 
-  border-radius: 12px; 
-  display: flex; 
+  width: 100%;
+  max-width: 400px;
+  border-radius: 12px;
+  display: flex;
   flex-direction: column;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   animation: fadeInZoom 0.2s ease-out;
@@ -666,7 +748,7 @@ const puntoSeleccionado = computed(() => ({
 }
 
 .fondo-guinda {
-  background-color: #715B62;
+  background-color: #715b62;
 }
 
 .form-titulo {
@@ -689,27 +771,26 @@ const puntoSeleccionado = computed(() => ({
   border: 1px solid #cbd5e1 !important;
   border-radius: 8px;
   padding: 10px 14px;
-  
+
   color: #334155 !important;
   -webkit-text-fill-color: #334155 !important;
   opacity: 1 !important;
-  
+
   font-size: 0.9rem;
   transition: all 0.3s ease;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-  
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.form-input:hover, 
+.form-input:hover,
 .form-input:focus {
   outline: none !important;
-  border-color: #715B62 !important;
-  background-color: #ffffff !important; 
+  border-color: #715b62 !important;
+  background-color: #ffffff !important;
 }
-
 
 // .boton-secundario {
 //   background: white;
@@ -746,8 +827,8 @@ const puntoSeleccionado = computed(() => ({
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 
   &:hover {
-    transform: translateY(-1px); 
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); 
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
     filter: brightness(1.05);
   }
 }
@@ -769,7 +850,6 @@ const puntoSeleccionado = computed(() => ({
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-
 .btn-eliminar {
   background-color: #d48d95;
   color: #391821;
@@ -778,11 +858,13 @@ const puntoSeleccionado = computed(() => ({
   background-color: #c47c84;
 }
 
-.btn-guinda-sisdai { 
-  background-color: #715B62; 
-  width: 100%; 
-  padding: 10px; 
-  border-radius: 6px; 
+.btn-guinda-sisdai {
+  background-color: #715b62;
+  width: 100%;
+  padding: 10px;
+  border-radius: 6px;
 }
-.btn-guinda-sisdai:hover { background-color: #271016; }
+.btn-guinda-sisdai:hover {
+  background-color: #271016;
+}
 </style>

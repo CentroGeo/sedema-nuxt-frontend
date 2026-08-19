@@ -3,6 +3,7 @@ definePageMeta({ middleware: 'admin' });
 
 const store = useLandingBuilderStore();
 const modalConfirmar = ref(null);
+const modalNombrePagina = ref(null);
 
 const paginaEnEdicion = computed(() =>
   store.paginas.find((pagina) => pagina.id === store.paginaEditandoId)
@@ -16,6 +17,18 @@ async function eliminarPagina(pagina) {
   });
   if (!ok) return;
   await store.eliminarPagina(pagina.id);
+}
+
+async function manejarCrearOGuardar() {
+  if (store.paginaEditandoId) {
+    await store.crearPagina();
+    return;
+  }
+
+  const nombre = await modalNombrePagina.value?.abrir();
+  if (!nombre) return;
+
+  await store.crearPagina(nombre);
 }
 
 function editarPagina(pagina) {
@@ -63,7 +76,7 @@ onMounted(() => {
             ? `Ya tienes el máximo de ${store.limitePaginas} páginas. Elimina una para crear otra.`
             : undefined
         "
-        @click="store.crearPagina"
+        @click="manejarCrearOGuardar"
       >
         {{
           store.isCreandoPagina
@@ -146,6 +159,7 @@ onMounted(() => {
     </section>
 
     <GeocontenidosModalConfirmar ref="modalConfirmar" />
+    <LandingBuilderModalNombrePagina ref="modalNombrePagina" />
 
     <!--
     Formulario existente (config, editor de portada/sección/logo, tarjetas y vista previa).

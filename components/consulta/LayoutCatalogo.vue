@@ -6,6 +6,7 @@ import {
   categoriesNames,
   categoriesValues,
   cleanInput,
+  OGC_CATEGORY_IDENTIFIERS,
 } from '~/utils/consulta';
 
 const config = useRuntimeConfig();
@@ -60,9 +61,10 @@ const sigicOWS = `${config.public.baseURL}/catalogue/csw`;
 const isFilterActive = ref(false);
 
 async function fetchTotalByCategory(category) {
-  const preParams = params.value;
+  const preParams = { ...params.value };
   preParams['filter{category.identifier.in}'] = category;
   preParams['filter{complete_metadata}'] = 'true';
+  preParams['_t'] = String(Date.now());
   const url = buildUrl(`${config.public.geonodeApi}/sigic-resources`, preParams);
   const request = await gnoxyFetch(url);
   const res = await request.json();
@@ -72,17 +74,39 @@ async function fetchTotalByCategory(category) {
 async function buildCategoriesDict() {
   categoriesDict.value = {};
   orderedCategories.value = [];
+  const categoriasApi = useCategoriasApi();
+  const categoriasVisibles = await categoriasApi.fetchCategoriasVisibles().catch(() => []);
+  // Nombre en español de las categorías SIGIC según el conjunto activo (no
+  // el diccionario estático, que no conoce categorías nuevas o renombradas).
+  const nombrePorIdentifier = Object.fromEntries(
+    categoriasVisibles.map((categoria) => [categoria.identifier, categoria.nombre])
+  );
+  function nombreEspanolDe(identifier, etiquetaOriginal) {
+    return (
+      categoriesInSpanish[etiquetaOriginal] ?? nombrePorIdentifier[identifier] ?? etiquetaOriginal
+    );
+  }
+
   if (storeFilters.filters.categories.length === 0) {
     const request = await gnoxyFetch(apiCategorias);
     const geonodeCategories = await request.json();
+    // Solo se ofrecen como filtro las categorías OGC (estándar, siempre
+    // visibles) y las categorías SIGIC publicadas del conjunto activo; las
+    // que estén en borrador o en un conjunto inactivo quedan ocultas.
+    const identificadoresVisibles = new Set(
+      categoriasVisibles.map((categoria) => categoria.identifier)
+    );
+    const itemsVisibles = geonodeCategories.topics.items.filter(
+      (item) => OGC_CATEGORY_IDENTIFIERS.has(item.key) || identificadoresVisibles.has(item.key)
+    );
     const results = await Promise.all(
-      geonodeCategories.topics.items.map(async (d) => {
+      itemsVisibles.map(async (d) => {
         const totalByCat = await fetchTotalByCategory(d.key);
         if (totalByCat !== 0) {
           categoriesDict.value[d.label] = {
             label: d.label,
             name: d.key,
-            inSpanish: categoriesInSpanish[d.label],
+            inSpanish: nombreEspanolDe(d.key, d.label),
             total: totalByCat,
             page: 1,
             isLoading: false,
@@ -98,11 +122,12 @@ async function buildCategoriesDict() {
     const results = await Promise.all(
       geonodeCategories.map(async (d) => {
         const totalByCat = await fetchTotalByCategory(d);
+        const etiqueta = categoriesNames[d] ?? nombrePorIdentifier[d] ?? d;
         if (totalByCat !== 0) {
-          categoriesDict.value[categoriesNames[d]] = {
-            label: categoriesNames[d],
+          categoriesDict.value[etiqueta] = {
+            label: etiqueta,
             name: d,
-            inSpanish: categoriesInSpanish[categoriesNames[d]],
+            inSpanish: nombreEspanolDe(d, etiqueta),
             total: totalByCat,
             page: 1,
             isLoading: false,
@@ -362,9 +387,21 @@ watch(params, async () => {
   isLoading.value = false;
 });
 
+function alCambiarVisibilidadPestania() {
+  if (document.visibilityState === 'visible') {
+    storeResources.resetByType();
+    buildCategoriesDict();
+  }
+}
+
 onMounted(async () => {
   storeFilters.resetAll();
   storeFilters.buildQueryParams();
+  document.addEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
 });
 </script>
 

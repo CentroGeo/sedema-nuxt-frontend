@@ -35,31 +35,12 @@ const esPaginaPublica = computed(() => {
   return route.path.startsWith('/paginas/');
 });
 
-// Indica si "/" está mostrando una página del constructor (elegida como
-// página de inicio) en vez del index por defecto, para que el nav muestre
-// los logos propios de esa página igual que en /paginas/[slug].
-const paginaInicioActiva = ref(false);
-
-const IDENTIDAD_PUBLICA_VACIA = {
-  nombrePlataforma: '',
-  logoUrl: null,
-  logoSecundarioUrl: null,
-  logoTerceroUrl: null,
-  logoCuartoUrl: null,
-};
-
-// Identidad (logos + nombre) de la página pública que se está viendo, propia
-// de esa página y por eso independiente del borrador del constructor.
-const identidadPublica = ref({ ...IDENTIDAD_PUBLICA_VACIA });
-
-function establecerIdentidadPublica(identidad) {
-  identidadPublica.value = identidad || IDENTIDAD_PUBLICA_VACIA;
-}
-
 // MainNavegacion vive en el layout persistente: al navegar entre páginas por
 // SPA el componente no se remonta, así que hay que observar la ruta en vez
 // de depender solo de onMounted para refrescar la identidad de la página
-// pública que se está viendo.
+// pública que se está viendo. La identidad pública (logos, nombre, color,
+// pie de página) vive en el store para que MainPiePagina.vue pueda leer el
+// mismo dato ya cargado, sin repetir el fetch.
 watch(
   () => route.fullPath,
   async () => {
@@ -73,37 +54,42 @@ watch(
     }
 
     store.cargarPaginas();
-
-    if (route.path === '/') {
-      try {
-        const pagina = await $fetch('/api/landing-builder/pagina-inicio');
-        establecerIdentidadPublica(pagina?.identidad);
-        paginaInicioActiva.value = Boolean(pagina);
-      } catch (err) {
-        console.error('Error al cargar la identidad de la página de inicio:', err);
-        establecerIdentidadPublica(null);
-        paginaInicioActiva.value = false;
-      }
-      return;
-    }
-
-    paginaInicioActiva.value = false;
-
-    if (!esPaginaPublica.value) {
-      establecerIdentidadPublica(null);
-      return;
-    }
-
-    try {
-      const pagina = await $fetch(`/api/landing-builder/paginas/${route.params.slug}`);
-      establecerIdentidadPublica(pagina?.identidad);
-    } catch (err) {
-      console.error('Error al cargar la identidad de la página:', err);
-      establecerIdentidadPublica(null);
-    }
+    await store.cargarIdentidadPaginaActual(route);
   },
   { immediate: true }
 );
+
+// Color de tema (header + footer) de la página actual: el borrador en modo
+// constructor, o la identidad publicada en modo página pública / inicio.
+const colorTemaActivo = computed(() => {
+  if (esConstructor.value) return store.colorTema;
+  if (esPaginaPublica.value || store.paginaInicioActiva) return store.identidadPublica.colorTema;
+  return null;
+});
+
+const estiloTemaHeader = computed(() => {
+  if (!colorTemaActivo.value) return {};
+  const tintClaro = calcularColorClaro(colorTemaActivo.value);
+  return {
+    '--navegacion-primaria-fondo': colorTemaActivo.value,
+    '--navegacion-primaria-color': calcularColorTextoContraste(colorTemaActivo.value),
+    // Fondo hover/focus de los enlaces del menú: un tinte claro del mismo
+    // color elegido (no el rosado fijo de sisdai-css), con su propio
+    // contraste de texto, para que siga siendo legible con cualquier color.
+    '--tema-pagina-cursor-fondo': tintClaro,
+    '--tema-pagina-cursor-color': calcularColorTextoContraste(tintClaro),
+  };
+});
+
+const popoverColorAbierto = ref(false);
+const popoverColorRef = ref(null);
+onClickOutside(popoverColorRef, () => {
+  popoverColorAbierto.value = false;
+});
+
+function alternarPopoverColor() {
+  popoverColorAbierto.value = !popoverColorAbierto.value;
+}
 
 async function iniciarSesion() {
   await signIn('keycloak', {
@@ -198,7 +184,7 @@ function eliminarLogo4() {
 </script>
 
 <template>
-  <SisdaiNavegacionPrincipal>
+  <SisdaiNavegacionPrincipal :style="estiloTemaHeader">
     <template #identidad>
       <!-- Modo Constructor: 4 logos editables (sin imagen precargada si están vacíos) y nombre de la plataforma -->
       <div v-if="esConstructor" class="contenedor-identidades-nav constructor-identidades-nav">
@@ -383,22 +369,43 @@ function eliminarLogo4() {
             {{ store.nombrePlataforma }}
           </span>
         </div>
+
+        <!-- Color del header y del footer del constructor -->
+        <div ref="popoverColorRef" class="contenedor-color-tema-nav">
+          <button
+            type="button"
+            class="boton-color-tema-nav"
+            :style="{ backgroundColor: store.colorTema || '#FFFFFF' }"
+            aria-label="Elegir color del encabezado y pie de página"
+            title="Elegir color del encabezado y pie de página"
+            :aria-expanded="popoverColorAbierto"
+            @click="alternarPopoverColor"
+          ></button>
+
+          <div v-if="popoverColorAbierto" class="popover-color-tema-nav">
+            <LandingBuilderSelectorColorHex
+              id="color-tema-pagina"
+              v-model="store.colorTema"
+              etiqueta="Color del encabezado y pie de página"
+            />
+          </div>
+        </div>
       </div>
 
       <!-- Páginas publicadas del constructor: logos y nombre de la plataforma, en modo solo lectura -->
       <div
-        v-else-if="esPaginaPublica || paginaInicioActiva"
+        v-else-if="esPaginaPublica || store.paginaInicioActiva"
         class="contenedor-identidades-nav constructor-identidades-nav"
       >
-        <div v-if="identidadPublica.logoUrl" class="contenedor-logo-nav">
+        <div v-if="store.identidadPublica.logoUrl" class="contenedor-logo-nav">
           <NuxtLink
-            :to="identidadPublica.logoRedirectUrl || '/'"
-            :target="identidadPublica.logoRedirectUrl ? '_blank' : undefined"
+            :to="store.identidadPublica.logoRedirectUrl || '/'"
+            :target="store.identidadPublica.logoRedirectUrl ? '_blank' : undefined"
             rel="noopener noreferrer"
             class="nav-hiperviculo-logo"
           >
             <img
-              :src="store.resolverUrlImagen(identidadPublica.logoUrl)"
+              :src="store.resolverUrlImagen(store.identidadPublica.logoUrl)"
               class="nav-logo nav-logo--chip"
               alt="Logo principal"
               height="36"
@@ -406,31 +413,31 @@ function eliminarLogo4() {
           </NuxtLink>
         </div>
 
-        <div v-if="identidadPublica.logoSecundarioUrl" class="contenedor-logo-nav">
+        <div v-if="store.identidadPublica.logoSecundarioUrl" class="contenedor-logo-nav">
           <NuxtLink
-            :to="identidadPublica.logoSecundarioRedirectUrl || '/'"
-            :target="identidadPublica.logoSecundarioRedirectUrl ? '_blank' : undefined"
+            :to="store.identidadPublica.logoSecundarioRedirectUrl || '/'"
+            :target="store.identidadPublica.logoSecundarioRedirectUrl ? '_blank' : undefined"
             rel="noopener noreferrer"
             class="nav-hiperviculo-logo"
           >
             <img
-              :src="store.resolverUrlImagen(identidadPublica.logoSecundarioUrl)"
+              :src="store.resolverUrlImagen(store.identidadPublica.logoSecundarioUrl)"
               class="nav-logo nav-logo--chip"
-              :alt="identidadPublica.nombrePlataforma || 'Logo secundario'"
+              :alt="store.identidadPublica.nombrePlataforma || 'Logo secundario'"
               height="36"
             />
           </NuxtLink>
         </div>
 
-        <div v-if="identidadPublica.logoTerceroUrl" class="contenedor-logo-nav">
+        <div v-if="store.identidadPublica.logoTerceroUrl" class="contenedor-logo-nav">
           <NuxtLink
-            :to="identidadPublica.logoTerceroRedirectUrl || '/'"
-            :target="identidadPublica.logoTerceroRedirectUrl ? '_blank' : undefined"
+            :to="store.identidadPublica.logoTerceroRedirectUrl || '/'"
+            :target="store.identidadPublica.logoTerceroRedirectUrl ? '_blank' : undefined"
             rel="noopener noreferrer"
             class="nav-hiperviculo-logo"
           >
             <img
-              :src="store.resolverUrlImagen(identidadPublica.logoTerceroUrl)"
+              :src="store.resolverUrlImagen(store.identidadPublica.logoTerceroUrl)"
               class="nav-logo nav-logo--chip"
               alt="Logo tercero"
               height="36"
@@ -438,15 +445,15 @@ function eliminarLogo4() {
           </NuxtLink>
         </div>
 
-        <div v-if="identidadPublica.logoCuartoUrl" class="contenedor-logo-nav">
+        <div v-if="store.identidadPublica.logoCuartoUrl" class="contenedor-logo-nav">
           <NuxtLink
-            :to="identidadPublica.logoCuartoRedirectUrl || '/'"
-            :target="identidadPublica.logoCuartoRedirectUrl ? '_blank' : undefined"
+            :to="store.identidadPublica.logoCuartoRedirectUrl || '/'"
+            :target="store.identidadPublica.logoCuartoRedirectUrl ? '_blank' : undefined"
             rel="noopener noreferrer"
             class="nav-hiperviculo-logo"
           >
             <img
-              :src="store.resolverUrlImagen(identidadPublica.logoCuartoUrl)"
+              :src="store.resolverUrlImagen(store.identidadPublica.logoCuartoUrl)"
               class="nav-logo nav-logo--chip"
               alt="Logo cuarto"
               height="36"
@@ -454,8 +461,11 @@ function eliminarLogo4() {
           </NuxtLink>
         </div>
 
-        <div v-if="identidadPublica.nombrePlataforma" class="contenedor-titulo-plataforma-nav">
-          <span class="nav-titulo-plataforma">{{ identidadPublica.nombrePlataforma }}</span>
+        <div
+          v-if="store.identidadPublica.nombrePlataforma"
+          class="contenedor-titulo-plataforma-nav"
+        >
+          <span class="nav-titulo-plataforma">{{ store.identidadPublica.nombrePlataforma }}</span>
         </div>
       </div>
 
@@ -504,6 +514,9 @@ function eliminarLogo4() {
       </li>
       <li v-if="mostrarGeocontenidos && status === 'authenticated'">
         <NuxtLink class="nav-hipervinculo" to="/geocontenidos">Geocontenidos</NuxtLink>
+      </li>   
+      <li v-if="status === 'authenticated' && esAdmin">
+        <NuxtLink class="nav-hipervinculo" to="/administracion">Administración</NuxtLink>
       </li>
       <li v-if="mostrarAcercaDe">
         <NuxtLink class="nav-hipervinculo" to="/acerca-de">Acerca de</NuxtLink>
@@ -578,15 +591,31 @@ function eliminarLogo4() {
 </template>
 
 <style lang="scss">
+// Con un colorTema elegido, el hover/focus de los enlaces del menú (Inicio,
+// Catálogo, etc.) no debe usar el rosado fijo de sisdai-css: se ve pálido
+// e ilegible contra el texto ya coloreado. Se sobrescribe con un tinte claro
+// del mismo colorTema (ver estiloTemaHeader); si no hay colorTema, las
+// variables --tema-pagina-cursor-* quedan sin definir y cae al valor
+// original de sisdai-css. Solo aplica al nav principal (.navegacion-conahcyt),
+// no al de Gobierno de México, que tiene su propio estilo.
+.navegacion-conahcyt .nav-hipervinculo:hover,
+.navegacion-conahcyt .nav-hipervinculo:focus {
+  background-color: var(
+    --tema-pagina-cursor-fondo,
+    var(--navegacion-primaria-cursor-fondo)
+  ) !important;
+  color: var(--tema-pagina-cursor-color, var(--navegacion-primaria-color)) !important;
+}
+
 body[data-tema='oscuro'] {
   img.color-invertir {
     filter: grayscale(1) brightness(100);
   }
   .constructor-identidades-nav {
-    .nav-titulo-plataforma,
-    .input-nav-titulo-plataforma {
-      color: var(--navegacion-color, var(--texto-primario, #ffffff)) !important;
-    }
+    // El color del texto ya sigue --navegacion-primaria-color (ver más abajo),
+    // que en modo oscuro sisdai-css ya resuelve correctamente por sí solo; no
+    // hace falta (ni conviene) forzarlo aparte, porque pisaría el colorTema
+    // elegido en la página cuando ese color es claro.
     .contenedor-logo-nav.editando-logo:hover {
       background-color: rgba(255, 255, 255, 0.15);
     }
@@ -658,7 +687,7 @@ body[data-tema='oscuro'] {
     padding: 0 8px;
     font-size: 0.75rem;
     font-weight: 600;
-    color: var(--color-neutro-5, #757575);
+    color: var(--navegacion-primaria-color, var(--color-neutro-5, #757575));
     cursor: pointer;
     background: rgba(0, 0, 0, 0.02);
     transition:
@@ -724,7 +753,7 @@ body[data-tema='oscuro'] {
   .nav-titulo-plataforma {
     font-size: 0.875rem;
     font-weight: 400;
-    color: var(--navegacion-color, var(--texto-primario, #141414));
+    color: var(--navegacion-primaria-color, var(--texto-primario, #141414));
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -740,7 +769,7 @@ body[data-tema='oscuro'] {
   .input-nav-titulo-plataforma {
     font-size: 0.875rem;
     font-weight: 400;
-    color: var(--navegacion-color, var(--texto-primario, #141414));
+    color: var(--navegacion-primaria-color, var(--texto-primario, #141414));
     border: 1px dashed var(--color-neutro-3, #bdbdbd);
     border-radius: 4px;
     padding: 2px 6px;
@@ -759,8 +788,9 @@ body[data-tema='oscuro'] {
 
     &:empty::before {
       content: attr(data-placeholder);
-      color: var(--color-neutro-4, #9e9e9e);
+      color: var(--navegacion-primaria-color, var(--color-neutro-4, #9e9e9e));
       font-style: italic;
+      opacity: 0.75;
     }
 
     &:focus::before {
@@ -777,5 +807,39 @@ body[data-tema='oscuro'] {
       background: var(--campo-enfoque-fondo);
     }
   }
+}
+
+.contenedor-color-tema-nav {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+}
+
+.boton-color-tema-nav {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--color-neutro-3, #bdbdbd);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--color-primario-2, rgb(105 28 50));
+  }
+}
+
+.popover-color-tema-nav {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 10000;
+  width: max-content;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--color-neutro-6, #141414);
+  color: var(--color-neutro-0, #ffffff);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 </style>
