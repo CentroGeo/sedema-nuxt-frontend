@@ -98,15 +98,15 @@ export default defineNuxtRouteMiddleware(async (to) => {
     }
   }
 
+  // La raíz de una sección tiene página propia (el hub de Explorar): se
+  // muestra mientras quede al menos un submódulo habilitado y solo deja de
+  // estar disponible cuando todos están apagados.
   for (const seccion of RUTAS_RAIZ_SECCIONES) {
     if (to.path === seccion.ruta || to.path === `${seccion.ruta}/`) {
-      const submodulo = seccion.submodulos.find(
-        (id) => submodulos.value[id]
-      );
-      const rutaSubmodulo = RUTAS_SUBMODULOS.find(
-        (configuracionRuta) => configuracionRuta.submodulo === submodulo
-      );
-      return rutaSubmodulo ? navigateTo(rutaSubmodulo.rutas[0]) : noDisponible();
+      if (!seccion.submodulos.some((id) => submodulos.value[id])) {
+        return noDisponible();
+      }
+      return;
     }
   }
 

@@ -7,6 +7,13 @@ const storeResources = useResourcesCatalogoStore();
 const storeCatalogo = useCatalogoStore();
 const storeSelected = useSelectedResources2Store();
 const config = useRuntimeConfig();
+const { estaSubmoduloHabilitado } = useConfiguracionModulos();
+
+const SUBMODULO_POR_TIPO = {
+  dataLayer: 'catalogo-capas',
+  dataTable: 'catalogo-tablas',
+  document: 'catalogo-documentos',
+};
 
 function buildQueryParams(resourceType) {
   const queryParams = {};
@@ -26,7 +33,11 @@ storeResources.getTotalResources(resourceTypeDic.dataLayer, buildQueryParams('da
 storeResources.getTotalResources(resourceTypeDic.dataTable, buildQueryParams('dataTable'));
 storeResources.getTotalResources(resourceTypeDic.document, buildQueryParams('document'));
 
-const types = ['dataLayer', 'dataTable', 'document'];
+const types = computed(() =>
+  ['dataLayer', 'dataTable', 'document'].filter(
+    (type) => estaSubmoduloHabilitado(SUBMODULO_POR_TIPO[type]).value
+  )
+);
 const resourcesDict = computed(() => ({
   dataLayer: {
     title: 'Capas Geográficas',
