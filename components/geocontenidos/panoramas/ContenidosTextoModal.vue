@@ -129,7 +129,7 @@ async function eliminarItem(id) {
 
           <form @submit.prevent="guardarItem">
             <div class="m-b-4">
-              <label for="item-nombre">Nombre</label>
+              <label for="item-nombre">Nombre *</label>
               <input id="item-nombre" v-model="formulario.name" type="text" required />
             </div>
 
