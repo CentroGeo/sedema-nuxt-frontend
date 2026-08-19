@@ -118,9 +118,18 @@ const limpiarErrorInvitacion = (campo) => {
   }
 };
 
-watch(() => participante.email, (valor) => valor.trim() && limpiarErrorInvitacion('email'));
-watch(() => participante.rol, (valor) => valor && limpiarErrorInvitacion('rol'));
-watch(() => participante.mensaje, (valor) => valor.trim() && limpiarErrorInvitacion('mensaje'));
+watch(
+  () => participante.email,
+  (valor) => valor.trim() && limpiarErrorInvitacion('email')
+);
+watch(
+  () => participante.rol,
+  (valor) => valor && limpiarErrorInvitacion('rol')
+);
+watch(
+  () => participante.mensaje,
+  (valor) => valor.trim() && limpiarErrorInvitacion('mensaje')
+);
 
 const agregarParticipante = async () => {
   estadoInvitacion.tipo = '';
@@ -132,7 +141,9 @@ const agregarParticipante = async () => {
     : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)
       ? ''
       : 'Ingresa un correo electrónico válido.';
-  erroresInvitacion.rol = participante.rol ? '' : 'Selecciona el permiso de la persona participante.';
+  erroresInvitacion.rol = participante.rol
+    ? ''
+    : 'Selecciona el permiso de la persona participante.';
   erroresInvitacion.mensaje = participante.mensaje.trim()
     ? ''
     : 'Escribe el mensaje de invitación.';
@@ -185,7 +196,6 @@ const formatearFecha = (fechaISO) => {
   return fecha;
 };
 
-
 const modalCambiarPermiso = ref(null);
 const participanteSeleccionado = ref(null);
 const permisoSeleccionado = ref('');
@@ -207,7 +217,10 @@ const actualizarPermiso = async () => {
       route.params.id,
       participanteSeleccionado.value.id
     );
-    await storeLevantamiento.obtenerParticipantesPorProyecto(data.value?.user.email, route.params.id);
+    await storeLevantamiento.obtenerParticipantesPorProyecto(
+      data.value?.user.email,
+      route.params.id
+    );
     modalCambiarPermiso.value.cerrarModal();
     estadoGestionParticipantes.tipo = 'confirmacion';
     estadoGestionParticipantes.mensaje = 'El permiso se actualizó correctamente.';
@@ -236,7 +249,10 @@ const eliminarPermiso = async () => {
       route.params.id,
       participanteSeleccionado.value.id
     );
-    await storeLevantamiento.obtenerParticipantesPorProyecto(data.value?.user.email, route.params.id);
+    await storeLevantamiento.obtenerParticipantesPorProyecto(
+      data.value?.user.email,
+      route.params.id
+    );
     modalEliminarPermiso.value.cerrarModal();
     estadoGestionParticipantes.tipo = 'confirmacion';
     estadoGestionParticipantes.mensaje = 'La persona fue eliminada del proyecto.';
@@ -309,7 +325,8 @@ const actualizarProyecto = async () => {
   } catch (error) {
     estadoPrivacidad.tipo = 'error';
     estadoPrivacidad.mensaje =
-      error?.data?.message || 'No pudimos cambiar la privacidad del proyecto. Inténtalo nuevamente.';
+      error?.data?.message ||
+      'No pudimos cambiar la privacidad del proyecto. Inténtalo nuevamente.';
   } finally {
     guardandoPrivacidad.value = false;
   }
@@ -355,7 +372,9 @@ defineExpose({
       aria-live="polite"
     >
       <span
-        :class="estadoPrivacidad.tipo === 'confirmacion' ? 'pictograma-aprobado' : 'pictograma-alerta'"
+        :class="
+          estadoPrivacidad.tipo === 'confirmacion' ? 'pictograma-aprobado' : 'pictograma-alerta'
+        "
         class="pictograma-mediano"
         aria-hidden="true"
       />
@@ -425,9 +444,7 @@ defineExpose({
         >
           <span
             :class="
-              estadoInvitacion.tipo === 'confirmacion'
-                ? 'pictograma-aprobado'
-                : 'pictograma-alerta'
+              estadoInvitacion.tipo === 'confirmacion' ? 'pictograma-aprobado' : 'pictograma-alerta'
             "
             class="pictograma-mediano"
             aria-hidden="true"

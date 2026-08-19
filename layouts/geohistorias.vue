@@ -5,12 +5,13 @@ import SisdaiPiePaginaGobMx from '@centrogeomx/sisdai-componentes/src/componente
 import { useAccesibilidadStore } from '~/stores/accesibilidad';
 
 const accesibilidadStore = useAccesibilidadStore();
+const { mostrarIdentidadGobMx } = useIdentidadGobMx();
 </script>
 
 <template>
   <div>
     <a href="#principal" class="ir-contenido-principal">Ir a contenido principal</a>
-    <SisdaiNavegacionGobMx />
+    <SisdaiNavegacionGobMx v-if="mostrarIdentidadGobMx" />
 
     <div class="contenido vista-geohistorias">
       <slot />
@@ -19,7 +20,7 @@ const accesibilidadStore = useAccesibilidadStore();
     <client-only>
       <SisdaiMenuAccesibilidad :objeto-store="accesibilidadStore" perfil-color="sigic" />
     </client-only>
-    <SisdaiPiePaginaGobMx />
+    <SisdaiPiePaginaGobMx v-if="mostrarIdentidadGobMx" />
   </div>
 </template>
 

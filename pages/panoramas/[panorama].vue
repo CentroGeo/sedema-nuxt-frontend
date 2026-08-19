@@ -29,14 +29,196 @@ const marcadoresPorCapa = reactive({});
 const cargandoCapasModal = ref(false);
 const cargandoTexto = ref(false);
 const modalTopico = ref(null);
-const modalInfoAdicional = ref(null);
-const modalCapaInfo = ref(null);
+const mapaContenedorRef = ref(null);
+const ventanaInfoRef = ref(null);
+const ventanaInfoVisible = ref(false);
+const tipoInfoFlotante = ref(null);
 const capaInfo = ref(null);
+
+const posicionVentanaInfo = reactive({
+  x: 16,
+  y: 16,
+});
+
+const arrastreVentanaInfo = reactive({
+  activo: false,
+  pointerId: null,
+  desplazamientoX: 0,
+  desplazamientoY: 0,
+});
 const modalItemTexto = ref(null);
 const itemTextoActivo = ref(null);
 const basemapActivo = ref(null);
 const wmsExternosEncendidos = reactive(new Set());
-const modalWmsExternos = ref(null);
+const estadosWmsExternos = reactive({});
+const temporizadoresWms = new Map();
+
+function obtenerEstadoWms(id) {
+  return estadosWmsExternos[id] || 'idle';
+}
+
+function limitarPosicionVentanaInfo(x, y) {
+  const mapa = mapaContenedorRef.value;
+  const ventana = ventanaInfoRef.value;
+
+  if (!mapa || !ventana) {
+    return { x: 16, y: 16 };
+  }
+
+  const margen = 16;
+  const maximoX = Math.max(margen, mapa.clientWidth - ventana.offsetWidth - margen);
+  const maximoY = Math.max(margen, mapa.clientHeight - ventana.offsetHeight - margen);
+
+  return {
+    x: Math.min(Math.max(x, margen), maximoX),
+    y: Math.min(Math.max(y, margen), maximoY),
+  };
+}
+
+function ajustarVentanaInfoALimite() {
+  if (!ventanaInfoVisible.value) return;
+
+  const posicion = limitarPosicionVentanaInfo(posicionVentanaInfo.x, posicionVentanaInfo.y);
+
+  posicionVentanaInfo.x = posicion.x;
+  posicionVentanaInfo.y = posicion.y;
+}
+
+async function abrirVentanaInfo(tipo, capa = null) {
+  tipoInfoFlotante.value = tipo;
+  capaInfo.value = capa;
+  ventanaInfoVisible.value = true;
+
+  await nextTick();
+
+  const mapa = mapaContenedorRef.value;
+  const ventana = ventanaInfoRef.value;
+
+  if (!mapa || !ventana) return;
+
+  const posicion = limitarPosicionVentanaInfo(
+    Math.round((mapa.clientWidth - ventana.offsetWidth) / 2),
+    Math.round((mapa.clientHeight - ventana.offsetHeight) / 2)
+  );
+
+  posicionVentanaInfo.x = posicion.x;
+  posicionVentanaInfo.y = posicion.y;
+}
+
+function abrirInformacionGeneral() {
+  abrirVentanaInfo('panorama');
+}
+
+function cerrarVentanaInfo() {
+  ventanaInfoVisible.value = false;
+  tipoInfoFlotante.value = null;
+  capaInfo.value = null;
+  arrastreVentanaInfo.activo = false;
+  arrastreVentanaInfo.pointerId = null;
+}
+
+function iniciarArrastreVentanaInfo(evento) {
+  if (evento.pointerType === 'mouse' && evento.button !== 0) return;
+
+  const mapa = mapaContenedorRef.value;
+  if (!mapa) return;
+
+  const rectMapa = mapa.getBoundingClientRect();
+
+  arrastreVentanaInfo.activo = true;
+  arrastreVentanaInfo.pointerId = evento.pointerId;
+  arrastreVentanaInfo.desplazamientoX = evento.clientX - rectMapa.left - posicionVentanaInfo.x;
+  arrastreVentanaInfo.desplazamientoY = evento.clientY - rectMapa.top - posicionVentanaInfo.y;
+
+  evento.currentTarget.setPointerCapture(evento.pointerId);
+}
+
+function moverVentanaInfo(evento) {
+  if (!arrastreVentanaInfo.activo || evento.pointerId !== arrastreVentanaInfo.pointerId) {
+    return;
+  }
+
+  const mapa = mapaContenedorRef.value;
+  if (!mapa) return;
+
+  const rectMapa = mapa.getBoundingClientRect();
+  const posicion = limitarPosicionVentanaInfo(
+    evento.clientX - rectMapa.left - arrastreVentanaInfo.desplazamientoX,
+    evento.clientY - rectMapa.top - arrastreVentanaInfo.desplazamientoY
+  );
+
+  posicionVentanaInfo.x = posicion.x;
+  posicionVentanaInfo.y = posicion.y;
+}
+
+function terminarArrastreVentanaInfo(evento) {
+  if (evento.pointerId !== arrastreVentanaInfo.pointerId) return;
+
+  arrastreVentanaInfo.activo = false;
+  arrastreVentanaInfo.pointerId = null;
+
+  if (evento.currentTarget.hasPointerCapture(evento.pointerId)) {
+    evento.currentTarget.releasePointerCapture(evento.pointerId);
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('resize', ajustarVentanaInfoALimite);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', ajustarVentanaInfoALimite);
+});
+
+function cambiarEstadoWms(id, estado) {
+  const temporizador = temporizadoresWms.get(id);
+
+  if (temporizador) {
+    clearTimeout(temporizador);
+    temporizadoresWms.delete(id);
+  }
+
+  estadosWmsExternos[id] = estado;
+}
+
+function alIniciarCargaWms(item) {
+  cambiarEstadoWms(item.id, 'loading');
+
+  const temporizador = setTimeout(() => {
+    if (estadosWmsExternos[item.id] === 'loading') {
+      estadosWmsExternos[item.id] = 'error';
+    }
+
+    temporizadoresWms.delete(item.id);
+  }, 15000);
+
+  temporizadoresWms.set(item.id, temporizador);
+}
+
+function alFinalizarCargaWms(item, cargaExitosa) {
+  cambiarEstadoWms(item.id, cargaExitosa ? 'success' : 'error');
+
+  if (cargaExitosa) {
+    const temporizador = setTimeout(() => {
+      if (estadosWmsExternos[item.id] === 'success') {
+        estadosWmsExternos[item.id] = 'idle';
+      }
+
+      temporizadoresWms.delete(item.id);
+    }, 3000);
+
+    temporizadoresWms.set(item.id, temporizador);
+  }
+}
+
+async function reintentarWmsExterno(item) {
+  wmsExternosEncendidos.delete(item.id);
+  cambiarEstadoWms(item.id, 'loading');
+
+  await nextTick();
+
+  wmsExternosEncendidos.add(item.id);
+}
 const modalBasemap = ref(null);
 const capaMascara = ref(null);
 const leyendaVisible = ref(true);
@@ -114,7 +296,7 @@ async function cargarPanorama() {
 
   if (data.landing_info && data.extra_info) {
     await nextTick();
-    modalInfoAdicional.value?.abrirModal();
+    abrirInformacionGeneral();
   }
 
   const primerTopico = [...(data.topics || [])].sort((a, b) => a.stack_order - b.stack_order)[0];
@@ -148,8 +330,27 @@ async function abrirModalTopico(topicoId) {
   await cargarTopico(topicoId);
 }
 
-function topicoTieneCapasActivas(topico) {
-  return (capasPorTopico[topico.id] || []).some((capa) => capasEncendidasIds.has(capa.id));
+function manejarHerramientaPanorama(herramientaId) {
+  switch (herramientaId) {
+    case 'informacion':
+      abrirInformacionGeneral();
+      break;
+
+    default:
+      break;
+  }
+}
+
+async function manejarTopicoPanorama({ tipo, id }) {
+  if (tipo === 'capas') {
+    await abrirModalTopico(id);
+    return;
+  }
+
+  if (tipo === 'texto') {
+    await seleccionarTextoTopico(id);
+    leyendaVisible.value = true;
+  }
 }
 
 async function seleccionarTextoTopico(textoId) {
@@ -180,8 +381,7 @@ function alternarCapa(capa) {
 }
 
 function abrirInfoCapa(capa) {
-  capaInfo.value = capa;
-  modalCapaInfo.value?.abrirModal();
+  abrirVentanaInfo('capa', capa);
 }
 
 // Trae la extensión del dataset bajo demanda y reasigna `vista` para que SisdaiMapa haga fit,
@@ -364,13 +564,44 @@ async function contenidoCuadroInfoCapa(url, capa) {
   return `<p>${titulo}</p><ul>${filas}</ul>`;
 }
 
+const mensajesEstadoWms = {
+  loading: 'Cargando capa…',
+  success: 'Capa agregada al mapa',
+  error: 'No fue posible cargar esta capa',
+  idle: '',
+};
+
+const wmsExternosParaBarra = computed(() =>
+  (panorama.datos?.external_wms || []).map((item) => {
+    const estado = obtenerEstadoWms(item.id);
+
+    return {
+      ...item,
+      activo: wmsExternosEncendidos.has(item.id),
+      estado,
+      mensaje: mensajesEstadoWms[estado] || '',
+    };
+  })
+);
+
 const wmsExternosActivos = computed(() =>
   (panorama.datos?.external_wms || []).filter((item) => wmsExternosEncendidos.has(item.id))
 );
 
 function alternarWmsExterno(item) {
-  if (wmsExternosEncendidos.has(item.id)) wmsExternosEncendidos.delete(item.id);
-  else wmsExternosEncendidos.add(item.id);
+  if (wmsExternosEncendidos.has(item.id)) {
+    wmsExternosEncendidos.delete(item.id);
+    cambiarEstadoWms(item.id, 'idle');
+    return;
+  }
+
+  if (item.wms_or_tile === 'wms') {
+    cambiarEstadoWms(item.id, 'loading');
+  } else {
+    cambiarEstadoWms(item.id, 'idle');
+  }
+
+  wmsExternosEncendidos.add(item.id);
 }
 
 // Ref además de la extensión inicial del panorama, zoomACapa
@@ -405,89 +636,85 @@ const vista = ref({ centro: [-103.5, 23.6], acercamiento: 5 });
       </header>
 
       <div class="panorama__contenedor">
-        <nav
-          class="panorama__temas"
-          :class="{ 'panorama__temas--ancho': panorama.datos.icon_title }"
-        >
-          <button
-            v-for="topico in [...(panorama.datos.topics || [])].sort(
-              (a, b) => a.stack_order - b.stack_order
-            )"
-            :key="`capas-${topico.id}`"
-            class="panorama__tema-item"
-            :class="{ activo: topicoTieneCapasActivas(topico) }"
-            :aria-label="topico.name"
-            :title="topico.name"
-            @click="abrirModalTopico(topico.id)"
-          >
-            <img
-              v-if="topico.custom_icon"
-              :src="topico.custom_icon"
-              alt=""
-              class="panorama__tema-icono"
-            />
-            <span v-else :class="`pictograma-${topico.icon}`" />
-            <span v-if="panorama.datos.icon_title" class="panorama__tema-nombre">
-              {{ topico.name }}
-            </span>
-          </button>
-
-          <hr
-            v-if="panorama.datos.text_topics?.length || panorama.datos.external_wms?.length"
-            class="panorama__temas-separador"
+        <div ref="mapaContenedorRef" class="panorama__mapa">
+          <PanoramasBarraHerramientasFlotante
+            :topicos-capas="panorama.datos.topics || []"
+            :topicos-texto="panorama.datos.text_topics || []"
+            :wms-externos="wmsExternosParaBarra"
+            @seleccionar-herramienta="manejarHerramientaPanorama"
+            @seleccionar-topico="manejarTopicoPanorama"
+            @alternar-wms="alternarWmsExterno"
+            @reintentar-wms="reintentarWmsExterno"
           />
 
-          <button
-            v-if="panorama.datos.external_wms?.length"
-            type="button"
-            class="panorama__tema-item"
-            aria-label="WMS externos"
-            title="Mostrar/ocultar WMS externos"
-            @click="modalWmsExternos?.abrirModal()"
+          <section
+            v-if="ventanaInfoVisible"
+            ref="ventanaInfoRef"
+            class="panorama__ventana-info"
+            :class="{ 'esta-arrastrando': arrastreVentanaInfo.activo }"
+            :style="{
+              left: `${posicionVentanaInfo.x}px`,
+              top: `${posicionVentanaInfo.y}px`,
+            }"
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby="titulo-ventana-info"
           >
-            <span class="pictograma-enlace-externo" aria-hidden="true" />
-            <span v-if="panorama.datos.icon_title" class="panorama__tema-nombre">
-              WMS externos
-            </span>
-          </button>
-
-          <button
-            v-for="topico in [...(panorama.datos.text_topics || [])].sort(
-              (a, b) => a.stack_order - b.stack_order
-            )"
-            :key="`texto-${topico.id}`"
-            class="panorama__tema-item"
-            :class="{ activo: topico.id === textoActivoId }"
-            :aria-label="topico.name"
-            :title="topico.name"
-            @click="seleccionarTextoTopico(topico.id)"
-          >
-            <img
-              v-if="topico.custom_icon"
-              :src="topico.custom_icon"
-              alt=""
-              class="panorama__tema-icono"
-            />
-            <span v-else :class="`pictograma-${topico.icon}`" />
-            <span v-if="panorama.datos.icon_title" class="panorama__tema-nombre">
-              {{ topico.name }}
-            </span>
-          </button>
-        </nav>
-
-        <div class="panorama__mapa">
-          <div class="panorama__control panorama__control--info">
-            <button
-              v-if="panorama.datos.extra_info"
-              type="button"
-              class="boton-pictograma boton-primario"
-              aria-label="Información del panorama"
-              title="Información del panorama"
-              @click="modalInfoAdicional?.abrirModal()"
+            <header
+              class="panorama__ventana-info-encabezado"
+              @pointerdown="iniciarArrastreVentanaInfo"
+              @pointermove="moverVentanaInfo"
+              @pointerup="terminarArrastreVentanaInfo"
+              @pointercancel="terminarArrastreVentanaInfo"
             >
-              <span class="pictograma-informacion" aria-hidden="true" />
-            </button>
-          </div>
+              <h2 id="titulo-ventana-info" class="panorama__ventana-info-titulo">
+                {{
+                  tipoInfoFlotante === 'capa'
+                    ? capaInfo?.dataset_title || capaInfo?.name
+                    : panorama.datos.name
+                }}
+              </h2>
+
+              <button
+                type="button"
+                class="panorama__ventana-info-cerrar"
+                aria-label="Cerrar información"
+                title="Cerrar información"
+                @pointerdown.stop
+                @click="cerrarVentanaInfo"
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </header>
+
+            <div class="panorama__ventana-info-contenido">
+              <p v-if="tipoInfoFlotante === 'panorama'">
+                {{ panorama.datos.extra_info }}
+              </p>
+
+              <template v-else-if="tipoInfoFlotante === 'capa'">
+                <template v-if="capaInfo?.narrative || capaInfo?.dataset_abstract">
+                  <div v-if="capaInfo.narrative" class="m-b-4">
+                    <h3>Narrativa</h3>
+                    <!-- eslint-disable-next-line vue/no-v-html -->
+                    <div
+                      class="panorama__texto-info"
+                      v-html="DOMPurify.sanitize(capaInfo.narrative)"
+                    />
+                  </div>
+
+                  <div v-if="capaInfo.dataset_abstract">
+                    <h3>Descripción de la capa</h3>
+                    <p class="panorama__texto-info">
+                      {{ capaInfo.dataset_abstract }}
+                    </p>
+                  </div>
+                </template>
+
+                <p v-else>Esta capa no tiene información adicional.</p>
+              </template>
+            </div>
+          </section>
 
           <div class="panorama__control panorama__control--leyenda">
             <button
@@ -544,6 +771,8 @@ const vista = ref({ centro: [-103.5, 23.6], acercamiento: 5 });
                 :capa="externo.wms_layers"
                 :posicion="externo.stack_order"
                 :consulta="(url) => gnoxyFetch(url)"
+                @al-iniciar-carga="alIniciarCargaWms(externo)"
+                @al-finalizar-carga="(cargaExitosa) => alFinalizarCargaWms(externo, cargaExitosa)"
               />
               <SisdaiCapaXyz v-else :fuente="externo.url" :posicion="externo.stack_order" />
             </template>
@@ -650,35 +879,6 @@ const vista = ref({ centro: [-103.5, 23.6], acercamiento: 5 });
                 <span class="pictograma-metadatos" aria-hidden="true" />
               </button>
             </div>
-          </template>
-        </SisdaiModal>
-
-        <SisdaiModal ref="modalInfoAdicional">
-          <template #encabezado>
-            <h2 class="m-t-0">{{ panorama.datos.name }}</h2>
-          </template>
-          <template #cuerpo>
-            <p>{{ panorama.datos.extra_info }}</p>
-          </template>
-        </SisdaiModal>
-
-        <SisdaiModal ref="modalCapaInfo">
-          <template #encabezado>
-            <h2 class="m-t-0">{{ capaInfo?.dataset_title || capaInfo?.name }}</h2>
-          </template>
-          <template #cuerpo>
-            <template v-if="capaInfo?.narrative || capaInfo?.dataset_abstract">
-              <div v-if="capaInfo.narrative" class="m-b-4">
-                <h3>Narrativa</h3>
-                <!-- eslint-disable-next-line vue/no-v-html -->
-                <div class="panorama__texto-info" v-html="DOMPurify.sanitize(capaInfo.narrative)" />
-              </div>
-              <div v-if="capaInfo.dataset_abstract">
-                <h3>Descripción de la capa</h3>
-                <p class="panorama__texto-info">{{ capaInfo.dataset_abstract }}</p>
-              </div>
-            </template>
-            <p v-else>Esta capa no tiene información adicional.</p>
           </template>
         </SisdaiModal>
 
@@ -792,27 +992,6 @@ const vista = ref({ centro: [-103.5, 23.6], acercamiento: 5 });
           </template>
           <template #cuerpo>
             <p class="panorama__texto-info">{{ itemTextoActivo?.contents }}</p>
-          </template>
-        </SisdaiModal>
-
-        <SisdaiModal ref="modalWmsExternos">
-          <template #encabezado>
-            <h2 class="m-t-0">WMS externos</h2>
-          </template>
-          <template #cuerpo>
-            <div
-              v-for="externo in panorama.datos.external_wms"
-              :key="`toggle-externo-${externo.id}`"
-              class="panorama__capa-etiqueta m-b-2"
-            >
-              <input
-                :id="`toggle-externo-${externo.id}`"
-                type="checkbox"
-                :checked="wmsExternosEncendidos.has(externo.id)"
-                @change="alternarWmsExterno(externo)"
-              />
-              <label :for="`toggle-externo-${externo.id}`">{{ externo.name }}</label>
-            </div>
           </template>
         </SisdaiModal>
       </ClientOnly>
@@ -977,6 +1156,36 @@ const vista = ref({ centro: [-103.5, 23.6], acercamiento: 5 });
     font-size: 0.85rem;
   }
 
+  &__wms-item {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--color-secundario-4);
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  &__wms-item .estado-carga-capa {
+    margin-top: 5px;
+    margin-left: 22px;
+  }
+
+  &__wms-reintentar {
+    margin-top: 4px;
+    margin-left: 22px;
+    padding: 0;
+    color: var(--color-primario-1);
+    font-size: 0.78rem;
+    text-decoration: underline;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: none;
+    }
+  }
+
   &__capa-titulo {
     margin: 0 0 4px;
     font-size: 0.85rem;
@@ -1002,6 +1211,104 @@ const vista = ref({ centro: [-103.5, 23.6], acercamiento: 5 });
 
   &__contenedor-tabla {
     overflow-y: auto;
+  }
+
+  &__ventana-info {
+    position: absolute;
+    z-index: 30;
+
+    // Es más ancho que alto y se adapta al espacio disponible.
+    width: clamp(520px, 42vw, 760px);
+    max-width: calc(100% - 32px);
+    max-height: min(55vh, calc(100% - 32px));
+
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
+    // Evita que el contenido desaparezca en vista oscura.
+    color: #1f1f1f;
+    background-color: #ffffff;
+
+    border: 1px solid #b8b8b8;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 22%);
+
+    &.esta-arrastrando {
+      user-select: none;
+    }
+  }
+
+  &__ventana-info-encabezado {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 16px;
+    color: var(--texto-inverso);
+    background-color: var(--color-primario-4);
+    cursor: grab;
+    touch-action: none;
+
+    .esta-arrastrando & {
+      cursor: grabbing;
+    }
+  }
+
+  &__ventana-info-titulo {
+    margin: 0;
+    font-size: 1.15rem;
+    line-height: 1.3;
+  }
+
+  &__ventana-info-cerrar {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    color: inherit;
+    font-size: 1.7rem;
+    line-height: 1;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+      background-color: rgb(255 255 255 / 18%);
+    }
+  }
+
+  &__ventana-info-contenido {
+    min-height: 96px;
+    padding: 16px;
+    overflow: auto;
+    overscroll-behavior: contain;
+    color: #1f1f1f;
+    background-color: #ffffff;
+
+    h3,
+    p,
+    li,
+    strong,
+    div {
+      color: inherit;
+    }
+  }
+  @media (max-width: 600px) {
+    &__ventana-info {
+      width: calc(100% - 24px);
+      max-height: calc(100% - 24px);
+    }
+
+    &__ventana-info-encabezado {
+      padding: 10px 12px;
+    }
+
+    &__ventana-info-contenido {
+      padding: 12px;
+    }
   }
 
   &__texto-error {

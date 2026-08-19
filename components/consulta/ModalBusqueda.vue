@@ -48,13 +48,23 @@ const ogcCategoriesDict = {
   'Utilities Communication': 'utilitiesCommunication',
 };
 
-const sigicCategoriesDict = {
-  'Medio ambiente y recursos naturales': 'medioAmbienteRecursosNaturales',
-  'Infraestructura y servicios urbanos regionales': 'infraestructuraServiciosUrbanosRegionales',
-  'Territorio, límites y catastro': 'territorioLimitesCatastro',
-  'Sociedad, demografía y economía': 'sociedadDemografiaEconomia',
-  'Sensores remotos y mapas base': 'sensoresRemotosMapasBase',
-};
+// Categorías SIGIC: en vez de la lista fija original, se cargan las
+// publicadas del conjunto activo para que las categorías creadas o
+// editadas desde Gestión de categorías también aparezcan aquí.
+const sigicCategoriesDict = ref({});
+
+onMounted(async () => {
+  try {
+    const categoriasApi = useCategoriasApi();
+    const visibles = await categoriasApi.fetchCategoriasVisibles();
+    sigicCategoriesDict.value = Object.fromEntries(
+      visibles.map((categoria) => [categoria.nombre, categoria.identifier])
+    );
+  } catch (err) {
+    console.error('No se pudieron cargar las categorías SIGIC:', err);
+  }
+});
+
 function abrirModalBusqueda() {
   modalBusqueda.value?.abrirModal();
 }

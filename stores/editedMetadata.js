@@ -1,10 +1,5 @@
 import { defineStore } from 'pinia';
-import {
-  categoriesNames,
-  unaccentUppercase,
-  OGC_CATEGORY_IDENTIFIERS,
-  SIGIC_CATEGORY_IDENTIFIERS,
-} from '~/utils/consulta';
+import { unaccentUppercase, OGC_CATEGORY_IDENTIFIERS } from '~/utils/consulta';
 
 export const useEditedMetadataStore = defineStore('editedMetadata', () => {
   const config = useRuntimeConfig();
@@ -89,7 +84,9 @@ export const useEditedMetadataStore = defineStore('editedMetadata', () => {
           metadata[key] = identifier;
           if (identifier && OGC_CATEGORY_IDENTIFIERS.has(identifier)) {
             metadata.categoriaOGC = identifier;
-          } else if (identifier && SIGIC_CATEGORY_IDENTIFIERS.has(identifier)) {
+          } else if (identifier) {
+            // Cualquier categoría que no sea del estándar OGC es SIGIC/personalizable
+            // por instancia (conjuntos de categorías); no depende de una lista fija.
             metadata.categoriaSIGIC = identifier;
           }
         } else if (key === 'keywords') {
@@ -167,10 +164,13 @@ export const useEditedMetadataStore = defineStore('editedMetadata', () => {
         metaDict['date'] = new Date(metadata.date).toISOString(); //
       }
       if (metadata.category && metadata.category.length > 0) {
-        metaDict['category'] = {
-          identifier: metadata.category,
-          gn_description: categoriesNames[metadata.category],
-        };
+        // Solo se manda el identifier: GeoNode resuelve la TopicCategory con
+        // TopicCategory.objects.get(**data), que hace match EXACTO de todos
+        // los campos enviados. Si se manda también gn_description y no
+        // coincide carácter por carácter con el valor real en BD (p. ej. una
+        // categoría creada o editada desde Gestión de categorías), la
+        // petición falla con 400 aunque el identifier sea correcto.
+        metaDict['category'] = { identifier: metadata.category };
       }
       if (metadata.keywords && metadata.keywords.length > 0) {
         metaDict['keywords'] = unaccentUppercase(metadata.keywords).split(', ');

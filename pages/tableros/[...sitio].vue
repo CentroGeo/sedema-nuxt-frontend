@@ -176,7 +176,7 @@ cargarSitio();
       <NuxtLink
         v-if="esModoPreview && sitio.datos?.is_owner && sitio.datos?.id"
         :to="`/geocontenidos/tableros/${sitio.datos.id}`"
-        class="tablero-pagina__boton-editar"
+        class="boton boton-primario tablero-pagina__boton-editar"
         title="Editar tablero"
       >
         <span class="pictograma-editar m-r-1" />
@@ -257,22 +257,9 @@ cargarSitio();
     bottom: 1.5rem;
     right: 1.5rem;
     z-index: 900;
-    display: inline-flex;
-    align-items: center;
-    padding: 0.5rem 1rem;
-    background: #691c32;
-    color: #ffffff;
-    border-radius: 24px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    text-decoration: none;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-    transition:
-      background 0.15s,
-      box-shadow 0.15s;
 
     &:hover {
-      background: #4e1525;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
     }
   }

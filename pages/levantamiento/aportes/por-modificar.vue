@@ -30,9 +30,7 @@ onMounted(async () => {
     porModificar.value = aportes.map((aporte) => ({
       ...aporte,
       title: aporte.title || aporte.nombre || 'Aporte sin título',
-      fecha_formateada: aporte.fecha_guardado
-        ? formatDate(new Date(aporte.fecha_guardado))
-        : '',
+      fecha_formateada: aporte.fecha_guardado ? formatDate(new Date(aporte.fecha_guardado)) : '',
     }));
   } catch {
     errorAportes.value = 'No fue posible cargar los aportes por modificar.';

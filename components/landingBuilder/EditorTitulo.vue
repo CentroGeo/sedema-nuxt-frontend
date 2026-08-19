@@ -8,13 +8,25 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue']);
 
-const editableTitulo = ref(null);
+const { sanitizarHtmlEnriquecido } = useTextoEnriquecido();
 
-const tamanosTitulo = {
-  pequeno: '1.5rem',
-  mediano: '2rem',
-  grande: '2.5rem',
-  'extra-grande': '3rem',
+const editableTitulo = ref(null);
+const negritaActiva = ref(false);
+const alineacionActiva = ref('left');
+const tamanoActivo = ref('grande');
+
+// document.execCommand('fontSize') solo soporta la escala legada 1-7 vía
+// <font size="N">; se usa como mecanismo (con estilos propios en CSS) porque
+// es lo único que aplica de forma nativa y confiable a la selección actual
+// en vez de a todo el bloque.
+const TAMANO_A_LEGADO = { pequeno: '3', mediano: '4', grande: '5', 'extra-grande': '6' };
+const LEGADO_A_TAMANO = { 3: 'pequeno', 4: 'mediano', 5: 'grande', 6: 'extra-grande' };
+
+const COMANDOS_ALINEACION = {
+  left: 'justifyLeft',
+  center: 'justifyCenter',
+  right: 'justifyRight',
+  justify: 'justifyFull',
 };
 
 function colorTextoResuelto(color) {
@@ -22,10 +34,7 @@ function colorTextoResuelto(color) {
 }
 
 const estilosTitulo = computed(() => ({
-  textAlign: props.modelValue.alineacion || 'left',
   color: colorTextoResuelto(props.modelValue.color),
-  fontWeight: props.modelValue.negrita ? 700 : 400,
-  fontSize: tamanosTitulo[props.modelValue.tamano] || tamanosTitulo.grande,
 }));
 
 function obtenerTextoModelo() {
@@ -45,37 +54,84 @@ function sincronizarContenido() {
 
     if (!elemento || document.activeElement === elemento) return;
 
-    const texto = obtenerTextoModelo();
+    const html = obtenerTextoModelo();
 
-    if (elemento.textContent !== texto) {
-      elemento.textContent = texto;
+    if (elemento.innerHTML !== html) {
+      elemento.innerHTML = html;
     }
   });
 }
 
 function actualizarTitulo(event) {
-  const texto = event.currentTarget?.textContent ?? '';
+  const html = sanitizarHtmlEnriquecido(event.currentTarget?.innerHTML ?? '');
 
-  actualizarPropiedad('texto', texto);
+  actualizarPropiedad('texto', html);
+}
+
+function calcularAlineacionActiva() {
+  if (document.queryCommandState('justifyCenter')) return 'center';
+  if (document.queryCommandState('justifyRight')) return 'right';
+  return 'left';
+}
+
+function actualizarEstadoFormato() {
+  const activo = document.activeElement === editableTitulo.value;
+
+  negritaActiva.value = activo && document.queryCommandState('bold');
+  alineacionActiva.value = activo ? calcularAlineacionActiva() : 'left';
+  tamanoActivo.value =
+    (activo && LEGADO_A_TAMANO[document.queryCommandValue('fontSize')]) || 'grande';
+}
+
+function alternarNegrita() {
+  editableTitulo.value?.focus();
+  document.execCommand('bold');
+  actualizarTitulo({ currentTarget: editableTitulo.value });
+  actualizarEstadoFormato();
+}
+
+function cambiarAlineacion(alineacion) {
+  editableTitulo.value?.focus();
+  document.execCommand(COMANDOS_ALINEACION[alineacion] || 'justifyLeft');
+  actualizarTitulo({ currentTarget: editableTitulo.value });
+  actualizarEstadoFormato();
+}
+
+function cambiarTamano(tamano) {
+  editableTitulo.value?.focus();
+  document.execCommand('fontSize', false, TAMANO_A_LEGADO[tamano] || '5');
+  actualizarTitulo({ currentTarget: editableTitulo.value });
+  actualizarEstadoFormato();
 }
 
 watch(() => props.modelValue?.texto, sincronizarContenido, {
   immediate: true,
 });
 
-onMounted(sincronizarContenido);
+onMounted(() => {
+  sincronizarContenido();
+  // Fuerza que negritas/etc. produzcan etiquetas semánticas (<b>) en vez de
+  // `style` inline; el saneador solo conserva <b> y no atributos de estilo
+  // arbitrarios, así que sin esto la negrita se perdía al guardar.
+  document.execCommand('styleWithCSS', false, false);
+  document.addEventListener('selectionchange', actualizarEstadoFormato);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('selectionchange', actualizarEstadoFormato);
+});
 </script>
 
 <template>
   <section class="editor-titulo contenedor ancho-fijo">
     <LandingBuilderBarraHerramientasTexto
       tipo="titulo"
-      :negrita="Boolean(props.modelValue.negrita)"
-      :alineacion="props.modelValue.alineacion || 'left'"
-      :tamano="props.modelValue.tamano || 'grande'"
-      @update:negrita="actualizarPropiedad('negrita', $event)"
-      @update:alineacion="actualizarPropiedad('alineacion', $event)"
-      @update:tamano="actualizarPropiedad('tamano', $event)"
+      :negrita="negritaActiva"
+      :alineacion="alineacionActiva"
+      :tamano="tamanoActivo"
+      @update:negrita="alternarNegrita"
+      @update:alineacion="cambiarAlineacion"
+      @update:tamano="cambiarTamano"
     />
 
     <h2
@@ -129,9 +185,9 @@ onMounted(sincronizarContenido);
     outline: none;
     line-height: 1.25;
     overflow-wrap: anywhere;
-    transition:
-      font-size 0.15s ease,
-      font-weight 0.15s ease;
+    font-size: 2.5rem;
+    text-align: left;
+    transition: color 0.15s ease;
 
     &:empty::before {
       color: var(--texto-secundario);
@@ -142,6 +198,30 @@ onMounted(sincronizarContenido);
 
     &:focus-visible {
       outline: none;
+    }
+
+    :deep(font[size='3']) {
+      font-size: 1.5rem;
+    }
+
+    :deep(font[size='4']) {
+      font-size: 2rem;
+    }
+
+    :deep(font[size='5']) {
+      font-size: 2.5rem;
+    }
+
+    :deep(font[size='6']) {
+      font-size: 3rem;
+    }
+
+    // sisdai-css define b/strong con font-weight: 500, pero la tipografía
+    // real no tiene esa variante y el navegador cae a 400 (se ve igual que
+    // el texto normal); se fuerza 700 para que la negrita sea visible.
+    :deep(b),
+    :deep(strong) {
+      font-weight: 700;
     }
   }
 }

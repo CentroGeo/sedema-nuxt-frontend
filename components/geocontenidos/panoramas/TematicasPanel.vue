@@ -1,8 +1,8 @@
 <script setup>
 import SisdaiModal from '@centrogeomx/sisdai-componentes/src/componentes/modal/SisdaiModal.vue';
 import { usePanoramaCapasAdapter } from '~/composables/capas/usePanoramaCapasAdapter';
-import { iconosTematicaPanorama } from '~/utils/geocontenidos/basemapsPanorama';
 import { categoriesNamesInSpanish } from '~/utils/consulta';
+import { iconosTematicaPanorama } from '~/utils/geocontenidos/basemapsPanorama';
 
 const props = defineProps({
   panoramaId: { type: [String, Number], required: true },
@@ -272,10 +272,11 @@ async function alSoltar(event, idQuitar, posicionQuitar) {
             <button
               class="boton boton-chico boton-secundario"
               type="button"
+              title="Administrar las ubicaciones de esta temática"
               @click="abrirSelectorCapa(tematica.id, 'marcadores')"
             >
-              <span class="pictograma-mapa-generador m-r-1" />
-              Agregar/Editar marcadores
+              <span class="pictograma-mapa-generador m-r-1" aria-hidden="true" />
+              Administrar ubicaciones
             </button>
 
             <button

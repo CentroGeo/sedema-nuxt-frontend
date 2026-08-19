@@ -180,7 +180,7 @@ cargarSitio();
   <section>
     <!-- Sesión requerida -->
     <div v-if="noAutenticado" class="sesion-requerida">
-      <span class="pictograma-candado sesion-requerida__icono" aria-hidden="true" />
+      <span class="pictograma-privado sesion-requerida__icono" aria-hidden="true" />
       <h2 class="sesion-requerida__titulo">Acceso restringido</h2>
       <p class="sesion-requerida__desc">
         Para editar este tablero necesitas iniciar sesión con tu cuenta institucional.
@@ -202,7 +202,7 @@ cargarSitio();
           class="boton boton-secundario boton-chico"
           target="_blank"
         >
-          <span class="pictograma-visualizar m-r-1" />
+          <span class="pictograma-previsualizar m-r-1" />
           Ver tablero
         </NuxtLink>
 
@@ -214,7 +214,7 @@ cargarSitio();
           @click="togglearPublico"
         >
           <span
-            :class="sitio.is_public ? 'pictograma-ojo' : 'pictograma-ojo-cerrado'"
+            :class="sitio.is_public ? 'pictograma-ojo-ver' : 'pictograma-ojo-ocultar'"
             class="m-r-1"
           />
           {{

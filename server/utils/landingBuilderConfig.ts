@@ -58,9 +58,37 @@ export interface LandingBuilderConfig {
 
 export interface LandingBuilderBloque {
   id: string;
-  tipo: 'portada' | 'titulo' | 'parrafo' | 'texto-imagen' | 'texto' | 'carrusel' | 'tarjetas';
+  tipo:
+    | 'portada'
+    | 'titulo'
+    | 'parrafo'
+    | 'texto-imagen'
+    | 'texto'
+    | 'carrusel'
+    | 'tarjetas'
+    | 'mapa';
   etiqueta?: string;
   datos: Record<string, unknown>;
+}
+
+export type LandingBuilderRedSocial = 'facebook' | 'x' | 'instagram' | 'youtube' | 'linkedin';
+
+export interface LandingBuilderPiePaginaEnlace {
+  id: string;
+  texto: string;
+  url: string;
+}
+
+export interface LandingBuilderPiePaginaRedSocial {
+  id: string;
+  red: LandingBuilderRedSocial;
+  url: string;
+}
+
+export interface LandingBuilderPiePagina {
+  texto: string;
+  enlaces: LandingBuilderPiePaginaEnlace[];
+  redesSociales: LandingBuilderPiePaginaRedSocial[];
 }
 
 export interface LandingBuilderPaginaIdentidad {
@@ -73,6 +101,8 @@ export interface LandingBuilderPaginaIdentidad {
   logoSecundarioRedirectUrl?: string | null;
   logoTerceroRedirectUrl?: string | null;
   logoCuartoRedirectUrl?: string | null;
+  colorTema?: string | null;
+  piePagina?: LandingBuilderPiePagina;
 }
 
 export interface LandingBuilderPagina {
@@ -90,6 +120,8 @@ export const IDENTIDAD_PAGINA_VACIA: LandingBuilderPaginaIdentidad = {
   logoSecundarioUrl: null,
   logoTerceroUrl: null,
   logoCuartoUrl: null,
+  colorTema: null,
+  piePagina: { texto: '', enlaces: [], redesSociales: [] },
 };
 
 export interface LandingBuilderLogo {
@@ -106,6 +138,58 @@ export const TIPOS_LOGO_PAGINA_PERMITIDOS = [
   'image/svg+xml',
 ];
 export const TAMANO_MAXIMO_LOGO_PAGINA = 2 * 1024 * 1024; // 2MB
+
+export const REDES_SOCIALES_PIE_PERMITIDAS: LandingBuilderRedSocial[] = [
+  'facebook',
+  'x',
+  'instagram',
+  'youtube',
+  'linkedin',
+];
+export const LIMITE_ENLACES_PIE = 6;
+export const LIMITE_REDES_SOCIALES_PIE = 6;
+const LONGITUD_MAXIMA_TEXTO_PIE = 500;
+
+export function sanitizarColorTema(valor: unknown): string | null {
+  if (typeof valor !== 'string') return null;
+  return /^#[0-9A-Fa-f]{6}$/.test(valor) ? valor.toUpperCase() : null;
+}
+
+export function sanitizarPiePagina(valor: unknown): LandingBuilderPiePagina {
+  const entrada = (valor && typeof valor === 'object' ? valor : {}) as Partial<
+    Record<keyof LandingBuilderPiePagina, unknown>
+  >;
+
+  const texto =
+    typeof entrada.texto === 'string'
+      ? entrada.texto.trim().slice(0, LONGITUD_MAXIMA_TEXTO_PIE)
+      : '';
+
+  const enlacesEntrantes = Array.isArray(entrada.enlaces) ? entrada.enlaces : [];
+  const enlaces: LandingBuilderPiePaginaEnlace[] = enlacesEntrantes
+    .slice(0, LIMITE_ENLACES_PIE)
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
+    .map((item) => ({
+      id: typeof item.id === 'string' && item.id ? item.id : crypto.randomUUID(),
+      texto: typeof item.texto === 'string' ? item.texto.trim().slice(0, 120) : '',
+      url: typeof item.url === 'string' ? item.url.trim().slice(0, 2048) : '',
+    }))
+    .filter((enlace) => enlace.texto || enlace.url);
+
+  const redesEntrantes = Array.isArray(entrada.redesSociales) ? entrada.redesSociales : [];
+  const redesSociales: LandingBuilderPiePaginaRedSocial[] = redesEntrantes
+    .slice(0, LIMITE_REDES_SOCIALES_PIE)
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
+    .filter((item) => REDES_SOCIALES_PIE_PERMITIDAS.includes(item.red as LandingBuilderRedSocial))
+    .map((item) => ({
+      id: typeof item.id === 'string' && item.id ? item.id : crypto.randomUUID(),
+      red: item.red as LandingBuilderRedSocial,
+      url: typeof item.url === 'string' ? item.url.trim().slice(0, 2048) : '',
+    }))
+    .filter((red) => red.url);
+
+  return { texto, enlaces, redesSociales };
+}
 
 export function validarYObtenerMimetypeImagen(
   archivo: any,
@@ -136,6 +220,7 @@ export const CAMPO_IDENTIDAD_POR_SLOT: Record<
 };
 
 const CONFIG_KEY = 'config.json';
+const IDENTIDAD_GOBMX_KEY = 'identidad-gobmx.json';
 const LOGO_KEY = 'logo:archivo';
 const LOGO_META_KEY = 'logo:meta.json';
 const LOGO_SECUNDARIO_KEY = 'logo_secundario:archivo';
@@ -207,6 +292,21 @@ const configPorDefecto: LandingBuilderConfig = {
   paginaInicioId: null,
   actualizadoEn: new Date(0).toISOString(),
 };
+
+// Ajuste global del sitio (no ligado a una página del constructor): oculta
+// o muestra la barra y el pie de página de identidad de Gobierno de México
+// en todo el sitio, en cualquier módulo, para todas las personas visitantes.
+export async function getMostrarIdentidadGobMx(): Promise<boolean> {
+  const storage = useStorage('landingBuilder');
+  const valor = await storage.getItem<{ mostrarIdentidadGobMx: boolean }>(IDENTIDAD_GOBMX_KEY);
+  return valor?.mostrarIdentidadGobMx !== false;
+}
+
+export async function setMostrarIdentidadGobMx(mostrar: boolean): Promise<boolean> {
+  const storage = useStorage('landingBuilder');
+  await storage.setItem(IDENTIDAD_GOBMX_KEY, { mostrarIdentidadGobMx: mostrar });
+  return mostrar;
+}
 
 export async function getLandingBuilderConfig(): Promise<LandingBuilderConfig> {
   const storage = useStorage('landingBuilder');
@@ -551,10 +651,11 @@ export async function getLandingBuilderPaginaLogo(
 
 export async function getLandingBuilderPaginas(): Promise<LandingBuilderPagina[]> {
   const config = await getLandingBuilderConfig();
-  // Compatibilidad con páginas creadas antes de que existiera la identidad por página.
+  // Compatibilidad con páginas creadas antes de que existiera la identidad por página
+  // (o antes de campos agregados después, como colorTema/piePagina).
   return (config.paginas ?? []).map((pagina) => ({
     ...pagina,
-    identidad: pagina.identidad ?? IDENTIDAD_PAGINA_VACIA,
+    identidad: { ...IDENTIDAD_PAGINA_VACIA, ...(pagina.identidad ?? {}) },
   }));
 }
 
@@ -568,7 +669,8 @@ export async function getLandingBuilderPaginaPorSlug(
 export async function crearLandingBuilderPagina(
   bloques: LandingBuilderBloque[],
   identidad: LandingBuilderPaginaIdentidad = IDENTIDAD_PAGINA_VACIA,
-  idPredefinido?: string
+  idPredefinido?: string,
+  nombrePersonalizado?: string
 ): Promise<LandingBuilderPagina[]> {
   const storage = useStorage('landingBuilder');
   const config = await getLandingBuilderConfig();
@@ -582,10 +684,11 @@ export async function crearLandingBuilderPagina(
   }
 
   const numero = paginas.length + 1;
+  const nombre = nombrePersonalizado || `Página ${numero}`;
   const nuevaPagina: LandingBuilderPagina = {
     id: idPredefinido ?? `pagina-${Date.now()}`,
-    nombre: `Página ${numero}`,
-    slug: `pagina-${numero}`,
+    nombre,
+    slug: generarSlugUnico(nombre, paginas),
     bloques,
     identidad,
     creadaEn: new Date().toISOString(),

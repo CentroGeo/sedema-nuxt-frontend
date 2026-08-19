@@ -29,9 +29,7 @@ onMounted(async () => {
     rechazados.value = aportes.map((aporte) => ({
       ...aporte,
       title: aporte.title || aporte.titulo || aporte.nombre || 'Aporte sin título',
-      fecha_formateada: aporte.fecha_guardado
-        ? formatDate(new Date(aporte.fecha_guardado))
-        : '',
+      fecha_formateada: aporte.fecha_guardado ? formatDate(new Date(aporte.fecha_guardado)) : '',
     }));
   } catch {
     errorRechazados.value = 'No fue posible cargar los aportes rechazados.';
@@ -61,9 +59,7 @@ async function eliminarAporte() {
   if (!aporteSeleccionado.value?.id) return;
 
   await storeLevantamiento.eliminarAporte(aporteSeleccionado.value.id);
-  rechazados.value = rechazados.value.filter(
-    (aporte) => aporte.id !== aporteSeleccionado.value.id
-  );
+  rechazados.value = rechazados.value.filter((aporte) => aporte.id !== aporteSeleccionado.value.id);
   modalRemoverAporte.value?.cerrarModal();
   aporteSeleccionado.value = {};
 }

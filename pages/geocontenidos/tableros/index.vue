@@ -96,7 +96,7 @@ watch(estaLogueado, (v) => {
   <div>
     <!-- Sesión requerida -->
     <div v-if="noAutenticado" class="sesion-requerida">
-      <span class="pictograma-candado sesion-requerida__icono" aria-hidden="true" />
+      <span class="pictograma-privado sesion-requerida__icono" aria-hidden="true" />
       <h2 class="sesion-requerida__titulo">Acceso restringido</h2>
       <p class="sesion-requerida__desc">
         Para ver y gestionar tus tableros necesitas iniciar sesión con tu cuenta institucional.
@@ -118,16 +118,22 @@ watch(estaLogueado, (v) => {
           mapas, gráficas y tarjetas de resumen, organizados en grupos y subgrupos.
         </p>
 
-        <div v-if="estaLogueado" class="flex brecha-2 m-b-4">
-          <NuxtLink to="/geocontenidos/tableros/nuevo" class="boton boton-primario">
+        <div v-if="estaLogueado" class="flex brecha-2 m-b-2">
+          <NuxtLink to="/geocontenidos/tableros/nuevo" class="boton boton-secundario">
             <span class="pictograma-agregar m-r-1" />
             Crear Tablero
           </NuxtLink>
-          <NuxtLink to="/geocontenidos/importar-datos" class="boton boton-secundario">
+          <NuxtLink to="/geocontenidos/importar-datos" class="boton boton-primario">
             <span class="pictograma-archivo-subir m-r-1" />
-            Desde mis datos
+            Importar datos
           </NuxtLink>
         </div>
+
+        <p v-if="estaLogueado" class="formulario-ayuda m-b-4">
+          <strong>Importar datos</strong> publica un archivo tuyo (CSV, XLSX, XLS o JSON) como capa
+          y genera un tablero nuevo con sus indicadores. Usa <strong>Crear Tablero</strong> si
+          prefieres partir de capas que ya están en el catálogo.
+        </p>
       </div>
 
       <GeocontenidosLoader v-if="estaCargando" />

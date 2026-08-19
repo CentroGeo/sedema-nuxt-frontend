@@ -437,11 +437,22 @@ onBeforeUnmount(() => {
       </div>
 
       <div v-if="!reposicionando" class="portada-editor__contenido">
-        <h1 id="landing-builder-titulo" :style="{ color: colorTituloPortada }">
+        <h1
+          id="landing-builder-titulo"
+          :style="{
+            color: colorTituloPortada,
+            textShadow: calcularSombraTexto(colorTituloPortada),
+          }"
+        >
           {{ tituloPortada }}
         </h1>
 
-        <p :style="{ color: colorSubtituloPortada }">
+        <p
+          :style="{
+            color: colorSubtituloPortada,
+            textShadow: calcularSombraTexto(colorSubtituloPortada),
+          }"
+        >
           {{ subtituloPortada }}
         </p>
 
@@ -513,11 +524,14 @@ onBeforeUnmount(() => {
     align-items: center;
     justify-content: center;
     padding: 32px 24px;
+    // Oscurece de forma pareja en todo el marco (no solo abajo) para que el
+    // texto centrado siga siendo legible incluso sobre imágenes con mucho
+    // detalle/contraste propio, no solo fotografías uniformes.
     background: linear-gradient(
       180deg,
-      rgb(0 0 0 / 18%) 0%,
-      rgb(0 0 0 / 38%) 55%,
-      rgb(0 0 0 / 65%) 100%
+      rgb(0 0 0 / 45%) 0%,
+      rgb(0 0 0 / 55%) 50%,
+      rgb(0 0 0 / 70%) 100%
     );
   }
 

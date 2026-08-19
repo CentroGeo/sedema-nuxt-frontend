@@ -497,6 +497,13 @@ onMounted(cargarDetalle);
         width: 28px;
         height: 28px;
         padding: 0;
+
+        // El botón no lleva texto junto al ícono: sin esto hereda el
+        // padding-left que sisdai reserva para separar ícono y texto,
+        // y el pictograma queda descentrado dentro del cuadro.
+        [class*='pictograma-'] {
+          padding: 0;
+        }
       }
     }
   }
@@ -508,6 +515,10 @@ onMounted(cargarDetalle);
     width: 28px;
     height: 28px;
     padding: 0;
+
+    [class*='pictograma-'] {
+      padding: 0;
+    }
   }
 
   &__drop {

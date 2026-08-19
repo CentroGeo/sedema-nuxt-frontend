@@ -276,6 +276,8 @@ onMounted(cargarIndicadores);
   }
 
   &__tarjeta {
+    display: flex;
+    flex-direction: column;
     padding: 1rem;
     border-radius: 8px;
     border-width: 2px;
@@ -286,7 +288,11 @@ onMounted(cargarIndicadores);
     footer {
       display: flex;
       gap: 0.3rem;
-      margin-top: 0.75rem;
+      // Ancla los botones al fondo de la tarjeta para que Editar/Eliminar
+      // queden a la misma altura entre tarjetas, sin importar cuánto texto
+      // (nombre, badge "Porcentual") tenga cada una arriba.
+      margin-top: auto;
+      padding-top: 0.75rem;
     }
 
     &__btn-tarjeta {

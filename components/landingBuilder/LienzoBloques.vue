@@ -108,6 +108,12 @@ const tiposBloquePadre = [
     descripcion: 'Muestra un conjunto de tarjetas editables en sitio.',
     icono: '▤',
   },
+  {
+    id: 'mapa',
+    etiqueta: 'Mapa embebido',
+    descripcion: 'Inserta un mapa de Geocontenidos pegando su código embed.',
+    icono: '◫',
+  },
 ];
 
 function crearId() {
@@ -187,21 +193,14 @@ function crearDatosPortada() {
 function crearDatosTitulo() {
   return {
     texto: '',
-    alineacion: 'left',
     color: '#FFFFFF',
-    negrita: true,
-    tamano: 'grande',
   };
 }
 
 function crearDatosParrafo() {
   return {
     texto: '',
-    alineacion: 'left',
     color: '#FFFFFF',
-    negrita: false,
-    tamano: 'normal',
-    tipoLista: 'ninguna',
   };
 }
 
@@ -209,11 +208,7 @@ function crearDatosTextoImagen() {
   return {
     parrafo: {
       texto: 'Escribe aquí la descripción de la sección.',
-      alineacion: 'left',
       color: '#FFFFFF',
-      negrita: false,
-      tamano: 'normal',
-      tipoLista: 'ninguna',
     },
     posicionImagen: 'derecha',
     imagen: {
@@ -230,6 +225,15 @@ function crearDatosCarrusel() {
   };
 }
 
+function crearDatosMapa() {
+  return {
+    codigoEmbed: '',
+    url: '',
+    alto: 480,
+    titulo: '',
+  };
+}
+
 function crearDatosTarjetas() {
   return {
     disposicion: 'vertical',
@@ -240,9 +244,7 @@ function crearDatosTarjetas() {
         descripcion: '',
         imagenUrl: '/inicio/tarjeta_visualiza.png',
         tituloTipo: 'h2',
-        tituloAlineacion: 'left',
         descripcionTipo: 'p',
-        descripcionAlineacion: 'left',
       },
     ],
   };
@@ -271,6 +273,10 @@ function crearDatosPorTipo(tipoBloque) {
 
   if (tipoBloque.id === 'tarjetas') {
     return crearDatosTarjetas();
+  }
+
+  if (tipoBloque.id === 'mapa') {
+    return crearDatosMapa();
   }
 
   return {};
@@ -392,6 +398,7 @@ function obtenerEtiquetaBloque(bloque) {
   if (bloque.tipo === 'texto') return 'Sección de texto';
   if (bloque.tipo === 'carrusel') return 'Carrusel';
   if (bloque.tipo === 'tarjetas') return 'Sección de tarjetas';
+  if (bloque.tipo === 'mapa') return 'Mapa embebido';
 
   return 'Bloque';
 }
@@ -575,6 +582,8 @@ onBeforeUnmount(() => {
             :seccion-id="bloque.id"
             :datos="bloque.datos"
           />
+
+          <LandingBuilderEditorMapa v-else-if="bloque.tipo === 'mapa'" v-model="bloque.datos" />
         </div>
       </article>
 
