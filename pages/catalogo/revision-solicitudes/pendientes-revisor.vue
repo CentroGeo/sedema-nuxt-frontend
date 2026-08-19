@@ -88,11 +88,23 @@ watch(
   { deep: true }
 );
 
+function alCambiarVisibilidadPestania() {
+  if (document.visibilityState === 'visible') {
+    storeResources.getMyTotal('publicacion', { 'filter{status}': 'pending' });
+    fetchNewData();
+  }
+}
+
 onMounted(async () => {
   storeFilters.resetAll();
   storeFilters.buildQueryParams('all');
   storeResources.getMyTotal('publicacion', { 'filter{status}': 'pending' });
   fetchNewData();
+  document.addEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
 });
 </script>
 

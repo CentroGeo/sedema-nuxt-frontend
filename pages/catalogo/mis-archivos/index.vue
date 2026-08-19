@@ -187,6 +187,13 @@ watch(
   { deep: true }
 );
 
+function alCambiarVisibilidadPestania() {
+  if (document.visibilityState === 'visible') {
+    storeResources.getMyTotal(section, params.value);
+    fetchNewData();
+  }
+}
+
 onMounted(async () => {
   appliedFilters.value = false;
   await storeCatalogo.getUserInfo();
@@ -197,6 +204,11 @@ onMounted(async () => {
     ...params.value,
     'filter{owner}': storeCatalogo.userInfo.pk,
   });
+  document.addEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
 });
 </script>
 

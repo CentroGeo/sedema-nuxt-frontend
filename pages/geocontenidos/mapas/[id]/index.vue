@@ -33,6 +33,20 @@ const alternarEdicionCapas = () => (editandoCapas.value = !editandoCapas.value);
 
 const recargar = () => store.cargarMapa(mapaId.value);
 
+function alCambiarVisibilidadPestania() {
+  if (document.visibilityState === 'visible') {
+    recargar();
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
+
 // Contrato del backend (congelado): el campo de la capa es `visible`; la vista usa
 // center_lat = X/longitud, center_long = Y/latitud (así está en el modelo).
 const onToggle = ({ id: capaId, visible }) =>

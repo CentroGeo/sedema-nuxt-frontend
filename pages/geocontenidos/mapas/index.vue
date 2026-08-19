@@ -98,9 +98,19 @@ watch(paginaActual, (p) => {
   cargar(p);
 });
 
+function alCambiarVisibilidadPestania() {
+  if (document.visibilityState === 'visible') {
+    cargar(paginaActual.value);
+  }
+}
+
 onMounted(() => {
   cargar(paginaActual.value);
-  modalCrear.value?.abrir();
+  document.addEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
 });
 </script>
 
