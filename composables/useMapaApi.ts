@@ -101,6 +101,7 @@ export function useMapaApi() {
   }
 
   return {
+    fetchDataset,
     fetchMapas: (params = {}) => {
       const q = new URLSearchParams(params).toString();
       return fetchJson(`${baseUrl}/sigic-maps/${q ? `?${q}` : ''}`);

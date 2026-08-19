@@ -280,6 +280,7 @@ async function eliminar(capa) {
             </label>
 
             <span v-if="esCapaRemota(capa)" class="etiqueta-remota">Remota</span>
+            <span v-if="capa.temporal" class="etiqueta-temporal">Temporal</span>
 
             <span
               v-if="capa.dataset_is_published != null"
@@ -499,6 +500,15 @@ async function eliminar(capa) {
   white-space: nowrap;
   background-color: var(--color-secundario-2);
   color: var(--color-primario-4);
+}
+
+.etiqueta-temporal {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background-color: var(--fondo-advertencia, #fff3cd);
+  color: var(--texto-advertencia, #664d03);
+  font-size: 0.7rem;
+  white-space: nowrap;
 }
 
 .estado-carga {

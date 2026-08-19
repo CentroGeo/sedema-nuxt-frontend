@@ -17,8 +17,15 @@ export const useMapasStore = defineStore('mapas', () => {
   // false hasta que un cargarMapa termina (éxito o fallo). Distingue el estado
   // inicial "aún no se intenta" del estado real "cargó y vacío / no existe".
   const mapaCargado = ref(false);
+
+  // Los WMS remotos son temporales: viven únicamente durante la sesión actual
+  // de la página y nunca se envían al backend.
+  const capasWmsTemporales = ref([]);
+
   const layersOrdered = computed(() =>
-    [...(activeMap.value?.layers ?? [])].sort((a, b) => a.stack_order - b.stack_order)
+    [...(activeMap.value?.layers ?? []), ...capasWmsTemporales.value].sort(
+      (a, b) => a.stack_order - b.stack_order
+    )
   );
 
   // Capas de un lado del swipe/dual ('left' | 'right').
@@ -38,6 +45,93 @@ export const useMapasStore = defineStore('mapas', () => {
       `&TILEMATRIXSET=EPSG:3857&TILEMATRIX=EPSG:3857:{z}&TILEROW={y}&TILECOL={x}` +
       `&FORMAT=image/png`
     );
+  }
+
+  function esCapaTemporal(capaOId) {
+    const id = typeof capaOId === 'object' ? capaOId?.id : capaOId;
+    return String(id || '').startsWith('wms-temporal-');
+  }
+
+  async function agregarCapasWmsTemporales(datasets, mapPosition = 'left') {
+    const idsExistentes = new Set(
+      layersOrdered.value.map((capa) => Number(capa.geonode_id)).filter(Number.isFinite)
+    );
+
+    const nuevas = [];
+
+    for (const resumen of datasets) {
+      const geonodeId = Number(resumen?.pk);
+
+      if (!Number.isFinite(geonodeId) || idsExistentes.has(geonodeId)) {
+        continue;
+      }
+
+      try {
+        const dataset = (await api.fetchDataset(geonodeId)) || resumen;
+        const wmsUrl = dataset.ows_url || dataset.dataset_ows_url;
+        const wmsLayerName = dataset.remote_typename || dataset.alternate || dataset.name;
+
+        if (!wmsUrl || !wmsLayerName) {
+          continue;
+        }
+
+        const stackOrder = layersOrdered.value.length + nuevas.length + 1;
+
+        nuevas.push({
+          id: `wms-temporal-${geonodeId}`,
+          map: activeMap.value?.id ?? null,
+          geonode_id: geonodeId,
+          name: dataset.alternate || wmsLayerName,
+          dataset_title: dataset.title || resumen.title || wmsLayerName,
+          dataset_is_published: dataset.is_published ?? null,
+          dataset_sourcetype: dataset.sourcetype || 'REMOTE',
+          dataset_subtype: dataset.subtype || 'remote',
+          wms_url: wmsUrl,
+          wms_layer_name: wmsLayerName,
+          map_position: mapPosition,
+          visible: true,
+          opacity: 1,
+          stack_order: stackOrder,
+          layer_type: 'wms',
+          style: null,
+          temporal: true,
+        });
+
+        idsExistentes.add(geonodeId);
+      } catch (error) {
+        console.error(`[mapas] No fue posible preparar el WMS ${geonodeId}:`, error);
+      }
+    }
+
+    capasWmsTemporales.value = [...capasWmsTemporales.value, ...nuevas];
+
+    return nuevas.length === datasets.length;
+  }
+
+  function actualizarCapaWmsTemporal(id, payload) {
+    const indice = capasWmsTemporales.value.findIndex((capa) => capa.id === id);
+
+    if (indice === -1) return null;
+
+    const actualizada = {
+      ...capasWmsTemporales.value[indice],
+      ...payload,
+    };
+
+    capasWmsTemporales.value.splice(indice, 1, actualizada);
+    return actualizada;
+  }
+
+  function eliminarCapaWmsTemporal(id) {
+    const cantidadAnterior = capasWmsTemporales.value.length;
+
+    capasWmsTemporales.value = capasWmsTemporales.value.filter((capa) => capa.id !== id);
+
+    return capasWmsTemporales.value.length < cantidadAnterior;
+  }
+
+  function limpiarCapasWmsTemporales() {
+    capasWmsTemporales.value = [];
   }
 
   // Estado del modal de agregar capas
@@ -72,6 +166,7 @@ export const useMapasStore = defineStore('mapas', () => {
   }
   function limpiarMapa() {
     activeMap.value = null;
+    capasWmsTemporales.value = [];
     mapaCargado.value = false;
   }
   const crearMapa = (payload) => api.crearMapa(payload, token());
@@ -98,10 +193,49 @@ export const useMapasStore = defineStore('mapas', () => {
     await cargarMapa(mapId);
     return Array.isArray(creadas) && creadas.length > 0 && creadas.every((r) => r && r.id);
   }
-  const actualizarCapa = (id, payload) => api.actualizarCapa(id, payload, token());
-  const actualizarEstiloCapa = (id, style) => api.actualizarEstiloCapa(id, style, token());
-  const eliminarCapa = (id) => api.eliminarCapa(id, token());
-  const reordenarCapas = (items) => api.reordenarCapas(items, token());
+  async function actualizarCapa(id, payload) {
+    if (esCapaTemporal(id)) {
+      return actualizarCapaWmsTemporal(id, payload);
+    }
+
+    return api.actualizarCapa(id, payload, token());
+  }
+
+  async function actualizarEstiloCapa(id, style) {
+    if (esCapaTemporal(id)) {
+      return actualizarCapaWmsTemporal(id, { style });
+    }
+
+    return api.actualizarEstiloCapa(id, style, token());
+  }
+
+  async function eliminarCapa(id) {
+    if (esCapaTemporal(id)) {
+      return eliminarCapaWmsTemporal(id);
+    }
+
+    return api.eliminarCapa(id, token());
+  }
+
+  async function reordenarCapas(items) {
+    const persistentes = [];
+
+    for (const item of items) {
+      if (esCapaTemporal(item.id)) {
+        actualizarCapaWmsTemporal(item.id, {
+          stack_order: item.stack_order,
+        });
+      } else {
+        persistentes.push(item);
+      }
+    }
+
+    if (!persistentes.length) {
+      return true;
+    }
+
+    return api.reordenarCapas(persistentes, token());
+  }
 
   // Borrado masivo vía bulk-delete; refresca el mapa para reflejar el estado real.
   async function eliminarCapas(mapId, ids) {
@@ -117,9 +251,15 @@ export const useMapasStore = defineStore('mapas', () => {
     activeMap,
     isLoadingMap,
     mapaCargado,
+    capasWmsTemporales,
     layersOrdered,
     layersByPosition,
     buildWmtsUrl,
+    esCapaTemporal,
+    agregarCapasWmsTemporales,
+    actualizarCapaWmsTemporal,
+    eliminarCapaWmsTemporal,
+    limpiarCapasWmsTemporales,
     modalAgregarCapasAbierto,
     abrirModalAgregarCapas,
     cerrarModalAgregarCapas,
