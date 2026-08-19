@@ -121,6 +121,11 @@ onClickOutside(menuLateralRef, () => {
   });
   accionConstructorAbierta.value = null;
 });
+
+const menuColapsado = ref(false);
+function alternarMenuColapsable() {
+  menuColapsado.value = !menuColapsado.value;
+}
 </script>
 
 <template>
@@ -143,10 +148,13 @@ onClickOutside(menuLateralRef, () => {
           globo: '',
         },
       ]"
+      :funcion-colapsar="alternarMenuColapsable"
+      :estado-colapable="menuColapsado"
+      id-colapsable="geocontenidos-navegacion-lateral"
     />
 
     <div class="contenedor-contenido">
-      <UiLayoutPaneles>
+      <UiLayoutPaneles :estado-colapable="menuColapsado">
         <template #catalogo>
           <nav ref="menuLateralRef" class="menu-lateral">
             <div class="menu-lateral-contenedor">
@@ -312,17 +320,20 @@ onClickOutside(menuLateralRef, () => {
   }
 }
 
+.menu-lateral .menu-lateral-contenedor {
+  padding: 0;
+}
+
 .menu-lateral-item-fila {
   display: flex;
   align-items: center;
   justify-content: space-between;
 
-  // El estado activo del enlace pinta un acento de 8px con box-shadow (ver
-  // sisdai-css .menu-lateral-contenedor a.router-link-exact-active); sin este
-  // espacio el acento se dibuja encima de la primera letra del texto.
   a,
   .menu-lateral-etiqueta {
-    padding-left: 8px;
+    flex: 1;
+    padding-left: 24px;
+    padding-right: 16px;
   }
 }
 

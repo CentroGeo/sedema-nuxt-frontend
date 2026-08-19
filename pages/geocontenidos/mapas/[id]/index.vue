@@ -264,27 +264,25 @@ onUnmounted(() => {
       <GeocontenidosMapasModalEditarMapa ref="modalEditar" :mapa="mapa" @actualizado="recargar" />
       <GeocontenidosMapasModalCompartir ref="modalCompartir" :mapa="mapa" />
       <GeocontenidosModalConfirmar ref="modalConfirmar" />
+
+      <SisdaiModal ref="modalStatus">
+        <template #encabezado>
+          <span v-if="estatusAlGuardar.cargando" />
+          <h2 v-else>{{ estatusAlGuardar.estado ? 'Guardado con éxito' : 'Error' }}</h2>
+        </template>
+
+        <template #cuerpo>
+          <GeocontenidosLoader
+            v-if="estatusAlGuardar.cargando"
+            :mensaje="estatusAlGuardar.textoCargando"
+          />
+          <p v-else-if="estatusAlGuardar.estado === false" v-text="estatusAlGuardar.mensaje" />
+          <p v-else class="texto-centrado">
+            <span class="pictograma-aprobado pictograma-grande" />
+          </p>
+        </template>
+      </SisdaiModal>
     </template>
-  </ClientOnly>
-
-  <ClientOnly>
-    <SisdaiModal ref="modalStatus">
-      <template #encabezado>
-        <span v-if="estatusAlGuardar.cargando" />
-        <h2 v-else>{{ estatusAlGuardar.estado ? 'Guardado con éxito' : 'Error' }}</h2>
-      </template>
-
-      <template #cuerpo>
-        <GeocontenidosLoader
-          v-if="estatusAlGuardar.cargando"
-          :mensaje="estatusAlGuardar.textoCargando"
-        />
-        <p v-else-if="estatusAlGuardar.estado === false" v-text="estatusAlGuardar.mensaje" />
-        <p v-else class="texto-centrado">
-          <span class="pictograma-aprobado pictograma-grande" />
-        </p>
-      </template>
-    </SisdaiModal>
   </ClientOnly>
 </template>
 
