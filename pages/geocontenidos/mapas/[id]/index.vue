@@ -1,4 +1,5 @@
 <script setup>
+import SisdaiModal from '@centrogeomx/sisdai-componentes/src/componentes/modal/SisdaiModal.vue';
 definePageMeta({ middleware: 'auth' });
 
 const route = useRoute();
@@ -31,6 +32,15 @@ const abrirCompartir = () => modalCompartir.value?.abrir();
 const editandoCapas = ref(false);
 const alternarEdicionCapas = () => (editandoCapas.value = !editandoCapas.value);
 
+const modalStatus = ref(null);
+
+const estatusAlGuardar = reactive({
+  cargando: false,
+  estado: true,
+  textoCargando: 'Guardando mapa...',
+  mensaje: '',
+});
+
 const recargar = () => store.cargarMapa(mapaId.value);
 
 // Contrato del backend (congelado): el campo de la capa es `visible`; la vista usa
@@ -59,14 +69,40 @@ const guardando = ref(false);
 async function guardarYSalir() {
   const m = store.activeMap;
   if (!m) return;
+
   guardando.value = true;
-  await store.actualizarMapa(mapaId.value, {
-    zoom: m.zoom,
-    center_lat: m.center_lat,
-    center_long: m.center_long,
-  });
-  guardando.value = false;
-  navigateTo('/geocontenidos/mapas');
+
+  estatusAlGuardar.cargando = true;
+  estatusAlGuardar.estado = true;
+  estatusAlGuardar.textoCargando = 'Guardando mapa...';
+
+  // Usamos el método nativo igual que en panoramas
+  modalStatus.value?.abrirModal();
+
+  try {
+    await store.actualizarMapa(mapaId.value, {
+      zoom: m.zoom,
+      center_lat: m.center_lat,
+      center_long: m.center_long,
+    });
+
+    estatusAlGuardar.cargando = false;
+    estatusAlGuardar.estado = true;
+
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    // Si tu componente tiene un método para cerrar, lo usamos.
+    // Si no, la redirección lo cerrará de todas formas.
+    modalStatus.value?.cerrarModal();
+    navigateTo('/geocontenidos/mapas');
+  } catch (error) {
+    console.error(error);
+    estatusAlGuardar.cargando = false;
+    estatusAlGuardar.estado = false;
+    estatusAlGuardar.mensaje = 'Ocurrió un error al guardar.';
+  } finally {
+    guardando.value = false;
+  }
 }
 
 const modalConfirmar = ref(null);
@@ -197,6 +233,30 @@ onUnmounted(() => {
       <GeocontenidosMapasModalEditarMapa ref="modalEditar" :mapa="mapa" @actualizado="recargar" />
       <GeocontenidosMapasModalCompartir ref="modalCompartir" :mapa="mapa" />
       <GeocontenidosModalConfirmar ref="modalConfirmar" />
+
+      <ClientOnly>
+        <SisdaiModal ref="modalStatus">
+          <template #encabezado>
+            <span v-if="estatusAlGuardar.cargando" />
+            <h2 v-else>{{ estatusAlGuardar.estado ? 'Guardado con éxito' : 'Error' }}</h2>
+          </template>
+
+          <template #cuerpo>
+            <GeocontenidosLoader
+              v-if="estatusAlGuardar.cargando"
+              :mensaje="estatusAlGuardar.textoCargando"
+            />
+            <p
+              v-else-if="estatusAlGuardar.estado === false"
+              class="alineacion-centrada"
+              v-text="estatusAlGuardar.mensaje"
+            />
+            <p v-else class="alineacion-centrada">
+              <span class="pictograma-aprobado pictograma-grande" />
+            </p>
+          </template>
+        </SisdaiModal>
+      </ClientOnly>
     </template>
   </ClientOnly>
 </template>
@@ -215,5 +275,12 @@ onUnmounted(() => {
 
 .area-editor {
   height: 80vh;
+}
+
+.alineacion-centrada {
+  display: flex !important;
+  justify-content: center !important;
+  text-align: center !important;
+  width: 100% !important;
 }
 </style>

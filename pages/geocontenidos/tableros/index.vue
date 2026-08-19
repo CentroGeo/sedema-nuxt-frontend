@@ -136,6 +136,11 @@ watch(estaLogueado, (v) => {
         </p>
       </div>
 
+      <div class="flex">
+        <h2>Tableros</h2>
+        <UiNumeroElementos :numero="sitios.length" />
+      </div>
+
       <GeocontenidosLoader v-if="estaCargando" />
 
       <div v-else-if="sitios.length > 0" class="grid reticula-12">

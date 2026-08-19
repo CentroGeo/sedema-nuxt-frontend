@@ -90,6 +90,11 @@ function formatearFecha(fecha) {
       </NuxtLink>
     </div>
 
+    <div class="flex">
+      <h2>Geohistorias</h2>
+      <UiNumeroElementos :numero="escenarios.length" />
+    </div>
+
     <GeocontenidosLoader v-if="estaCargando" />
 
     <div v-else-if="escenarios.length > 0" class="grid reticula-12">

@@ -338,7 +338,12 @@ async function guardarCambios() {
             </div>
           </div>
 
-          <input type="submit" class="boton-primario m-t-4" value="Guardar" />
+          <input
+            type="submit"
+            class="boton-primario m-t-4"
+            value="Guardar"
+            style="margin-left: auto; display: block"
+          />
         </form>
 
         <GeocontenidosPanoramasTematicasPanel
@@ -370,10 +375,14 @@ async function guardarCambios() {
             v-if="estatusAlGuardar.cargando"
             :mensaje="estatusAlGuardar.textoCargando"
           />
-
-          <p v-else-if="estatusAlGuardar.estado === false" v-text="estatusAlGuardar.mensaje" />
-
-          <p v-else><span class="pictograma-aprobado pictograma-grande" /></p>
+          <p
+            v-else-if="estatusAlGuardar.estado === false"
+            class="alineacion-centrada"
+            v-text="estatusAlGuardar.mensaje"
+          />
+          <p v-else class="alineacion-centrada">
+            <span class="pictograma-aprobado pictograma-grande" />
+          </p>
         </template>
       </SisdaiModal>
     </ClientOnly>
@@ -416,6 +425,13 @@ async function guardarCambios() {
     padding: 0 24px;
     min-width: 0;
   }
+}
+
+.alineacion-centrada {
+  display: flex !important;
+  justify-content: center !important;
+  text-align: center !important;
+  width: 100% !important;
 }
 
 .mapa-vista-inicial {
