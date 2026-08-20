@@ -27,9 +27,14 @@ onMounted(() => {
   cargarEsAdmin();
 });
 
-const esConstructor = computed(() => {
-  return route.path.startsWith('/landing-builder');
+const enPaginaConstructor = computed(() => {
+  return route.path.startsWith('/administracion/constructor-paginas');
 });
+
+// Controla la visibilidad de los controles de edición de logos/color: solo
+// mientras además se está viendo el lienzo (Nuevo/Editar), no en el menú de
+// 4 botones ni en las listas de Editar/Visualizar/Borrar.
+const esConstructor = computed(() => enPaginaConstructor.value && store.enEdicionLienzo);
 
 const esPaginaPublica = computed(() => {
   return route.path.startsWith('/paginas/');
@@ -46,7 +51,7 @@ watch(
   async () => {
     if (import.meta.server) return;
 
-    if (esConstructor.value) {
+    if (enPaginaConstructor.value) {
       if (!store.logoSecundarioUrl) {
         store.cargarConfiguracion();
       }
@@ -61,8 +66,13 @@ watch(
 
 // Color de tema (header + footer) de la página actual: el borrador en modo
 // constructor, o la identidad publicada en modo página pública / inicio.
+// Estando en /administracion/constructor-paginas (aunque no en el lienzo,
+// ej. en el menú de 4 botones) nunca se usa la identidad pública: evita que
+// un `paginaInicioActiva` residual de una navegación previa tiña el header
+// del propio panel de administración.
 const colorTemaActivo = computed(() => {
   if (esConstructor.value) return store.colorTema;
+  if (enPaginaConstructor.value) return null;
   if (esPaginaPublica.value || store.paginaInicioActiva) return store.identidadPublica.colorTema;
   return null;
 });
@@ -514,7 +524,7 @@ function eliminarLogo4() {
       </li>
       <li v-if="mostrarGeocontenidos && status === 'authenticated'">
         <NuxtLink class="nav-hipervinculo" to="/geocontenidos">Geocontenidos</NuxtLink>
-      </li>   
+      </li>
       <li v-if="status === 'authenticated' && esAdmin">
         <NuxtLink class="nav-hipervinculo" to="/administracion">Administración</NuxtLink>
       </li>
