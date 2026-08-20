@@ -45,15 +45,15 @@ export const useMapasStore = defineStore('mapas', () => {
   const abrirModalAgregarCapas = () => (modalAgregarCapasAbierto.value = true);
   const cerrarModalAgregarCapas = () => (modalAgregarCapasAbierto.value = false);
 
-  async function cargarMapas({ page = 1 } = {}) {
+  async function cargarMapas({ page = 1, pageSize = 6 } = {}) {
     isLoading.value = true;
     try {
-      const data = await api.fetchMapas({ page }); // ← requiere el ajuste de 1 línea (abajo)
+      const data = await api.fetchMapas({ page, page_size: pageSize }); // ← requiere el ajuste de 1 línea (abajo)
       maps.value = data.results ?? [];
       pagination.value = {
         total: data.total ?? 0,
         page: data.page ?? page,
-        page_size: data.page_size ?? 10,
+        page_size: data.page_size ?? pageSize,
       };
     } finally {
       isLoading.value = false;

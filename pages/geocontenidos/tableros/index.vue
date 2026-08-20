@@ -13,6 +13,15 @@ function iniciarSesion() {
 
 const sitios = ref([]);
 const estaCargando = ref(false);
+const paginaActual = ref(0);
+const elementosPorPagina = 6;
+
+const totalPags = computed(() => Math.max(1, Math.ceil(sitios.value.length / elementosPorPagina)));
+
+const sitiosPaginados = computed(() => {
+  const inicio = paginaActual.value * elementosPorPagina;
+  return sitios.value.slice(inicio, inicio + elementosPorPagina);
+});
 
 async function cargarSitios() {
   estaCargando.value = true;
@@ -139,7 +148,7 @@ watch(estaLogueado, (v) => {
       <GeocontenidosLoader v-if="estaCargando" />
 
       <div v-else-if="sitios.length > 0" class="grid reticula-12">
-        <div v-for="sitio in sitios" :key="sitio.id" class="columna-8 columna-4-esc">
+        <div v-for="sitio in sitiosPaginados" :key="sitio.id" class="columna-8 columna-4-esc">
           <div class="tarjeta">
             <div class="tarjeta-cuerpo">
               <div
@@ -224,6 +233,14 @@ watch(estaLogueado, (v) => {
           </div>
         </div>
       </div>
+
+      <UiPaginador
+        v-if="sitios.length > 0"
+        class="m-t-4"
+        :pagina-parent="paginaActual"
+        :total-paginas="totalPags"
+        @cambio="paginaActual = $event"
+      />
 
       <div v-else class="texto-centrado">
         <p class="h3">No hay tableros disponibles.</p>

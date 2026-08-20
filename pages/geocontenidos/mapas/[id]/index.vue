@@ -150,7 +150,7 @@ onUnmounted(() => {
           class="boton boton-secundario boton-chico m-r-2"
           aria-label="Volver a mapas"
         >
-          <span class="pictograma-flecha-izquierda m-r-1" />
+          <span class="pictograma-flecha-izquierda" />
         </NuxtLink>
 
         <div>
@@ -164,7 +164,6 @@ onUnmounted(() => {
       <div class="area-editor">
         <!-- Panel Lateral Izquierdo: Acciones y Herramientas -->
         <aside class="panel-acciones-columna">
-          <h4 class="m-t-0 m-b-3 p-x-1">Acciones</h4>
           <div class="lista-acciones flex-vertical">
             <button
               v-if="puedeEditar"
@@ -173,7 +172,7 @@ onUnmounted(() => {
               @click="abrirEditar"
             >
               <span class="pictograma-editar" aria-hidden="true" />
-              <span>Propiedades del mapa</span>
+              <span>Propiedades</span>
             </button>
 
             <button
@@ -381,24 +380,24 @@ onUnmounted(() => {
   flex-direction: row;
   align-items: center;
   flex-wrap: nowrap;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 12px;
+  padding: 12px 14px;
   background-color: transparent;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 6px;
   font-family: var(--tipografia-familia, 'Montserrat', sans-serif);
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--boton-sin-contenedor-secundario-color, var(--texto-primario));
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--texto-primario);
   cursor: pointer;
   text-decoration: none;
   transition: all 0.2s ease;
-  line-height: 1.25;
+  line-height: 1.3;
 
   .pictograma,
   [class^='pictograma-'],
   [class*=' pictograma-'] {
-    font-size: 1.15rem;
+    font-size: 1.25rem;
     line-height: 1;
     display: inline-flex;
     align-items: center;
@@ -406,18 +405,21 @@ onUnmounted(() => {
     flex-shrink: 0;
     padding: 0;
     margin: 0;
+    color: inherit;
   }
 
   span:not([class^='pictograma-']) {
+    font-weight: 400;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    color: inherit;
   }
 
   &:hover {
-    background-color: var(--boton-sin-contenedor-secundario-cursor-fondo, var(--fondo-acento));
+    background-color: transparent;
     border-color: var(--color-neutro-2, #e0e0e0);
-    color: var(--boton-sin-contenedor-secundario-cursor-color, var(--color-primario-1));
+    color: var(--texto-primario);
   }
 
   &:focus {
@@ -425,11 +427,23 @@ onUnmounted(() => {
     box-shadow: 0 0 0 2px var(--color-primario-2);
   }
 
+  &:active,
   &.activo {
-    background-color: var(--color-primario-4);
-    border-color: var(--color-primario-1);
-    color: var(--color-primario-1);
-    font-weight: 600;
+    background-color: var(--color-primario-4) !important;
+    color: var(--texto-inverso, #ffffff) !important;
+    font-weight: 600 !important;
+    border-color: var(--color-primario-4) !important;
+
+    span {
+      color: var(--texto-inverso, #ffffff) !important;
+      font-weight: 600 !important;
+    }
+
+    .pictograma,
+    [class^='pictograma-'],
+    [class*=' pictograma-'] {
+      color: var(--texto-inverso, #ffffff) !important;
+    }
   }
 
   &.texto-color-error {

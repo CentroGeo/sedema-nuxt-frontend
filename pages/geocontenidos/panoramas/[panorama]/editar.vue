@@ -80,12 +80,32 @@ function obtenerImagen(logo) {
 
 const pestanas = computed(() =>
   [
-    { id: 'configuracion', nombre: 'Configuración', disponible: true },
-    { id: 'detalles', nombre: 'Detalles', disponible: true },
-    { id: 'encabezado', nombre: 'Encabezado', disponible: formulario.template_use === 'normal' },
-    { id: 'tematicas', nombre: 'Temáticas', disponible: !esNuevo.value },
-    { id: 'tematicas-texto', nombre: 'Temáticas de Texto', disponible: !esNuevo.value },
-    { id: 'wms-externos', nombre: 'WMS Externos', disponible: !esNuevo.value },
+    { id: 'configuracion', nombre: 'Configuración', icono: 'pictograma-editar', disponible: true },
+    { id: 'detalles', nombre: 'Detalles', icono: 'pictograma-documento', disponible: true },
+    {
+      id: 'encabezado',
+      nombre: 'Encabezado',
+      icono: 'pictograma-visualizador',
+      disponible: formulario.template_use === 'normal',
+    },
+    {
+      id: 'tematicas',
+      nombre: 'Temáticas',
+      icono: 'pictograma-mapa-generador',
+      disponible: !esNuevo.value,
+    },
+    {
+      id: 'tematicas-texto',
+      nombre: 'Temáticas de Texto',
+      icono: 'pictograma-escribir',
+      disponible: !esNuevo.value,
+    },
+    {
+      id: 'wms-externos',
+      nombre: 'WMS Externos',
+      icono: 'pictograma-enlace-externo',
+      disponible: !esNuevo.value,
+    },
   ].filter((p) => p.disponible)
 );
 const tabInicial = useRoute().query.tab;
@@ -308,16 +328,21 @@ async function guardarCambios() {
     <GeocontenidosTituloVolver volver="/panoramas" titulo="Edición del panorama" />
 
     <div class="editor-panorama__cuerpo flex">
-      <nav class="editor-panorama__menu">
-        <button
-          v-for="pestana in pestanas"
-          :key="pestana.id"
-          class="editor-panorama__item"
-          :class="{ activo: pestanaActiva === pestana.id }"
-          @click="pestanaActiva = pestana.id"
-        >
-          {{ pestana.nombre }}
-        </button>
+      <nav class="editor-panorama__menu panel-acciones-columna">
+        <div class="lista-acciones flex-vertical">
+          <button
+            v-for="pestana in pestanas"
+            :key="pestana.id"
+            type="button"
+            class="boton-accion-lateral boton-sin-contenedor-secundario"
+            :class="{ activo: pestanaActiva === pestana.id }"
+            :aria-pressed="pestanaActiva === pestana.id"
+            @click="pestanaActiva = pestana.id"
+          >
+            <span :class="pestana.icono" aria-hidden="true" />
+            <span>{{ pestana.nombre }}</span>
+          </button>
+        </div>
       </nav>
 
       <div class="editor-panorama__contenido">
@@ -570,30 +595,6 @@ async function guardarCambios() {
     align-items: flex-start;
   }
 
-  &__menu {
-    width: 220px;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    border-right: 1px solid var(--color-secundario-4);
-  }
-
-  &__item {
-    text-align: left;
-    padding: 12px 16px;
-    background: none;
-    color: inherit;
-    border: none;
-    cursor: pointer;
-    border-left: 3px solid transparent;
-
-    &.activo {
-      background-color: var(--color-primario-4);
-      border-left-color: var(--color-primario-1);
-      font-weight: bold;
-    }
-  }
-
   &__contenido {
     flex: 1;
     padding: 0 24px;
@@ -712,6 +713,70 @@ async function guardarCambios() {
     color: #ffffff;
     font-size: 0.6rem;
     font-weight: 700;
+  }
+}
+
+.editor-panorama__menu {
+  width: 250px;
+  min-width: 250px;
+  box-sizing: border-box;
+  padding: 16px 12px;
+  background-color: var(--fondo);
+  border-right: 1px solid var(--color-neutro-2, #e0e0e0);
+}
+
+.lista-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.boton-accion-lateral {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-family: var(--tipografia-familia, 'Montserrat', sans-serif);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--texto-primario);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  line-height: 1.3;
+
+  .pictograma,
+  [class^='pictograma-'],
+  [class*=' pictograma-'] {
+    font-size: 1.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    background-color: transparent;
+    border-color: var(--color-neutro-2, #e0e0e0);
+  }
+
+  &.activo {
+    background-color: var(--color-primario-4);
+    color: var(--texto-inverso, #ffffff);
+    font-weight: 600;
+    border-color: var(--color-primario-4);
+
+    .pictograma,
+    [class^='pictograma-'],
+    [class*=' pictograma-'] {
+      color: var(--texto-inverso, #ffffff);
+    }
   }
 }
 </style>
