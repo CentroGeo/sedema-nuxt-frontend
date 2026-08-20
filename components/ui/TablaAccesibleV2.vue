@@ -321,10 +321,11 @@ function notifyDeleteResource(resource) {
 }
 
 /**
- * Pre-visualizar un mapa: lleva a la sección de consulta de mapas.
+ * Pre-visualizar un mapa: lo abre en la sección de consulta.
+ * @param mapa fila de la tabla (usa id del mapa)
  */
-function previsualizarMapa() {
-  navigateTo('/consulta/mapas');
+function previsualizarMapa(mapa) {
+  navigateTo({ path: '/consulta/mapas', query: { mapa: mapa.pk } });
 }
 
 /**
@@ -709,7 +710,7 @@ async function volverAEditar() {
                     class="boton-pictograma boton-secundario"
                     aria-label="Pre-visualizar mapa"
                     type="button"
-                    @click="previsualizarMapa()"
+                    @click="previsualizarMapa(datum)"
                   >
                     <span class="pictograma-previsualizar"></span>
                   </button>

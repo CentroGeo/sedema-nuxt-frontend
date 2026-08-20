@@ -1,9 +1,38 @@
 <script setup>
+const route = useRoute();
+const router = useRouter();
 const mapasStore = useMapasStore();
+
+// El mapa a pre-visualizar viaja en la query (?mapa=<id>) en vez de sembrarse en
+// el store antes de navegar: así la vista es enlazable, sobrevive a una recarga
+// y no depende del orden de desmontaje (el onUnmounted de abajo limpia el store).
+const idMapa = computed(() => {
+  const valor = Number(route.query.mapa);
+  return Number.isInteger(valor) && valor > 0 ? valor : null;
+});
+
+async function sincronizarMapa(id) {
+  if (!id) {
+    mapasStore.limpiarMapa();
+    return;
+  }
+  if (mapasStore.activeMap?.id === id) return;
+  await mapasStore.cargarMapa(id);
+}
 
 function deseleccionar() {
   mapasStore.limpiarMapa();
+  // Sin quitar ?mapa= de la URL, una recarga volvería a abrir el mapa cerrado.
+  if (route.query.mapa === undefined) return;
+  const query = { ...route.query };
+  delete query.mapa;
+  router.replace({ query });
 }
+
+// En cliente: fetchMap() firma con el accessToken de la sesión.
+onMounted(() => sincronizarMapa(idMapa.value));
+// Cubre navegar entre mapas sin salir de la ruta (el componente no se remonta).
+watch(idMapa, sincronizarMapa);
 
 onUnmounted(() => {
   mapasStore.limpiarMapa();

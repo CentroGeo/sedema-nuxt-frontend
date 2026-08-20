@@ -24,10 +24,11 @@ const encabezados = {
 };
 
 /**
- * Pre-visualizar: lleva a la sección de consulta de mapas.
+ * Pre-visualizar: abre el mapa en la sección de consulta.
+ * @param {Object} mapa - fila de la tabla (API sigic-maps).
  */
-function previsualizar() {
-  navigateTo('/consulta/mapas');
+function previsualizar(mapa) {
+  navigateTo({ path: '/consulta/mapas', query: { mapa: mapa.id } });
 }
 </script>
 
@@ -93,7 +94,7 @@ function previsualizar() {
                 class="boton-pictograma boton-secundario"
                 aria-label="Pre-visualizar mapa"
                 type="button"
-                @click="previsualizar"
+                @click="previsualizar(mapa)"
               >
                 <span class="pictograma-previsualizar" aria-hidden="true" />
               </button>

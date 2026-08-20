@@ -28,6 +28,7 @@ const wasDeletionSuccesful = ref(null);
 // En /consulta/mapas este catálogo muestra la lista de mapas (sigic-maps) en
 // lugar del catálogo de recursos GeoNode. La selección se comparte via store.
 const route = useRoute();
+const router = useRouter();
 const mapasStore = useMapasStore();
 const esRutaMapas = computed(() => route.path.startsWith('/consulta/mapas'));
 const cargandoMapas = ref(false);
@@ -64,6 +65,10 @@ async function cargarListaMapas() {
 async function seleccionarMapa(id) {
   if (mapasStore.activeMap?.id === id) return;
   await mapasStore.cargarMapa(id);
+  // Reflejar la selección en la URL para que sea la única fuente de verdad:
+  // llegar por el botón de pre-visualizar y elegir de la lista dejan el mismo
+  // estado, y recargar reabre el mapa que estaba abierto.
+  router.replace({ query: { ...route.query, mapa: id } });
 }
 
 function limpiarBusquedaMapas() {
