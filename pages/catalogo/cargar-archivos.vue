@@ -375,6 +375,7 @@ async function guardarArchivo(files) {
         const idRecurso = result.url.split('/').slice(-1)[0];
         if (base_files.includes('.' + file.name.split('.').slice(-1)[0])) {
           await finalizarCargaDataset(archivo, idRecurso);
+        }
         // Caso: documento cargado
         archivo.IdRutaArchivo = result.url.split('/').slice(-1)[0];
         // Se recupera la información necesaria para cada tipo de archivo
