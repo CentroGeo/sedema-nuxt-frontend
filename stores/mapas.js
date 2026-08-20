@@ -22,7 +22,7 @@ export const useMapasStore = defineStore('mapas', () => {
   // ── State ─────────────────────────────────────────────────────────────────
 
   const maps = ref([]);
-  const pagination = ref({ page: 1, page_size: 12, total: 0, links: {} });
+  const pagination = ref({ page: 1, page_size: 10, total: 0, links: {} });
   const activeMap = ref(null);
   const activeLayers = ref([]);
   const isLoading = ref(false);

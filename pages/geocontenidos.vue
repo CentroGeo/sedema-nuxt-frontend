@@ -30,7 +30,6 @@ const itemsMenu = computed(() => {
     { nombre: 'Panoramas', ruta: `${ruta}/panoramas` },
     { nombre: 'Geo-historias', ruta: `${ruta}/geohistorias` },
     { nombre: 'Tableros de datos', ruta: `${ruta}/tableros` },
-    { nombre: 'Importar datos', ruta: `${ruta}/importar-datos` },
   ];
 
   if (mostrarConstructor.value) {

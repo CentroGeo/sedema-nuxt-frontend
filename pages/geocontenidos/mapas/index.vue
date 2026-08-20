@@ -50,7 +50,7 @@ function limpiarBusqueda() {
 }
 
 function alCrear(mapa) {
-  navigateTo(`/geocontenidos/mapas/${mapa.id}/editar`);
+  navigateTo(`/geocontenidos/mapas/${mapa.id}`);
 }
 
 // Selección para borrado masivo (solo tarjetas propias/admin muestran checkbox).

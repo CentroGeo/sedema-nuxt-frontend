@@ -103,6 +103,7 @@ export default defineNuxtConfig({
     // Font Awesome (bundle local, sin CDN): lo usan el selector de iconos de los
     // cuadros de datos de tableros y los toggles de visibilidad del listado.
     '@fortawesome/fontawesome-free/css/all.min.css',
+    '@vueup/vue-quill/dist/vue-quill.snow.css',
   ],
 
   auth: {
