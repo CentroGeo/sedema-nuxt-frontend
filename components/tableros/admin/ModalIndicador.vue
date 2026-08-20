@@ -142,6 +142,9 @@ async function cargarAtributos(pk) {
   try {
     const data = await fetchDatasetAttributes(pk);
     const dataset = data?.dataset ?? data;
+    if (dataset?.title && capaSeleccionada.value) {
+      capaSeleccionada.value.title = dataset.title;
+    }
     const attrs = dataset?.attribute_set ?? [];
     atributos.value = attrs.filter((a) => !GEO_ATTRS.has(a.attribute));
     return dataset;
@@ -586,6 +589,20 @@ async function recalcularColores(id, token) {
     return e?.message || 'No se pudo conectar con el servidor para calcular los colores.';
   }
 }
+
+function alCambiarVisibilidadPestania() {
+  if (document.visibilityState === 'visible' && capaSeleccionada.value?.pk) {
+    cargarAtributos(capaSeleccionada.value.pk);
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
 </script>
 
 <template>

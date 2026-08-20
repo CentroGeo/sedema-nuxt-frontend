@@ -263,8 +263,8 @@ function sincronizarIdentidadPublicada(store, paginas, paginaId) {
 }
 
 export const useLandingBuilderStore = defineStore('landingBuilder', () => {
-  // MainNavegacion.vue (al navegar) y pages/landing-builder/index.vue (al
-  // montarse) pueden llamar a cargarConfiguracion() casi al mismo tiempo;
+  // MainNavegacion.vue (al navegar) y components/administracion/ConstructorPaginas.vue
+  // (al montarse) pueden llamar a cargarConfiguracion() casi al mismo tiempo;
   // esto evita que la segunda llamada pise lo que ya resolvió la primera
   // (p. ej. el lienzo en blanco que pide solicitarLienzoEnBlanco).
   let cargandoConfiguracionPromesa = null;
@@ -295,6 +295,11 @@ export const useLandingBuilderStore = defineStore('landingBuilder', () => {
     // constructor); ver comentario de IDENTIDAD_PUBLICA_VACIA arriba.
     identidadPublica: ref({ ...IDENTIDAD_PUBLICA_VACIA }),
     paginaInicioActiva: ref(false),
+    // true solo mientras se está viendo el lienzo (Nuevo/Editar) dentro del
+    // Constructor de Páginas; controla si MainNavegacion.vue/MainPiePagina.vue
+    // muestran los controles de edición de logos/color/pie de página, en vez
+    // de mostrarse también en el menú de 4 botones o las listas.
+    enEdicionLienzo: ref(false),
     tarjetas: ref([]),
     tarjetaImagenFiles: ref({}),
     secciones: ref([]),
@@ -305,9 +310,12 @@ export const useLandingBuilderStore = defineStore('landingBuilder', () => {
     paginas: ref([]),
     paginaInicioId: ref(null),
     paginaEditandoId: ref(null),
-    // "Crear página" lo activa antes de navegar a /landing-builder para
-    // pedir explícitamente un lienzo en blanco, en vez de que
-    // cargarConfiguracion() reutilice el borrador general del servidor.
+    // Reservado para pedir explícitamente un lienzo en blanco al montar el
+    // editor, en vez de que cargarConfiguracion() reutilice el borrador
+    // general del servidor. Actualmente ningún flujo lo activa: el editor
+    // (components/administracion/ConstructorPaginas.vue) ya trae sus propias
+    // acciones Ver/Crear/Editar/Eliminar internas, sin necesitar navegar
+    // desde un menú externo con este flag ya establecido.
     solicitarLienzoEnBlanco: ref(false),
     isPublicando: ref(false),
     isCreandoPagina: ref(false),
@@ -327,10 +335,9 @@ export const useLandingBuilderStore = defineStore('landingBuilder', () => {
           const config = await $fetch('/api/landing-builder/config');
 
           if (this.paginaEditandoId) {
-            // Ya se está editando una página específica (por ejemplo, se
-            // llegó a /landing-builder desde el menú lateral con
-            // cargarPaginaParaEditar ya aplicado); no pisar sus
-            // bloques/identidad con el borrador general.
+            // Ya se está editando una página específica (cargarPaginaParaEditar
+            // ya aplicado desde la lista de "Páginas publicadas" del propio
+            // editor); no pisar sus bloques/identidad con el borrador general.
           } else if (this.solicitarLienzoEnBlanco) {
             // "Crear página" ya dejó bloques/identidad en blanco vía
             // cancelarEdicionPagina(); no reemplazarlos por el borrador

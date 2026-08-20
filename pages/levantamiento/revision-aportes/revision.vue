@@ -7,18 +7,13 @@ definePageMeta({
   middleware: 'auth',
 });
 
-// Importaciones para conectar al backend
 const storeLevantamiento = useLevantamientoStore();
 const { data } = useAuth();
-
-// Arreglo vacío en lugar de datos dummy
 const aportesEnRevision = shallowRef([]);
 const cargandoAportes = ref(false);
-
 const modalConfirmacion = ref(null);
 const mensajeConfirmacion = ref('');
 
-// Conexión de backend
 onMounted(async () => {
   const email = data.value?.user?.email;
   if (!email) return;
@@ -77,7 +72,6 @@ onMounted(async () => {
   }
 });
 
-// Función de cambio de estado con los botones
 async function cambiarEstadoAporte(idAporte, nuevoEstado) {
   try {
     const email = data.value?.user?.email;
@@ -86,16 +80,12 @@ async function cambiarEstadoAporte(idAporte, nuevoEstado) {
       return;
     }
 
-    //  JSON (payload)
     const payload = {
       status: nuevoEstado,
       user_id: email,
     };
 
     await storeLevantamiento.actualizarStatusAporte(payload, idAporte);
-
-    console.log(`El aporte ${idAporte} se actualizó con éxito a: ${nuevoEstado}`);
-
     aportesEnRevision.value = aportesEnRevision.value.filter((a) => a.id !== idAporte);
 
     if (aportesEnRevision.value.length > 0) {
@@ -114,8 +104,6 @@ async function cambiarEstadoAporte(idAporte, nuevoEstado) {
     modalConfirmacion.value?.abrirModal();
   } catch (error) {
     console.error('Error al intentar actualizar el estado en DB:', error);
-
-    // Mostramos el modal de error
     mensajeConfirmacion.value =
       'Ocurrió un error al conectar con el servidor. El estado no pudo actualizarse.';
     modalConfirmacion.value?.abrirModal();
@@ -126,9 +114,7 @@ function cerrarModalConfirmacion() {
   modalConfirmacion.value?.cerrarModal();
 }
 
-// Búsqueda y paginación
 const busqueda = ref('');
-
 const aportesFiltrados = computed(() => {
   if (!busqueda.value) return aportesEnRevision.value;
   return aportesEnRevision.value.filter((aporte) =>
@@ -138,9 +124,7 @@ const aportesFiltrados = computed(() => {
 
 const paginaActual = ref(1);
 const itemsPorPagina = 5;
-
 const totalPaginas = computed(() => Math.ceil(aportesFiltrados.value.length / itemsPorPagina) || 1);
-
 const aportesPaginados = computed(() => {
   const inicio = (paginaActual.value - 1) * itemsPorPagina;
   const fin = inicio + itemsPorPagina;
@@ -158,14 +142,11 @@ function irAPagina(pagina) {
 }
 
 const aporteSeleccionado = ref(null);
-
 function verFichaAporte(aporte) {
   aporteSeleccionado.value = aporte;
 }
 
-// Visor de imágenes
 const imagenAmpliada = ref(null);
-
 function abrirImagen(url) {
   if (url) {
     imagenAmpliada.value = url;
@@ -177,7 +158,6 @@ function cerrarImagen() {
 }
 
 const modalMensajes = ref(null);
-
 function abrirMensajes() {
   modalMensajes.value?.abrirModal();
 }
@@ -185,11 +165,9 @@ function abrirMensajes() {
 function cerrarMensajes() {
   modalMensajes.value?.cerrarModal();
 }
-//Lógica de los mapas Sisdai
-const coordenadasValidas = computed(() => {
-  // Evitamos errores si aporteSeleccionado es null (al cargar la página)
-  if (!aporteSeleccionado.value) return false;
 
+const coordenadasValidas = computed(() => {
+  if (!aporteSeleccionado.value) return false;
   const lat = Number(aporteSeleccionado.value.latitud);
   const lng = Number(aporteSeleccionado.value.longitud);
   return Number.isFinite(lat) && Number.isFinite(lng);
@@ -235,7 +213,6 @@ const puntoSeleccionado = computed(() => ({
 
     <template #visualizador>
       <main id="principal" class="contenedor m-b-10 m-t-3">
-        <!-- Menú superior -->
         <LevantamientoMenuSecundario
           :opciones="[
             { texto: 'Aprobados', ruta: '/levantamiento/revision-aportes' },
@@ -252,15 +229,20 @@ const puntoSeleccionado = computed(() => ({
           ]"
         />
 
-        <div class="flex m-b-3" style="align-items: center; gap: 8px">
-          <h2>Revisión del estado de los aportes</h2>
-          <UiNumeroElementos :numero="aportesFiltrados.length" />
+        <div class="revision-aportes__header m-b-3">
+          <h2 class="revision-aportes__titulo">
+            Revisión del estado de los aportes
+          </h2>
+
+          <UiNumeroElementos
+            :numero="aportesFiltrados.length"
+            class="revision-aportes__contador"
+          />
         </div>
 
-        <div class="grid">
-          <!-- Columna Izquierda -->
-          <div class="columna-5 flex flex-columna">
-            <div class="m-b-3">
+        <div class="grid revision-aportes">
+          <div class="columna-5 flex flex-columna panel-aportes">
+            <div class="panel-aportes__busqueda m-b-3">
               <input
                 v-model="busqueda"
                 type="text"
@@ -270,8 +252,7 @@ const puntoSeleccionado = computed(() => ({
               />
             </div>
 
-            <!-- Lista de tarjetas iteradas -->
-            <div class="flex flex-columna" style="gap: 12px; flex-grow: 1">
+            <div class="lista-aportes">
               <div v-if="cargandoAportes" class="texto-centrado p-3" style="color: #888">
                 Cargando datos del servidor...
               </div>
@@ -284,7 +265,7 @@ const puntoSeleccionado = computed(() => ({
                 :class="{ seleccionada: aporteSeleccionado?.id === aporte.id }"
                 @click="verFichaAporte(aporte)"
               >
-                <div class="flex m-b-1">
+                <div class="flex tarjeta-aporte__contenido m-b-1">
                   <div
                     class="icono-doc m-r-2"
                     style="
@@ -297,7 +278,7 @@ const puntoSeleccionado = computed(() => ({
                   >
                     <span class="pictograma-documento" aria-hidden="true"></span>
                   </div>
-                  <div style="flex-grow: 1; overflow: hidden">
+                  <div class="tarjeta-aporte__texto">
                     <p class="titulo m-0">
                       <strong>{{ aporte.titulo }}</strong>
                     </p>
@@ -328,7 +309,6 @@ const puntoSeleccionado = computed(() => ({
               </div>
             </div>
 
-            <!-- Controles de Paginación -->
             <div v-if="totalPaginas > 1" class="paginacion flex m-t-3">
               <button
                 :disabled="paginaActual === 1"
@@ -356,32 +336,35 @@ const puntoSeleccionado = computed(() => ({
             </div>
           </div>
 
-          <!-- Columna derecha, con fichas de proyectos -->
           <div class="columna-11">
-            <div v-if="aporteSeleccionado" class="tarjeta-ficha p-4 borde borde-redondeado-8">
-              <div class="flex m-b-3" style="justify-content: space-between; align-items: center">
-                <h3 class="m-0">
-                  Ficha de proyecto:
-                  <span style="font-weight: normal; color: #715b62">{{
-                    aporteSeleccionado.titulo
-                  }}</span>
-                </h3>
-                <div class="flex" style="gap: 8px">
-                  <LevantamientoBotonesDescargaAporte
-                    :aporte-id="aporteSeleccionado.id"
-                    :email="data?.user?.email || ''"
-                  />
-                  <button class="boton-secundario boton-chico" @click="abrirMensajes">
-                    Mensajes
-                  </button>
+            <div
+                v-if="aporteSeleccionado"
+                class="tarjeta-ficha detalle-aporte p-4 borde borde-redondeado-8"
+            >
+                <div class="detalle-aporte__header m-b-3">
+                    <h3 class="detalle-aporte__titulo">
+                        Ficha de proyecto:
+                        <span class="detalle-aporte__nombre">
+                            {{ aporteSeleccionado.titulo }}
+                        </span>
+                    </h3>
+                    <div class="detalle-aporte__acciones">
+                        <LevantamientoBotonesDescargaAporte
+                            :aporte-id="aporteSeleccionado.id"
+                            :email="data?.user?.email || ''"
+                        />
+                        <button
+                            class="boton-secundario boton-chico btn-mensajes"
+                            @click="abrirMensajes"
+                        >
+                            Mensajes
+                        </button>
+                    </div>
                 </div>
-              </div>
 
-              <!-- Mapa nativo con sisdai-mapas -->
               <div
                 v-if="aporteSeleccionado"
-                class="mapa-placeholder m-b-3"
-                style="padding: 0; overflow: hidden; height: 300px"
+                class="mapa-placeholder detalle-aporte__mapa m-b-3"
               >
                 <ClientOnly>
                   <SisdaiMapa
@@ -407,14 +390,14 @@ const puntoSeleccionado = computed(() => ({
                 </ClientOnly>
               </div>
 
-              <div class="m-b-3 flex" style="gap: 8px; align-items: center">
+              <div class="detalle-aporte__registrante m-b-3">
                 <span class="form-label" style="margin-bottom: 0">NOMBRE DEL REGISTRANTE:</span>
                 <span style="color: #334155; font-size: 0.9rem; font-weight: 500">{{
                   aporteSeleccionado.registrante
                 }}</span>
               </div>
 
-              <div class="flex m-b-4" style="gap: 16px; justify-content: center">
+              <div class="detalle-aporte__galeria m-b-4">
                 <template v-if="aporteSeleccionado.fotos && aporteSeleccionado.fotos.length > 0">
                   <div
                     v-for="(foto, index) in aporteSeleccionado.fotos.slice(0, 3)"
@@ -431,100 +414,92 @@ const puntoSeleccionado = computed(() => ({
                 </div>
               </div>
 
-              <!-- Formulario de revisión -->
-              <div class="grid m-b-4" style="gap: 16px">
-                <div class="columna-8">
-                  <label class="form-label">1.- PREGUNTA ABIERTA</label>
-                  <input
-                    type="text"
-                    class="ancho-completo form-input"
-                    readonly
-                    :value="aporteSeleccionado.detalle.preguntaAbierta"
-                    :title="aporteSeleccionado.detalle.preguntaAbierta"
-                  />
-                </div>
-                <div class="columna-8">
-                  <label class="form-label">4.- ¿SI O NO?</label>
-                  <input
-                    type="text"
-                    class="ancho-completo form-input"
-                    readonly
-                    :value="aporteSeleccionado.detalle.siNo"
-                    :title="aporteSeleccionado.detalle.siNo"
-                  />
-                </div>
-                <div class="columna-8">
-                  <label class="form-label">2.- SELECCIÓN SIMPLE</label>
-                  <input
-                    type="text"
-                    class="ancho-completo form-input"
-                    readonly
-                    :value="aporteSeleccionado.detalle.seleccionSimple"
-                    :title="aporteSeleccionado.detalle.seleccionSimple"
-                  />
-                </div>
-                <div class="columna-8">
-                  <label class="form-label">4.1.- ¿POR QUÉ SÍ?</label>
-                  <input
-                    type="text"
-                    class="ancho-completo form-input"
-                    readonly
-                    :value="aporteSeleccionado.detalle.porqueSi"
-                    :title="aporteSeleccionado.detalle.porqueSi"
-                  />
-                </div>
-                <div class="columna-8">
-                  <label class="form-label">3.- SELECCIÓN MÚLTIPLE</label>
-                  <input
-                    type="text"
-                    class="ancho-completo form-input"
-                    readonly
-                    :value="aporteSeleccionado.detalle.seleccionMultiple"
-                    :title="aporteSeleccionado.detalle.seleccionMultiple"
-                  />
-                </div>
-                <div class="columna-8">
-                  <label class="form-label">5.- COLONIA</label>
-                  <input
-                    type="text"
-                    class="ancho-completo form-input"
-                    readonly
-                    :value="aporteSeleccionado.detalle.colonia"
-                    :title="aporteSeleccionado.detalle.colonia"
-                  />
-                </div>
-                <div class="columna-16">
-                  <label class="form-label">5.1.- CALLE</label>
-                  <input
-                    type="text"
-                    class="ancho-completo form-input"
-                    readonly
-                    :value="aporteSeleccionado.detalle.calle"
-                    :title="aporteSeleccionado.detalle.calle"
-                  />
-                </div>
-                <div class="columna-16">
-                  <label class="form-label">5.2.- CIUDAD</label>
-                  <input
-                    type="text"
-                    class="ancho-completo form-input"
-                    readonly
-                    :value="aporteSeleccionado.detalle.ciudad"
-                    :title="aporteSeleccionado.detalle.ciudad"
-                  />
+              <div class="levantamiento-form">
+                <div class="grid levantamiento-form__grid m-b-4">
+                  <div class="columna-8">
+                    <label class="form-label">1.- PREGUNTA ABIERTA</label>
+                    <input
+                      type="text"
+                      class="ancho-completo form-input"
+                      readonly
+                      :value="aporteSeleccionado.detalle.preguntaAbierta"
+                      :title="aporteSeleccionado.detalle.preguntaAbierta"
+                    />
+                  </div>
+                  <div class="columna-8">
+                    <label class="form-label">4.- ¿SI O NO?</label>
+                    <input
+                      type="text"
+                      class="ancho-completo form-input"
+                      readonly
+                      :value="aporteSeleccionado.detalle.siNo"
+                      :title="aporteSeleccionado.detalle.siNo"
+                    />
+                  </div>
+                  <div class="columna-8">
+                    <label class="form-label">2.- SELECCIÓN SIMPLE</label>
+                    <input
+                      type="text"
+                      class="ancho-completo form-input"
+                      readonly
+                      :value="aporteSeleccionado.detalle.seleccionSimple"
+                      :title="aporteSeleccionado.detalle.seleccionSimple"
+                    />
+                  </div>
+                  <div class="columna-8">
+                    <label class="form-label">4.1.- ¿POR QUÉ SÍ?</label>
+                    <input
+                      type="text"
+                      class="ancho-completo form-input"
+                      readonly
+                      :value="aporteSeleccionado.detalle.porqueSi"
+                      :title="aporteSeleccionado.detalle.porqueSi"
+                    />
+                  </div>
+                  <div class="columna-8">
+                    <label class="form-label">3.- SELECCIÓN MÚLTIPLE</label>
+                    <input
+                      type="text"
+                      class="ancho-completo form-input"
+                      readonly
+                      :value="aporteSeleccionado.detalle.seleccionMultiple"
+                      :title="aporteSeleccionado.detalle.seleccionMultiple"
+                    />
+                  </div>
+                  <div class="columna-8">
+                    <label class="form-label">5.- COLONIA</label>
+                    <input
+                      type="text"
+                      class="ancho-completo form-input"
+                      readonly
+                      :value="aporteSeleccionado.detalle.colonia"
+                      :title="aporteSeleccionado.detalle.colonia"
+                    />
+                  </div>
+                  <div class="columna-16">
+                    <label class="form-label">5.1.- CALLE</label>
+                    <input
+                      type="text"
+                      class="ancho-completo form-input"
+                      readonly
+                      :value="aporteSeleccionado.detalle.calle"
+                      :title="aporteSeleccionado.detalle.calle"
+                    />
+                  </div>
+                  <div class="columna-16">
+                    <label class="form-label">5.2.- CIUDAD</label>
+                    <input
+                      type="text"
+                      class="ancho-completo form-input"
+                      readonly
+                      :value="aporteSeleccionado.detalle.ciudad"
+                      :title="aporteSeleccionado.detalle.ciudad"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <!-- Botones de rechazo y aceptación -->
-              <div
-                class="flex"
-                style="
-                  justify-content: center;
-                  gap: 24px;
-                  padding-top: 1rem;
-                  border-top: 1px solid #e0e0e0;
-                "
-              >
+              <div class="detalle-aporte__acciones-finales">
                 <button
                   class="btn-moderno btn-aprobar"
                   @click="cambiarEstadoAporte(aporteSeleccionado.id, 'APROBADO')"
@@ -551,7 +526,6 @@ const puntoSeleccionado = computed(() => ({
         </div>
       </main>
 
-      <!-- Modal de confirmación-->
       <ClientOnly>
         <SisdaiModal ref="modalConfirmacion">
           <template #encabezado>
@@ -578,7 +552,6 @@ const puntoSeleccionado = computed(() => ({
         </SisdaiModal>
       </ClientOnly>
 
-      <!-- Modal de Mensajes-->
       <Teleport to="body">
         <ClientOnly>
           <SisdaiModal ref="modalMensajes">
@@ -619,7 +592,6 @@ const puntoSeleccionado = computed(() => ({
         </ClientOnly>
       </Teleport>
 
-      <!--Modal de Imagen Ampliada-->
       <Teleport to="body">
         <div v-if="imagenAmpliada" class="modal-imagen-overlay" @click="cerrarImagen">
           <div class="modal-imagen-contenido" @click.stop>
@@ -633,7 +605,6 @@ const puntoSeleccionado = computed(() => ({
 </template>
 
 <style lang="scss" scoped>
-/* Utilidades base */
 .cursor-pointer {
   cursor: pointer;
 }
@@ -647,64 +618,119 @@ const puntoSeleccionado = computed(() => ({
 .flex-columna {
   flex-direction: column;
 }
-
-/* TARJETAS LATERALES*/
+.revision-aportes {
+  width: 100%;
+  align-items: flex-start;
+  .columna-5,
+  .columna-11 {
+    min-width: 0;
+  }
+}
+.revision-aportes__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.revision-aportes__titulo {
+  margin: 0;
+}
+.panel-aportes {
+  width: 100%;
+}
+.panel-aportes__busqueda {
+  flex-shrink: 0;
+}
+.lista-aportes {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 18px;
+}
+.lista-aportes > .tarjeta-aporte {
+  width: 100%;
+  flex: none;
+}
+.tarjeta-aporte__contenido {
+  display: flex;
+  align-items: flex-start;
+  gap: .75rem;
+  min-width: 0;
+}
+.tarjeta-aporte__texto {
+  flex: 1;
+  min-width: 0;
+}
 .tarjeta-aporte {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  min-height: 120px;
   background-color: #715b62;
   border: 1px solid #715b62;
-  transition: all 0.25s ease;
+  border-radius: 8px;
+  padding: 0.9rem;
+  transition: background-color .25s ease, border-color .25s ease, box-shadow .25s ease, transform .25s ease;
 
   .icono-doc,
   .titulo,
   .texto-secundario,
   .texto-porcentaje {
-    color: #ffffff !important;
+    color: #fff !important;
   }
-
+  .titulo {
+    line-height: 1.35;
+    word-break: normal;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+  .texto-secundario {
+    line-height: 1.25;    
+    word-break: normal;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
   .barra-fondo {
     height: 6px;
-    background-color: rgba(255, 255, 255, 0.2);
-    border-radius: 3px;
+    border-radius: 999px;
     overflow: hidden;
+    background: rgba(255,255,255,.20);
   }
   .barra-relleno {
     height: 100%;
-    background-color: #d48d95;
-    border-radius: 3px;
-    transition: width 0.3s ease;
+    background: #d48d95;
+    transition: width .3s ease;
   }
-
   &:hover:not(.seleccionada) {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    filter: brightness(1.05);
+    box-shadow: 0 6px 18px rgba(0,0,0,.15);
   }
-
   &.seleccionada {
-    background-color: #d48d95;
+    background: #d48d95;
     border-color: #d48d95;
-
     .icono-doc,
     .titulo,
     .texto-secundario,
     .texto-porcentaje {
       color: #391821 !important;
     }
-
     .barra-fondo {
-      background-color: rgba(255, 255, 255, 0.4);
+      background: rgba(255,255,255,.40);
     }
     .barra-relleno {
-      background-color: #391821;
+      background: #391821;
     }
   }
 }
-
-/* Paginación */
+.btn-mensajes {
+  flex: 1;
+}
 .paginacion {
   justify-content: center;
   gap: 8px;
-
   .btn-paginacion {
     background: transparent;
     border: 1px solid #ccc;
@@ -714,7 +740,6 @@ const puntoSeleccionado = computed(() => ({
     transition: all 0.2s;
     font-weight: 500;
     color: #444;
-
     &:hover:not(:disabled) {
       background: #eee;
     }
@@ -729,13 +754,10 @@ const puntoSeleccionado = computed(() => ({
     }
   }
 }
-
-/* FICHA Y FORMULARIOS*/
 .tarjeta-ficha {
   background-color: #ffffff;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
 }
-
 .mapa-placeholder {
   height: 250px;
   background-color: #f8fafc;
@@ -745,7 +767,6 @@ const puntoSeleccionado = computed(() => ({
   align-items: center;
   justify-content: center;
 }
-
 .form-label {
   font-size: 0.75rem;
   font-weight: 600;
@@ -754,8 +775,98 @@ const puntoSeleccionado = computed(() => ({
   margin-bottom: 6px;
   letter-spacing: 0.3px;
 }
-
-/* FOTOGRAFÍAS*/
+.detalle-aporte {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  min-width: 0;
+}
+.detalle-aporte__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.detalle-aporte__titulo {
+  flex: 1;
+  min-width: 0;
+  color: #715b62;
+  h2 {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+}
+.detalle-aporte__nombre {
+  flex: 1;
+  min-width: 0;
+  color: #715b62;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+.detalle-aporte__acciones {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+.detalle-aporte__acciones > * {
+  flex-shrink: 0;
+}
+.detalle-aporte__mapa {
+  min-height: 220px;
+}
+.detalle-aporte__mapa > div {
+  width: 100%;
+  height: 100%;
+  min-height: 220px;
+}
+.detalle-aporte__registrante {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 120px;
+}
+.detalle-aporte__galeria {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 16px;
+}
+.detalle-aporte__galeria img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.levantamiento-form {
+  width: 100%;
+}
+.levantamiento-form__grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.levantamiento-form .grid {
+  width: 100%;
+}
+.levantamiento-form .grid > [class*="columna"] {
+  min-width: 0;
+}
+.levantamiento-form label {
+  display: block;
+  margin-bottom: 6px;
+}
+.levantamiento-form input,
+.levantamiento-form textarea,
+.levantamiento-form select {
+  width: 100%;
+  min-height: 44px;
+}
+.levantamiento-form textarea {
+  min-height: 120px;
+}
 .imagen-miniatura {
   width: 120px;
   height: 80px;
@@ -766,29 +877,21 @@ const puntoSeleccionado = computed(() => ({
   justify-content: center;
   overflow: hidden;
 }
-
 .bg-imagen {
   background-size: cover;
   background-position: center;
 }
-
 .bg-placeholder {
   background-color: #f1f5f9;
 }
-
 .miniatura-interactiva {
   cursor: pointer;
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
   &:hover {
     transform: scale(1.05);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
   }
 }
-
-/* MODAL DE IMÁGENES Y GLOBALES */
 .modal-imagen-overlay,
 .modal-overlay {
   position: fixed;
@@ -803,7 +906,6 @@ const puntoSeleccionado = computed(() => ({
   z-index: 9999;
   backdrop-filter: blur(4px);
 }
-
 .modal-imagen-contenido {
   position: relative;
   background: white;
@@ -817,7 +919,6 @@ const puntoSeleccionado = computed(() => ({
   justify-content: center;
   animation: fadeInZoom 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
-
 .btn-cerrar-imagen {
   position: absolute;
   top: -12px;
@@ -837,20 +938,17 @@ const puntoSeleccionado = computed(() => ({
   box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
   transition: all 0.2s ease;
   z-index: 10;
-
   &:hover {
     background-color: #dc2626;
     transform: scale(1.1);
   }
 }
-
 .imagen-grande {
   max-width: 100%;
   max-height: 85vh;
   border-radius: 6px;
   display: block;
 }
-
 @keyframes fadeInZoom {
   from {
     opacity: 0;
@@ -861,8 +959,13 @@ const puntoSeleccionado = computed(() => ({
     transform: scale(1);
   }
 }
-
-/* Modal de confirmación */
+.detalle-aporte__acciones-finales {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
 .modal-confirmacion-contenido {
   background: #ffffff;
   width: 100%;
@@ -874,17 +977,13 @@ const puntoSeleccionado = computed(() => ({
   animation: fadeInZoom 0.2s ease-out;
   overflow: hidden;
 }
-
 .modal-confirmacion-header {
   padding: 16px 20px;
   text-align: center;
 }
-
 .fondo-guinda {
   background-color: #715b62;
 }
-
-/* Modal de mensajes */
 .modal-mensajes-contenido {
   background: #ffffff;
   width: 100%;
@@ -897,7 +996,6 @@ const puntoSeleccionado = computed(() => ({
   animation: fadeInZoom 0.2s ease-out;
   overflow: hidden;
 }
-
 .modal-mensajes-header {
   padding: 16px 20px;
   background-color: #f8fafc;
@@ -906,77 +1004,27 @@ const puntoSeleccionado = computed(() => ({
   justify-content: space-between;
   align-items: center;
 }
-
-// .btn-cerrar-sutil {
-//   background: transparent; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer; transition: color 0.2s;
-//   &:hover { color: #ef4444; }
-// }
-
-// .chat-area {
-//   flex: 1; padding: 20px; overflow-y: auto; background-color: #f1f5f9; display: flex; flex-direction: column; gap: 12px;
-// }
-
-// .burbuja {
-//   padding: 12px 16px; border-radius: 12px; max-width: 85%; font-size: 0.9rem; line-height: 1.4; position: relative;
-// }
-
-// .ajena {
-//   background-color: #ffffff; color: #334155; border: 1px solid #e2e8f0; align-self: flex-start; border-bottom-left-radius: 4px;
-// }
-
-// .propia {
-//   background-color: #715B62; color: #ffffff; align-self: flex-end; border-bottom-right-radius: 4px;
-// }
-
-// .fecha-msj {
-//   display: block; font-size: 0.65rem; margin-top: 6px; text-align: right;
-// }
-
-// .ajena .fecha-msj { color: #94a3b8; }
-// .propia .fecha-msj { color: rgba(255,255,255,0.7); }
-
-// .chat-input-area {
-//   padding: 16px; background-color: #ffffff; border-top: 1px solid #e2e8f0; display: flex; gap: 12px;
-// }
-
-// .input-chat {
-//   flex: 1; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 20px; font-size: 0.9rem; transition: border-color 0.2s;
-//   &:focus { outline: none; border-color: #715B62; }
-// }
-
-// .btn-enviar-chat {
-//   background-color: #10b981; color: white; border: none; padding: 0 20px; border-radius: 20px; font-weight: 600; cursor: pointer; transition: background 0.2s;
-//   &:hover { background-color: #059669; }
-// }
-
-/* Inputs form */
-
 .form-input {
   background-color: #ffffff !important;
   border: 1px solid #cbd5e1 !important;
   border-radius: 8px;
   padding: 10px 14px;
-
   color: #334155 !important;
   -webkit-text-fill-color: #334155 !important;
   opacity: 1 !important;
-
   font-size: 0.9rem;
   transition: all 0.3s ease;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 .form-input:hover,
 .form-input:focus {
   outline: none !important;
   border-color: #715b62 !important;
   background-color: #ffffff !important;
 }
-
 .btn-moderno {
   display: inline-flex;
   align-items: center;
@@ -993,7 +1041,6 @@ const puntoSeleccionado = computed(() => ({
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
-
 .btn-aprobar {
   background: linear-gradient(135deg, #d48d95 0%, #d47782 100%);
 }
@@ -1005,5 +1052,154 @@ const puntoSeleccionado = computed(() => ({
   width: 100%;
   padding: 10px;
   border-radius: 6px;
+}
+
+@media (max-width:991px){
+  .revision-aportes {
+    display: flex;
+    flex-direction: column;
+  }
+  .revision-aportes > .columna-5 {
+    width: 100%;
+    max-width: 100%;
+  }
+  .revision-aportes > .columna-11 {
+    width: 100%;
+    max-width: 100%;
+  }
+  .detalle-aporte__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .detalle-aporte__acciones {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .detalle-aporte__registrante {
+    margin-top: 12px;  
+  }
+  .levantamiento-form .grid {
+    gap: 16px;
+  }
+}
+
+@media (max-width:767px){
+  h2 {
+    font-size: 1.25rem;
+  }
+  .revision-aportes__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .panel-aportes__busqueda {
+    width: 100%;
+  }
+  .panel-aportes__busqueda input {
+    width: 100%;
+  }
+  .tarjeta-aporte {
+    padding: 14px;
+  }
+  .tarjeta-aporte__contenido {
+    gap: 10px;
+  }
+  .detalle-aporte__header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .detalle-aporte__acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-start;
+  }
+  .detalle-aporte__acciones > * {
+    width: auto !important;
+    flex: none;
+  }
+  .detalle-aporte__titulo {
+    width: 100%;
+    margin: 0;
+  }
+  .detalle-aporte__titulo h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    line-height: 1.35;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: break-word;
+  }
+  .detalle-aporte__registrante {
+    margin-top: 12px;
+  }
+  .levantamiento-form .grid {
+    display: flex;
+    flex-direction: column;
+  }
+  .levantamiento-form .grid > [class*="columna"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 0 0 100% !important;
+  }
+  .detalle-aporte__acciones-finales {
+    flex-direction: column;
+  }
+  .detalle-aporte__acciones-finales > * {
+    width: 100%;
+  }
+}
+
+@media (max-width:480px){
+  .revision-aportes {
+    gap: 16px;
+  }
+  .tarjeta-aporte {
+    padding: 12px;
+  }
+  .tarjeta-ficha {
+    padding: 16px;
+  }
+  .detalle-aporte {
+    gap: 18px;
+  }
+  .detalle-aporte__titulo h2 {
+    font-size: 1.1rem;
+  }
+  .detalle-aporte__mapa .leaflet-container {
+    height: 220px;
+  }
+  .detalle-aporte__galeria {
+    grid-template-columns: 1fr;
+  }
+  .detalle-aporte__acciones {
+    gap: 10px;
+  }
+  .detalle-aporte__acciones > * {
+    width: 100%;
+  }
+  .detalle-aporte__registrante {
+    margin-top: 12px;
+  }
+}
+
+@media (max-width:360px){
+  h2 {
+    font-size: 1rem;
+  }
+  .tarjeta-aporte {
+    padding: 10px;
+  }
+  .detalle-aporte {
+    gap: 14px;
+  }
+  .detalle-aporte__galeria {
+    gap: 10px;
+  }
+  .detalle-aporte__registrante {
+    margin-top: 12px;
+  }
 }
 </style>

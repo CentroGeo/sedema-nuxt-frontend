@@ -121,7 +121,7 @@ const vistaDelMapa = computed(() => {
 
     <section>
       <div class="m-b-4">
-        <label for="nombre">Nombre de la escena</label>
+        <label for="nombre">Nombre de la escena *</label>
         <input
           id="nombre"
           v-model="escena.name"
@@ -153,7 +153,7 @@ const vistaDelMapa = computed(() => {
           <p class="m-t-0">Ajusta el mapa y zoom para ajustar la vista</p>
 
           <fieldset>
-            <label for="lng">Longitud</label>
+            <label for="lng">Longitud *</label>
             <input
               id="lng"
               v-model="escena.map_center_long"
@@ -166,7 +166,7 @@ const vistaDelMapa = computed(() => {
           </fieldset>
 
           <fieldset>
-            <label for="lat">Latitud</label>
+            <label for="lat">Latitud *</label>
             <input
               id="lat"
               v-model="escena.map_center_lat"
@@ -179,7 +179,7 @@ const vistaDelMapa = computed(() => {
           </fieldset>
 
           <fieldset>
-            <label for="zoom">Nivel de acercamiento</label>
+            <label for="zoom">Nivel de acercamiento *</label>
             <input
               id="zoom"
               v-model="escena.zoom"

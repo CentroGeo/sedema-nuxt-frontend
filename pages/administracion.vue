@@ -8,6 +8,7 @@ const submodulos = [
   { nombre: 'Gestión de permisos', ruta: `${ruta}/permisos` },
   { nombre: 'Gestión de categorías y metadatos', ruta: `${ruta}/categorias` },
   { nombre: 'Gestión de estilos y apariencias', ruta: `${ruta}/estilos-apariencia` },
+  { nombre: 'Constructor de Páginas', ruta: `${ruta}/constructor-paginas` },
 ];
 </script>
 
@@ -48,6 +49,24 @@ const submodulos = [
   .contenedor-contenido {
     flex: 1;
     min-width: 0;
+  }
+
+  // UiLayoutPaneles fija la altura de sus columnas a --altura-consulta-esc,
+  // pensada para paneles que scrollean de forma independiente (Consulta,
+  // IA, Levantamiento, que sí definen esa variable). Administración no la
+  // define, y contenido alto como el lienzo del Constructor de Páginas
+  // necesita que sea la página completa la que scrollee, no un panel
+  // interno con altura acotada.
+  :deep(.contenedor-paneles) {
+    height: auto;
+
+    .columna-4,
+    .columna-8,
+    .columna-12,
+    .columna-16 {
+      height: auto;
+      overflow: visible;
+    }
   }
 }
 </style>
