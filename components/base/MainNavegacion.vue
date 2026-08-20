@@ -520,7 +520,7 @@ function eliminarLogo4() {
         <NuxtLink class="nav-hipervinculo" to="/ia">Análisis Inteligencia Artificial</NuxtLink>
       </li>
       <li v-if="mostrarLevantamiento && status === 'authenticated'">
-        <NuxtLink class="nav-hipervinculo" to="/levantamiento">Levantamiento</NuxtLink>
+        <NuxtLink class="nav-hipervinculo" to="/levantamiento" target="_blank" rel="noopener noreferrer">Levantamiento</NuxtLink>
       </li>
       <li v-if="mostrarGeocontenidos && status === 'authenticated'">
         <NuxtLink class="nav-hipervinculo" to="/geocontenidos">Geocontenidos</NuxtLink>
