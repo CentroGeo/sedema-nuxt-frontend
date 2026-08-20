@@ -628,44 +628,6 @@ async function monitorLayerImport(executionId, archivo) {
           ejecucion.output_params?.resources?.[0]?.pk;
         await finalizarCargaDataset(archivo, idRecurso);
         return;
-        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        archivo.estatus = 'carga_finalizada';
-        archivo.mensaje = `Procesado en ${elapsed}s`;
-        archivo.IdRutaArchivo = data.imported_resources?.[0]?.detail_url.split('/').slice(-1)[0];
-        archivo.tipo_recurso = 'dataLayer';
-        statusOk.value = true;
-
-        if (archivo.IdRutaArchivo) {
-          try {
-            const request_geonode = await gnoxyFetch(
-              `${configEnv.public.geonodeUrl}/api/v2/datasets/${archivo.IdRutaArchivo}`
-            );
-            const res_geonode = await request_geonode.json();
-            if (res_geonode?.dataset?.srid) {
-              archivo.proyeccion = res_geonode.dataset.srid;
-            }
-            // Para archivos ráster (GeoTIFF, etc.) se omite la consulta WFS de conteo de geometrías ya que no son capas vectoriales
-            const esRaster =
-              res_geonode?.dataset?.subtype === 'raster' ||
-              ['.tif', '.tiff', '.geotiff'].some((end) =>
-                archivo.nombre.toLowerCase().endsWith(end)
-              );
-            if (!esRaster && res_geonode?.dataset?.alternate) {
-              try {
-                const request_geoserver = await gnoxyFetch(
-                  `${configEnv.public.geonodeUrl}/gs/ows?service=WFS&version=1.1.0&request=GetFeature&typeName=${res_geonode.dataset.alternate}&resultType=hits`
-                );
-                const res_geoserver = await request_geoserver.text();
-                const match = res_geoserver.match(/numberOfFeatures="(\d+)"/);
-                archivo.numero_geometrias = match ? parseInt(match[1], 10) : null;
-              } catch (e) {
-                console.warn('No se pudo obtener el número de geometrías WFS:', e);
-              }
-            }
-          } catch (e) {
-            console.warn('No se pudo consultar información del dataset importado:', e);
-          }
-        }
       }
 
       if (ejecucion?.status === 'failed') {
