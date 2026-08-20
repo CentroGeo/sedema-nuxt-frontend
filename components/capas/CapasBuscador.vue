@@ -41,6 +41,19 @@ function headers() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+// /categories/ no trae el número real de capas por categoría, hay que
+// contarlas aparte (mismo enfoque que usa Consulta en LayoutCatalogo.vue).
+async function contarCapasDeCategoria(identifier) {
+  const params = new URLSearchParams({ page: '1', page_size: '1' });
+  params.append('filter{subtype.in}', 'vector');
+  params.append('filter{subtype.in}', 'raster');
+  params.append('filter{category.identifier}', identifier);
+  const res = await gnoxyFetch(`${api}/datasets/?${params.toString()}`, { headers: headers() });
+  if (!res.ok) return 0;
+  const data = await res.json();
+  return data.total ?? data.count ?? 0;
+}
+
 async function cargarCategorias() {
   cargandoCategorias.value = true;
   try {
@@ -48,9 +61,15 @@ async function cargarCategorias() {
     if (!res.ok) throw new Error('error');
     const data = await res.json();
     const lista = data.categories || data.results || [];
-    categorias.value = [...lista].sort((a, b) =>
-      props.nombreCategoria(a).localeCompare(props.nombreCategoria(b))
+
+    const conConteo = await Promise.all(
+      lista.map(async (cat) => ({ ...cat, count: await contarCapasDeCategoria(cat.identifier) }))
     );
+
+    categorias.value = conConteo
+      .filter((cat) => cat.count > 0)
+      .sort((a, b) => props.nombreCategoria(a).localeCompare(props.nombreCategoria(b)));
+
     if (!categoriaSeleccionada.value && categorias.value.length) {
       categoriaSeleccionada.value = categorias.value[0];
     }
@@ -74,6 +93,8 @@ async function cargarCapas() {
   params.append('filter{subtype.in}', 'raster');
   if (busqueda.value.trim()) {
     params.append('search', busqueda.value.trim());
+    params.append('search_fields', 'title');
+    params.append('search_fields', 'abstract');
   } else if (categoriaSeleccionada.value) {
     params.append('filter{category.identifier}', categoriaSeleccionada.value.identifier);
   }

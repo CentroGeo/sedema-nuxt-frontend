@@ -74,6 +74,13 @@ export const useMapasStore = defineStore('mapas', () => {
     activeMap.value = null;
     mapaCargado.value = false;
   }
+  // Igual que cargarMapa pero sin isLoadingMap: la página usa esa bandera
+  // para desmontar toda la vista, así que no sirve para refrescar con algo
+  // (ej. el modal de capas) ya abierto encima.
+  async function refrescarMapa(id) {
+    activeMap.value = await api.fetchMapa(id).catch(() => null);
+    return activeMap.value;
+  }
   const crearMapa = (payload) => api.crearMapa(payload, token());
   const actualizarMapa = (id, payload) => api.actualizarMapa(id, payload, token());
   const eliminarMapa = (id) => api.eliminarMapa(id, token());
@@ -130,6 +137,7 @@ export const useMapasStore = defineStore('mapas', () => {
     cerrarModalAgregarCapas,
     cargarMapas,
     cargarMapa,
+    refrescarMapa,
     limpiarMapa,
     crearMapa,
     actualizarMapa,
