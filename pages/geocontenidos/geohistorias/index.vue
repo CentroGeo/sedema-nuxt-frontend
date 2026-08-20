@@ -8,6 +8,17 @@ const estaLogueado = computed(() => status.value === 'authenticated');
 
 const escenarios = ref([]);
 const estaCargando = ref(false);
+const paginaActual = ref(0);
+const elementosPorPagina = 6;
+
+const totalPags = computed(() =>
+  Math.max(1, Math.ceil(escenarios.value.length / elementosPorPagina))
+);
+
+const escenariosPaginados = computed(() => {
+  const inicio = paginaActual.value * elementosPorPagina;
+  return escenarios.value.slice(inicio, inicio + elementosPorPagina);
+});
 
 async function cargarEscenarios() {
   estaCargando.value = true;
@@ -93,7 +104,11 @@ function formatearFecha(fecha) {
     <GeocontenidosLoader v-if="estaCargando" />
 
     <div v-else-if="escenarios.length > 0" class="grid reticula-12">
-      <div v-for="escenario in escenarios" :key="escenario.id" class="columna-8 columna-4-esc">
+      <div
+        v-for="escenario in escenariosPaginados"
+        :key="escenario.id"
+        class="columna-8 columna-4-esc"
+      >
         <div class="tarjeta">
           <div class="tarjeta-cuerpo">
             <div
@@ -185,6 +200,13 @@ function formatearFecha(fecha) {
         </div>
       </div>
     </div>
+    <UiPaginador
+      v-if="escenarios.length > 0"
+      class="m-t-4"
+      :pagina-parent="paginaActual"
+      :total-paginas="totalPags"
+      @cambio="paginaActual = $event"
+    />
 
     <div v-else class="texto-centrado">
       <p class="h3">No hay escenarios disponibles.</p>

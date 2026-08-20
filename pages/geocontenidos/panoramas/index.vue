@@ -8,6 +8,17 @@ const estaLogueado = computed(() => status.value === 'authenticated');
 
 const panoramas = ref([]);
 const estaCargando = ref(false);
+const paginaActual = ref(0);
+const elementosPorPagina = 6;
+
+const totalPags = computed(() =>
+  Math.max(1, Math.ceil(panoramas.value.length / elementosPorPagina))
+);
+
+const panoramasPaginados = computed(() => {
+  const inicio = paginaActual.value * elementosPorPagina;
+  return panoramas.value.slice(inicio, inicio + elementosPorPagina);
+});
 
 async function cargarPanoramas() {
   estaCargando.value = true;
@@ -64,7 +75,11 @@ async function eliminarPanorama(id) {
     <GeocontenidosLoader v-if="estaCargando" />
 
     <div v-else-if="panoramas.length > 0" class="grid reticula-12">
-      <div v-for="panorama in panoramas" :key="panorama.id" class="columna-8 columna-4-esc">
+      <div
+        v-for="panorama in panoramasPaginados"
+        :key="panorama.id"
+        class="columna-8 columna-4-esc"
+      >
         <div class="tarjeta">
           <div class="tarjeta-cuerpo">
             <div
@@ -141,6 +156,14 @@ async function eliminarPanorama(id) {
         </div>
       </div>
     </div>
+
+    <UiPaginador
+      v-if="panoramas.length > 0"
+      class="m-t-4"
+      :pagina-parent="paginaActual"
+      :total-paginas="totalPags"
+      @cambio="paginaActual = $event"
+    />
 
     <div v-else class="texto-centrado">
       <p class="h3">No hay panoramas disponibles.</p>

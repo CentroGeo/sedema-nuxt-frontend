@@ -198,6 +198,7 @@ onUnmounted(() => {
         </div>
 
         <UiPaginador
+          class="m-t-4"
           :pagina-parent="paginaActual"
           :total-paginas="totalPags"
           @cambio="paginaActual = $event"
