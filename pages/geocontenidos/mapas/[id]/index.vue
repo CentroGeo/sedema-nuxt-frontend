@@ -150,7 +150,7 @@ onUnmounted(() => {
           class="boton boton-secundario boton-chico m-r-2"
           aria-label="Volver a mapas"
         >
-          <span class="pictograma-flecha-izquierda m-r-1" />
+          <span class="pictograma-flecha-izquierda" />
         </NuxtLink>
 
         <div>
