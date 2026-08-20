@@ -257,13 +257,11 @@ const estiloControles = computed(() => {
       >
         <SisdaiCapaXyz :key="`base-${baseLayerActual}`" :posicion="0" :fuente="baseLayerUrl" />
 
-        <template
-          v-for="capa in capasOrdenadas"
-          :key="capa.id ?? `${capa.name}-${capa.stack_order}`"
-        >
+        <template v-for="capa in capasOrdenadas" :key="`capa-${capa.id}-${capa.style || 'def'}`">
           <MapasCapaTeselada
             v-if="capa.layer_type === 'wmts'"
             :id="`capa-${capa.id}`"
+            :key="`wmts-${capa.id}-${capa.style || 'def'}`"
             :fuente-wmts="buildWmtsUrl(capa)"
             :fuente-wms="wmsFuente"
             :capa="capa.name"
@@ -275,6 +273,7 @@ const estiloControles = computed(() => {
 
           <SisdaiCapaWms
             v-else
+            :key="`wms-${capa.id}-${capa.style || 'def'}`"
             :capa="capa.name"
             :fuente="wmsFuente"
             :consulta="consultaCapa(capa)"

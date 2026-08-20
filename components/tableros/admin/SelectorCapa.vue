@@ -124,12 +124,23 @@ function estaSeleccionada(capa) {
   return props.modelValue?.pk === capa.pk;
 }
 
+function alCambiarVisibilidadPestania() {
+  if (document.visibilityState === 'visible') {
+    cargarCategorias();
+    cargarCapas();
+  }
+}
+
 onMounted(async () => {
   await cargarCategorias();
   cargarCapas();
+  document.addEventListener('visibilitychange', alCambiarVisibilidadPestania);
 });
 
-onBeforeUnmount(() => clearTimeout(temporizadorBusqueda));
+onBeforeUnmount(() => {
+  clearTimeout(temporizadorBusqueda);
+  document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
 </script>
 
 <template>

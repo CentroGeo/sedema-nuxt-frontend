@@ -43,11 +43,11 @@ export function useMapaApi() {
   }
 
   return {
-    fetchMapas: (params = {}) => {
-      const q = new URLSearchParams(params).toString();
+    fetchMapas: (params: Record<string, any> = {}) => {
+      const q = new URLSearchParams({ ...params, _t: String(Date.now()) }).toString();
       return fetchJson(`${baseUrl}/sigic-maps/${q ? `?${q}` : ''}`);
     },
-    fetchMapa: (id: number | string) => fetchJson(`${baseUrl}/sigic-maps/${id}/`),
+    fetchMapa: (id: number | string) => fetchJson(`${baseUrl}/sigic-maps/${id}/?t=${Date.now()}`),
     crearMapa: (datos: unknown, token?: string | null) =>
       jsonRequest(`${baseUrl}/sigic-maps/`, 'POST', datos, token),
     actualizarMapa: (id: number, datos: unknown, token?: string | null) =>
