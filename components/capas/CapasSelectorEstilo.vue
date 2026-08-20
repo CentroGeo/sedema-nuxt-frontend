@@ -41,12 +41,30 @@ async function cargarEstilos() {
       });
     }
     estilos.value = lista;
+    if (data.default_style) {
+      if (!estiloSeleccionado.value || !lista.some((e) => e.name === estiloSeleccionado.value)) {
+        estiloSeleccionado.value = data.default_style;
+        const sel = lista.find((e) => e.name === data.default_style);
+        emit('update:style', {
+          layerId: props.capa.id,
+          style: data.default_style,
+          styleTitle: sel?.sld_title || data.default_style,
+        });
+      }
+    }
   } catch {
     estilos.value = [];
   } finally {
     cargando.value = false;
   }
 }
+
+watch(
+  () => props.capa.style,
+  (nuevo) => {
+    if (nuevo) estiloSeleccionado.value = nuevo;
+  }
+);
 
 function alCambiar(ev) {
   const name = ev.target.value;

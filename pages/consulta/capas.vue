@@ -199,6 +199,20 @@ watch(
   }
 );
 
+async function alCambiarVisibilidadPestania() {
+  if (document.visibilityState === 'visible' && storeSelected.pks.length > 0) {
+    await storeResources.fetchResourcesByPk(storeConsulta.resourceType, storeSelected.pks);
+    for (const pk of storeSelected.pks) {
+      const res = storeResources.findResource(pk);
+      if (res && res.default_style) {
+        const item = storeSelected.byPk(pk);
+        if (item) item.estilo = res.default_style;
+      }
+    }
+    updateQueryParam(storeSelected.asQueryParam());
+  }
+}
+
 onMounted(async () => {
   storeConsulta.catalogoColapsado = false;
   updateMapFromHash(route.hash?.slice(1));
@@ -210,6 +224,11 @@ onMounted(async () => {
     storeResources.fetchResourcesByPk(storeConsulta.resourceType, storeSelected.pks);
     updateQueryParam(storeSelected.asQueryParam());
   }
+  document.addEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
 });
 
 const modalDescarga = ref(null);

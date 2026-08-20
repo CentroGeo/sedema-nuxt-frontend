@@ -4,16 +4,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
-  seleccionado: {
-    type: Boolean,
-    default: false,
-  },
 });
 
-const emit = defineEmits(['seleccionar']);
+const emit = defineEmits(['seleccionar', 'eliminar']);
 
-const config = useRuntimeConfig();
-const { rutaApp } = useUrlAbsoluta();
 const { data } = useAuth();
 const storeCatalogo = useCatalogoStore();
 
@@ -46,140 +40,167 @@ const tipoEtiqueta = {
   dual: 'Dual',
 };
 
-const previewSrc = computed(() => props.mapa.preview || `${config.app.baseURL}img/icono_sigic.png`);
-
-function abrirMapa() {
-  navigateTo(`/geocontenidos/mapas/${props.mapa.id}`);
-}
-
-function visualizarMapa() {
-  // window.open no pasa por el router, así que hay que incluir el base URL.
-  window.open(rutaApp(`/mapas/${props.mapa.id}`), '_blank');
+function formatearFecha(fecha) {
+  if (!fecha) return '—';
+  return new Date(fecha).toLocaleDateString('es-MX', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 }
 </script>
 
 <template>
-  <div class="tarjeta columna-5 tarjeta-mapa">
+  <div class="tarjeta">
     <div class="tarjeta-cuerpo">
-      <div class="preview-contenedor">
-        <img :src="previewSrc" :alt="`Vista previa de ${mapa.name}`" class="preview" />
-        <span class="borde-redondeado-16 p-1 etiqueta-tipo">
+      <div
+        class="fila-etiquetas-superiores flex flex-contenido-separado flex-alineado-centrado m-b-1"
+      >
+        <span class="etiqueta-compacta etiqueta-tipo">
           {{ tipoEtiqueta[mapa.map_type] || mapa.map_type }}
         </span>
-        <span v-if="mapa.is_public === false" class="borde-redondeado-16 p-1 etiqueta-privado">
-          <span class="pictograma-privado" aria-hidden="true"></span> Privado
+
+        <span
+          class="etiqueta-compacta etiqueta-estado"
+          :class="mapa.is_public ? 'estado-publico' : 'estado-privado'"
+        >
+          <span
+            :class="mapa.is_public ? 'pictograma-ojo-ver' : 'pictograma-privado'"
+            class="m-r-1"
+            aria-hidden="true"
+          />
+          {{ mapa.is_public ? 'Público' : 'Privado' }}
         </span>
       </div>
 
-      <div class="tarjeta-titulo flex flex-contenido-separado">
-        <p class="m-0 texto-peso-600">{{ mapa.name }}</p>
-        <!-- Solo quien puede configurar el mapa (dueño/admin) puede seleccionarlo para borrar. -->
-        <div v-if="mostrarConfiguracion" class="seleccion-mapa">
-          <input
-            :id="`seleccionar-mapa-${mapa.id}`"
-            type="checkbox"
-            :checked="seleccionado"
-            :aria-label="`Seleccionar ${mapa.name}`"
-            @change="emit('seleccionar', $event.target.checked)"
-          />
-          <label :for="`seleccionar-mapa-${mapa.id}`">Seleccionar</label>
-        </div>
-      </div>
+      <p class="tarjeta-titulo m-0 m-b-1">{{ mapa.name }}</p>
 
-      <div class="meta flex">
-        <span class="pictograma-persona" aria-hidden="true" />
+      <p class="tarjeta-etiqueta m-0 m-b-1 flex flex-alineado-centrado">
+        <span class="pictograma-persona m-r-1" aria-hidden="true" />
         <span>{{ mapa.owner?.username || 'Anónimo' }}</span>
+      </p>
+
+      <p class="tarjeta-etiqueta m-0">
+        Creado: {{ formatearFecha(mapa.created_at || mapa.created) }}
+      </p>
+    </div>
+
+    <div class="tarjeta-pie flex">
+      <div class="fondo-color-acento borde borde-color-secundario borde-redondeado-8 m-b-2">
+        <p class="m-1" style="display: flex; align-items: end; justify-content: center">
+          <span class="pictograma-mapa-generador pictograma-mediano m-r-1" />
+          <span>
+            Capas: <b>{{ mapa.layers_count ?? 0 }}</b>
+          </span>
+        </p>
       </div>
 
-      <UiNumeroElementos :numero="mapa.layers_count ?? 0" :etiqueta="'Capas'" />
+      <NuxtLink
+        class="boton boton-chico boton-secundario"
+        :to="`/mapas/${mapa.id}`"
+        target="_blank"
+      >
+        <span class="pictograma-ojo-ver m-r-1" />
+        Ver
+      </NuxtLink>
 
-      <button
-        v-if="mostrarConfiguracion"
-        class="boton-primario boton-listas accion-tarjeta"
-        type="button"
-        @click="abrirMapa"
-      >
-        Abrir configuración
-      </button>
-      <button
-        class="boton-secundario boton-listas accion-tarjeta"
-        type="button"
-        @click="visualizarMapa"
-      >
-        <span class="pictograma-enlace-externo m-r-1" aria-hidden="true"></span>
-        Visualizar mapa
-      </button>
+      <template v-if="mostrarConfiguracion">
+        <NuxtLink
+          class="boton boton-chico boton-secundario"
+          :to="`/geocontenidos/mapas/${mapa.id}`"
+        >
+          <span class="pictograma-editar m-r-1" />
+          Editar
+        </NuxtLink>
+
+        <button
+          class="boton boton-chico boton-primario"
+          type="button"
+          @click="emit('eliminar', mapa)"
+        >
+          <span class="pictograma-eliminar m-r-1" />
+          Eliminar
+        </button>
+      </template>
     </div>
-    <div class="tarjeta-pie columna-16"></div>
   </div>
 </template>
 
 <style lang="scss" scoped>
-.tarjeta-mapa {
+.tarjeta {
+  height: 100%;
   display: flex;
   flex-direction: column;
+
+  &-cuerpo {
+    padding: 12px 16px;
+    background-color: var(--color-primario-4);
+    color: var(--texto-inverso);
+
+    .tarjeta-titulo {
+      color: var(--texto-inverso);
+      font-size: 1.1rem;
+      line-height: 1.25;
+      font-weight: 700;
+    }
+
+    .tarjeta-etiqueta {
+      color: var(--texto-inverso);
+      font-size: 0.85rem;
+      line-height: 1.3;
+    }
+  }
+
+  &-pie {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 16px;
+    gap: 0.5rem;
+
+    button,
+    a {
+      display: block;
+      width: 100%;
+      text-align: center;
+    }
+  }
 }
 
-.preview-contenedor {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  overflow: hidden;
-  border-radius: 8px;
-  background-color: var(--color-neutro-1);
+.fila-etiquetas-superiores {
+  min-height: 24px;
 }
 
-.preview {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.etiqueta-tipo {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background-color: var(--color-secundario-2);
-  color: var(--color-primario-4);
-  border: solid 1px var(--color-primario-4);
-  font-size: 0.85rem;
-}
-
-.etiqueta-privado {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  // Sobre imagen arbitraria: overlay neutro translúcido con tokens sisdai.
-  background-color: var(--opacidad-fuerte);
-  color: var(--texto-inverso);
+.etiqueta-compacta {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: max-content;
+  padding: 2px 8px;
   font-size: 0.75rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.accion-tarjeta {
-  margin: 8px 0;
-}
-
-.seleccion-mapa {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.85rem;
-  cursor: pointer;
+  font-weight: 600;
+  line-height: 1.2;
+  border-radius: 12px;
+  border: 1px solid transparent;
   white-space: nowrap;
 }
 
-.meta {
-  gap: 8px;
-  align-items: center;
-  color: var(--campo-etiqueta-color);
-  font-size: 0.9rem;
+.etiqueta-tipo {
+  background-color: var(--color-secundario-2);
+  color: var(--color-primario-4);
+  border-color: var(--color-primario-4);
 }
 
-.flex {
-  gap: 8px;
+.estado-publico {
+  background-color: var(--color-secundario-1);
+  color: var(--color-primario-4);
+  border-color: var(--color-primario-4);
+}
+
+.estado-privado {
+  background-color: var(--color-neutro-2);
+  color: var(--color-neutro-5);
+  border-color: var(--color-neutro-4);
 }
 </style>

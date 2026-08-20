@@ -36,7 +36,7 @@ export const useMapasStore = defineStore('mapas', () => {
       `?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0` +
       `&LAYER=${name}&STYLE=${style}` +
       `&TILEMATRIXSET=EPSG:3857&TILEMATRIX=EPSG:3857:{z}&TILEROW={y}&TILECOL={x}` +
-      `&FORMAT=image/png`
+      `&FORMAT=image/png&_t=${Date.now()}`
     );
   }
 
@@ -99,7 +99,12 @@ export const useMapasStore = defineStore('mapas', () => {
     return Array.isArray(creadas) && creadas.length > 0 && creadas.every((r) => r && r.id);
   }
   const actualizarCapa = (id, payload) => api.actualizarCapa(id, payload, token());
-  const actualizarEstiloCapa = (id, style) => api.actualizarEstiloCapa(id, style, token());
+  async function actualizarEstiloCapa(id, style) {
+    const res = await api.actualizarEstiloCapa(id, style, token());
+    const layer = (activeMap.value?.layers ?? []).find((l) => l.id === id);
+    if (layer) layer.style = style;
+    return res;
+  }
   const eliminarCapa = (id) => api.eliminarCapa(id, token());
   const reordenarCapas = (items) => api.reordenarCapas(items, token());
 

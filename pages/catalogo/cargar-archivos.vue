@@ -21,7 +21,8 @@ const { data } = useAuth();
 const { gnoxyFetch } = useGnoxyUrl();
 const { uploadFile, getQuota, pollJob, importToGeonode } = useDataImporter();
 
-const base_files = ['.geojson', '.gpkg', '.zip'];
+// Extensiones espaciales base soportadas (vectoriales y ráster como GeoTIFF)
+const base_files = ['.geojson', '.gpkg', '.zip', '.tif', '.tiff', '.geotiff'];
 const docs_files = ['.txt', '.pdf'];
 const sld_files = ['.sld'];
 const xml_files = ['.xml'];
@@ -374,6 +375,41 @@ async function guardarArchivo(files) {
         const idRecurso = result.url.split('/').slice(-1)[0];
         if (base_files.includes('.' + file.name.split('.').slice(-1)[0])) {
           await finalizarCargaDataset(archivo, idRecurso);
+        // Caso: documento cargado
+        archivo.IdRutaArchivo = result.url.split('/').slice(-1)[0];
+        // Se recupera la información necesaria para cada tipo de archivo
+        let tipo;
+        if (base_files.some((end) => file.name.toLowerCase().endsWith(end))) {
+          const request_geonode = await gnoxyFetch(
+            `${configEnv.public.geonodeUrl}/api/v2/datasets/${archivo.IdRutaArchivo}`
+          );
+          const res_geonode = await request_geonode.json();
+          tipo = isGeometricExtension(res_geonode.dataset.extent) ? 'dataLayer' : 'dataTable';
+          if (tipo === 'dataLayer') {
+            archivo.tipo_recurso = tipo;
+            const proyeccion = res_geonode?.dataset?.srid;
+            archivo.proyeccion = proyeccion;
+            // Para archivos ráster (GeoTIFF, etc.) se omite la consulta WFS de conteo de geometrías ya que no son capas vectoriales
+            const esRaster =
+              res_geonode?.dataset?.subtype === 'raster' ||
+              ['.tif', '.tiff', '.geotiff'].some((end) => file.name.toLowerCase().endsWith(end));
+            if (!esRaster && res_geonode?.dataset?.alternate) {
+              try {
+                const request_geoserver = await gnoxyFetch(
+                  `${configEnv.public.geonodeUrl}/gs/ows?service=WFS&version=1.1.0&request=GetFeature&typeName=${res_geonode.dataset.alternate}&resultType=hits`
+                );
+                const res_geoserver = await request_geoserver.text();
+                const match = res_geoserver.match(/numberOfFeatures="(\d+)"/);
+                archivo.numero_geometrias = match ? parseInt(match[1], 10) : null;
+              } catch (e) {
+                console.warn('No se pudo obtener el conteo de geometrías WFS:', e);
+              }
+            } else {
+              archivo.numero_geometrias = null;
+            }
+          } else if (tipo === 'dataTable') {
+            archivo.tipo_recurso = tipo;
+          }
         } else {
           // Caso: documento cargado
           archivo.IdRutaArchivo = idRecurso;
@@ -591,6 +627,44 @@ async function monitorLayerImport(executionId, archivo) {
           ejecucion.output_params?.resources?.[0]?.pk;
         await finalizarCargaDataset(archivo, idRecurso);
         return;
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        archivo.estatus = 'carga_finalizada';
+        archivo.mensaje = `Procesado en ${elapsed}s`;
+        archivo.IdRutaArchivo = data.imported_resources?.[0]?.detail_url.split('/').slice(-1)[0];
+        archivo.tipo_recurso = 'dataLayer';
+        statusOk.value = true;
+
+        if (archivo.IdRutaArchivo) {
+          try {
+            const request_geonode = await gnoxyFetch(
+              `${configEnv.public.geonodeUrl}/api/v2/datasets/${archivo.IdRutaArchivo}`
+            );
+            const res_geonode = await request_geonode.json();
+            if (res_geonode?.dataset?.srid) {
+              archivo.proyeccion = res_geonode.dataset.srid;
+            }
+            // Para archivos ráster (GeoTIFF, etc.) se omite la consulta WFS de conteo de geometrías ya que no son capas vectoriales
+            const esRaster =
+              res_geonode?.dataset?.subtype === 'raster' ||
+              ['.tif', '.tiff', '.geotiff'].some((end) =>
+                archivo.nombre.toLowerCase().endsWith(end)
+              );
+            if (!esRaster && res_geonode?.dataset?.alternate) {
+              try {
+                const request_geoserver = await gnoxyFetch(
+                  `${configEnv.public.geonodeUrl}/gs/ows?service=WFS&version=1.1.0&request=GetFeature&typeName=${res_geonode.dataset.alternate}&resultType=hits`
+                );
+                const res_geoserver = await request_geoserver.text();
+                const match = res_geoserver.match(/numberOfFeatures="(\d+)"/);
+                archivo.numero_geometrias = match ? parseInt(match[1], 10) : null;
+              } catch (e) {
+                console.warn('No se pudo obtener el número de geometrías WFS:', e);
+              }
+            }
+          } catch (e) {
+            console.warn('No se pudo consultar información del dataset importado:', e);
+          }
+        }
       }
 
       if (ejecucion?.status === 'failed') {
@@ -634,8 +708,8 @@ async function monitorLayerImport(executionId, archivo) {
           <h2>Carga archivo</h2>
           <p class="m-y-1">
             <b
-              >Formatos admitidos: GeoJSON, GeoPackage, Shapefile (ZIP o archivos sueltos), CSV,
-              XLSX, XLS, JSON, PDF, TXT, SLD y XML (ISO 19115).</b
+              >Formatos admitidos: GeoJSON, GeoPackage, Shapefile (ZIP o archivos sueltos), GeoTIFF
+              / Ráster (.tif, .tiff), CSV, XLSX, XLS, JSON, PDF, TXT, SLD y XML (ISO 19115).</b
             >
           </p>
           <p class="m-y-1">Tamaño máximo por archivo: {{ LIMITE_CARGA_ARCHIVOS_MIB }} MiB.</p>
