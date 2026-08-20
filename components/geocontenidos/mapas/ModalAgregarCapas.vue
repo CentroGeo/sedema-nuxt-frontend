@@ -18,15 +18,6 @@ const posicionDefecto = ref('left');
 
 const tieneLados = computed(() => props.mapType === 'swipe' || props.mapType === 'dual');
 
-function esDatasetRemoto(capa) {
-  return (
-    String(capa?.sourcetype || '').toUpperCase() === 'REMOTE' ||
-    String(capa?.subtype || '').toLowerCase() === 'remote'
-  );
-}
-
-const hayWmsSeleccionadas = computed(() => seleccionadas.value.some(esDatasetRemoto));
-
 const capasExistentes = computed(() => [...mapasStore.layersOrdered].reverse());
 
 const idsExistentes = computed(() =>
@@ -96,52 +87,25 @@ async function guardar() {
     cerrar();
     return;
   }
-
   guardando.value = true;
   error.value = '';
-
-  const posicion = tieneLados.value ? posicionDefecto.value : 'left';
-  const capasRemotas = seleccionadas.value.filter(esDatasetRemoto);
-  const capasPersistentes = seleccionadas.value.filter((capa) => !esDatasetRemoto(capa));
-
-  try {
-    if (capasPersistentes.length) {
-      const base = capasExistentes.value.length;
-
-      const payload = capasPersistentes.map((capa, indice) => ({
-        geonode_id: capa.pk,
-        visible: true,
-        opacity: 1.0,
-        // name y layer_type los autorrellena el backend desde el Dataset.
-        map_position: posicion,
-        stack_order: base + indice,
-      }));
-
-      const persistidas = await mapasStore.agregarCapas(props.mapaId, payload);
-
-      if (!persistidas) {
-        error.value = 'No se pudieron guardar las capas locales.';
-        return;
-      }
-    }
-
-    if (capasRemotas.length) {
-      const agregadas = await mapasStore.agregarCapasWmsTemporales(capasRemotas, posicion);
-
-      if (!agregadas) {
-        error.value = 'No se pudieron preparar todas las capas WMS remotas.';
-        return;
-      }
-    }
-
-    seleccionadas.value = [];
-    cerrar();
-  } catch (e) {
-    console.error('[mapas] Error al agregar capas:', e);
-    error.value = 'Ocurrió un error al agregar las capas.';
-  } finally {
-    guardando.value = false;
+  const base = capasExistentes.value.length;
+  const payload = seleccionadas.value.map((l, i) => ({
+    geonode_id: l.pk,
+    visible: true,
+    opacity: 1.0,
+    // name y layer_type los autorrellena el backend desde el Dataset.
+    map_position: tieneLados.value ? posicionDefecto.value : 'left',
+    stack_order: base + i,
+  }));
+  const data = await mapasStore.agregarCapas(props.mapaId, payload);
+  guardando.value = false;
+  if (!data) {
+    error.value = 'No se pudieron agregar las capas.';
+    return;
   }
+  seleccionadas.value = [];
+  cerrar();
 }
 
 let dialogEl = null;
@@ -290,14 +254,7 @@ onBeforeUnmount(() => {
                     <div class="bloque-cabecera flex flex-contenido-separado">
                       <div class="min-w-0">
                         <strong>{{ capa.title || capa.alternate }}</strong>
-
-                        <div class="flex flex-contenido-inicio flex-alineado-centro">
-                          <p class="texto-secundario m-0">{{ capa.alternate }}</p>
-
-                          <span v-if="esDatasetRemoto(capa)" class="etiqueta-wms-temporal">
-                            WMS temporal
-                          </span>
-                        </div>
+                        <p class="texto-secundario m-0">{{ capa.alternate }}</p>
                       </div>
                       <button
                         class="boton-pictograma boton-sin-contenedor-secundario"
@@ -310,11 +267,6 @@ onBeforeUnmount(() => {
                     </div>
                   </li>
                 </ul>
-              </div>
-
-              <div v-if="hayWmsSeleccionadas" class="aviso-wms-temporal m-t-2" role="status">
-                <strong>Las capas WMS remotas son temporales.</strong>
-                Se eliminarán al recargar la página o salir del mapa.
               </div>
             </div>
           </section>
@@ -446,24 +398,6 @@ onBeforeUnmount(() => {
 
 .texto-error {
   color: var(--texto-error);
-}
-
-.etiqueta-wms-temporal {
-  flex-shrink: 0;
-  padding: 2px 6px;
-  border-radius: 6px;
-  background-color: var(--fondo-advertencia, #fff3cd);
-  color: var(--texto-advertencia, #664d03);
-  font-size: 0.7rem;
-  white-space: nowrap;
-}
-
-.aviso-wms-temporal {
-  padding: 10px 12px;
-  border: 1px solid var(--texto-advertencia, #856404);
-  border-radius: 8px;
-  background-color: var(--fondo-advertencia, #fff3cd);
-  color: var(--texto-advertencia, #664d03);
 }
 
 .flex {

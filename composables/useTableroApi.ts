@@ -88,6 +88,24 @@ export function useTableroApi() {
     togglePublic: (id: number, token?: string | null) =>
       jsonRequest(`${baseUrl}/sites/${id}/toggle-public/`, 'POST', {}, token),
 
+    // ---------- Capas de referencia del tablero ----------
+    fetchCapasWmsSitio: async (siteId: number | string) => {
+      const data = await fetchJson(
+        `${baseUrl}/site-external-wms/?site=${encodeURIComponent(siteId)}`
+      );
+
+      return Array.isArray(data) ? data : data.results || [];
+    },
+
+    crearCapaWmsSitio: (datos: unknown, token?: string | null) =>
+      jsonRequest(`${baseUrl}/site-external-wms/`, 'POST', datos, token),
+
+    actualizarCapaWmsSitio: (id: number | string, datos: unknown, token?: string | null) =>
+      jsonRequest(`${baseUrl}/site-external-wms/${id}/`, 'PATCH', datos, token),
+
+    eliminarCapaWmsSitio: (id: number | string, token?: string | null) =>
+      deleteRequest(`${baseUrl}/site-external-wms/${id}/`, token),
+
     // ---------- GeoNode datasets ----------
     fetchDatasets: (search: string) =>
       fetchJson(
@@ -99,11 +117,15 @@ export function useTableroApi() {
       page: number = 1,
       token?: string | null,
       pageSize: number = 20,
-      category: string = ''
+      category: string = '',
+      sourceType: string = '',
+      subtype: string = ''
     ) => {
       const params = new URLSearchParams({ page_size: String(pageSize), page: String(page) });
       if (search) params.set('filter{title.icontains}', search);
       if (category) params.set('filter{category.identifier.in}', category);
+      if (sourceType) params.set('filter{sourcetype}', sourceType);
+      if (subtype) params.set('filter{subtype}', subtype);
       const url = `${config.public.geonodeApi}/datasets/?${params.toString()}`;
       if (token) {
         return gnoxyFetch(url, { headers: { Authorization: `Bearer ${token}` } }).then((r) =>
@@ -116,16 +138,10 @@ export function useTableroApi() {
     fetchDatasetAttributes: (id: number) =>
       fetchJson(`${config.public.geonodeApi}/datasets/${id}/`),
 
-    fetchCategorias: () => fetchJson(`${config.public.geonodeApi}/categories/?page_size=200`),
-
-    syncDatasetAttributes: (id: number, token?: string | null) =>
-      jsonRequest(
-        `${config.public.geonodeApi}/sigic-remote-datasets/${id}/sync-attributes/`,
-        'POST',
-        {},
-        token
+    fetchCategorias: () =>
+      fetchJson(
+        `${config.public.geonodeApi}/categories/?page_size=200`
       ),
-
     // ---------- Site configuration ----------
     fetchConfigSitio: (siteId: number) => fetchJson(`${baseUrl}/site-configs/${siteId}/`),
 

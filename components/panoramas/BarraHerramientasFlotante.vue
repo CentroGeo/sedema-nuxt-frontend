@@ -12,6 +12,18 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  herramientasVisibles: {
+    type: Array,
+    default: () => ['wms', 'capas', 'texto', 'informacion'],
+  },
+  mostrarAgregarWms: {
+    type: Boolean,
+    default: false,
+  },
+  mostrarVerWms: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits([
@@ -19,6 +31,8 @@ const emit = defineEmits([
   'seleccionar-topico',
   'alternar-wms',
   'reintentar-wms',
+  'agregar-wms',
+  'ver-wms',
 ]);
 
 const barraAbierta = ref(false);
@@ -170,7 +184,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', ajustarBarraALimite);
 });
 
-const herramientas = [
+const catalogoHerramientas = [
   {
     id: 'wms',
     nombre: 'WMS',
@@ -196,6 +210,10 @@ const herramientas = [
     icono: 'pictograma-informacion',
   },
 ];
+
+const herramientas = computed(() =>
+  catalogoHerramientas.filter((herramienta) => props.herramientasVisibles.includes(herramienta.id))
+);
 
 const topicosCapasOrdenados = computed(() =>
   [...props.topicosCapas].sort((a, b) => a.stack_order - b.stack_order)
@@ -245,6 +263,18 @@ function alternarWms(externo) {
 
 function reintentarWms(externo) {
   emit('reintentar-wms', externo);
+}
+
+function solicitarAgregarWms() {
+  emit('agregar-wms');
+  barraAbierta.value = false;
+  seccionAbierta.value = null;
+}
+
+function solicitarVerWms() {
+  emit('ver-wms');
+  barraAbierta.value = false;
+  seccionAbierta.value = null;
 }
 </script>
 
@@ -327,6 +357,24 @@ function reintentarWms(externo) {
             v-if="herramienta.id === 'wms' && seccionAbierta === 'wms'"
             class="barra-herramientas__subopciones barra-herramientas__subopciones--wms"
           >
+            <button
+              v-if="mostrarAgregarWms"
+              type="button"
+              class="barra-herramientas__subopcion"
+              @click.stop="solicitarAgregarWms"
+            >
+              <span class="pictograma-mas" aria-hidden="true" />
+              <span>Agregar capa WMS</span>
+            </button>
+            <button
+              v-if="mostrarVerWms"
+              type="button"
+              class="barra-herramientas__subopcion"
+              @click.stop="solicitarVerWms"
+            >
+              <span class="pictograma-capas" aria-hidden="true" />
+              <span>Ver capas WMS</span>
+            </button>
             <p v-if="wmsExternos.length === 0" class="barra-herramientas__vacio">
               No hay servicios WMS disponibles.
             </p>

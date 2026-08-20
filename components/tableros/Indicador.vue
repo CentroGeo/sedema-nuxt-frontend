@@ -16,11 +16,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  /**
-   * Overrides del editor. En el visor no se pasan y todo sale de `datos`, que es
-   * lo que devuelve `view-data`; en la previsualización del panel de
-   * administración permiten reflejar cambios aún no guardados.
-   */
+  capasWms: {
+    type: Array,
+    default: () => [],
+  },
   featuresUrl: {
     type: String,
     default: null,
@@ -133,6 +132,7 @@ watch(
             :use-filter="datos.use_filter"
             :filters="datos.filters"
             :rango-activo-color="rangoActivoColor"
+            :capas-wms="capasWms"
             :basemap="basemapEfectivo"
             :vista-configurada="vistaEfectiva"
             :features-url="featuresUrl"

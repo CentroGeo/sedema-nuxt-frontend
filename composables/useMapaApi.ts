@@ -8,64 +8,6 @@ export function useMapaApi() {
     return respuesta.json();
   }
 
-  const datasetsCache = new Map<string, Promise<Record<string, any> | null>>();
-
-  async function fetchDataset(id: number | string) {
-    const clave = String(id);
-
-    if (!datasetsCache.has(clave)) {
-      const solicitud = fetchJson(`${baseUrl}/datasets/${encodeURIComponent(clave)}/`)
-        .then((data) => data?.dataset ?? data ?? null)
-        .catch((error) => {
-          datasetsCache.delete(clave);
-          throw error;
-        });
-
-      datasetsCache.set(clave, solicitud);
-    }
-
-    return datasetsCache.get(clave);
-  }
-
-  async function hidratarCapasWms(capas: any[] = []) {
-    return Promise.all(
-      capas.map(async (capa) => {
-        if (!capa?.geonode_id) return capa;
-
-        try {
-          const dataset = await fetchDataset(capa.geonode_id);
-
-          if (!dataset) return capa;
-
-          return {
-            ...capa,
-            dataset_title: capa.dataset_title || dataset.title || null,
-            dataset_is_published: capa.dataset_is_published ?? dataset.is_published ?? null,
-            dataset_sourcetype: dataset.sourcetype || null,
-            dataset_subtype: dataset.subtype || null,
-            wms_url: dataset.ows_url || dataset.dataset_ows_url || null,
-            wms_layer_name: dataset.remote_typename || dataset.alternate || capa.name,
-          };
-        } catch (error) {
-          console.error(`[useMapaApi] No fue posible cargar el Dataset ${capa.geonode_id}:`, error);
-
-          return capa;
-        }
-      })
-    );
-  }
-
-  async function fetchMapaDetalle(id: number | string) {
-    const mapa = await fetchJson(`${baseUrl}/sigic-maps/${id}/`);
-
-    if (!mapa?.id) return mapa;
-
-    return {
-      ...mapa,
-      layers: await hidratarCapasWms(mapa.layers || []),
-    };
-  }
-
   function authHeaders(token?: string | null, extra: Record<string, string> = {}) {
     const headers: Record<string, string> = { ...extra };
     if (token) headers.Authorization = `Bearer ${token}`;
@@ -101,12 +43,11 @@ export function useMapaApi() {
   }
 
   return {
-    fetchDataset,
     fetchMapas: (params = {}) => {
       const q = new URLSearchParams(params).toString();
       return fetchJson(`${baseUrl}/sigic-maps/${q ? `?${q}` : ''}`);
     },
-    fetchMapa: (id: number | string) => fetchMapaDetalle(id),
+    fetchMapa: (id: number | string) => fetchJson(`${baseUrl}/sigic-maps/${id}/`),
     crearMapa: (datos: unknown, token?: string | null) =>
       jsonRequest(`${baseUrl}/sigic-maps/`, 'POST', datos, token),
     actualizarMapa: (id: number, datos: unknown, token?: string | null) =>
