@@ -43,6 +43,11 @@ onUnmounted(() => (document.querySelector('body').className = ''));
           globo: 'Documentos',
         },
         {
+          pictograma: 'pictograma-proyectos',
+          ruta: '/levantamiento/proyectos',
+          globo: 'Proyectos',
+        },
+        {
           pictograma: 'pictograma-flkt',
           ruta: `${ruta}/explorar/catalogos-externos`,
           globo: 'Servicios Remotos',
