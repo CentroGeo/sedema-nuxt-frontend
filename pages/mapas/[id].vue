@@ -17,7 +17,11 @@ const urlVisualizar = computed(() => (mapa.value ? `/mapas/${mapa.value.id}` : '
 
 async function recargarMapa() {
   const data = await fetchMapa(String(route.params.id)).catch(() => null);
-  if (data?.id) mapa.value = data;
+
+  if (data?.id) {
+    mapa.value = data;
+  }
+
   cargando.value = false;
 }
 

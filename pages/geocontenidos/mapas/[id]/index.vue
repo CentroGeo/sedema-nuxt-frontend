@@ -46,6 +46,60 @@ const abrirCompartir = () => modalCompartir.value?.abrir();
 // Edición de capas en línea.
 const editandoCapas = ref(false);
 const alternarEdicionCapas = () => (editandoCapas.value = !editandoCapas.value);
+const recargar = () => store.cargarMapa(mapaId.value);
+
+const estadosCargaCapas = ref({});
+const temporizadoresCargaCapas = new Map();
+
+function limpiarTemporizadorCargaCapa(id) {
+  const clave = String(id);
+  const temporizador = temporizadoresCargaCapas.get(clave);
+
+  if (temporizador) {
+    clearTimeout(temporizador);
+    temporizadoresCargaCapas.delete(clave);
+  }
+}
+
+function actualizarEstadoCargaCapa(id, estado) {
+  const clave = String(id);
+  const siguientes = { ...estadosCargaCapas.value };
+
+  if (estado === 'idle') {
+    delete siguientes[clave];
+  } else {
+    siguientes[clave] = estado;
+  }
+
+  estadosCargaCapas.value = siguientes;
+}
+
+function cambiarEstadoCargaCapa({ id, estado }) {
+  if (id === null || id === undefined) return;
+
+  const clave = String(id);
+
+  limpiarTemporizadorCargaCapa(clave);
+  actualizarEstadoCargaCapa(clave, estado);
+
+  if (estado === 'loading') {
+    const temporizador = setTimeout(() => {
+      actualizarEstadoCargaCapa(clave, 'error');
+      temporizadoresCargaCapas.delete(clave);
+    }, 15000);
+
+    temporizadoresCargaCapas.set(clave, temporizador);
+  }
+
+  if (estado === 'success') {
+    const temporizador = setTimeout(() => {
+      actualizarEstadoCargaCapa(clave, 'idle');
+      temporizadoresCargaCapas.delete(clave);
+    }, 2500);
+
+    temporizadoresCargaCapas.set(clave, temporizador);
+  }
+}
 
 const modalStatus = ref(null);
 
@@ -55,8 +109,6 @@ const estatusAlGuardar = reactive({
   textoCargando: 'Guardando mapa...',
   mensaje: '',
 });
-
-const recargar = () => store.cargarMapa(mapaId.value);
 
 function alCambiarVisibilidadPestania() {
   // silencioso: si usara recargar() (isLoadingMap), desmontaría la vista
@@ -75,7 +127,7 @@ onUnmounted(() => {
   document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
 });
 
-// Contrato del backend (congelado): el campo de la capa es `visible`; la vista usa
+// Contrato del backend: el campo de la capa es `visible`; la vista usa
 // center_lat = X/longitud, center_long = Y/latitud (así está en el modelo).
 const onToggle = ({ id: capaId, visible }) =>
   store.actualizarCapa(capaId, { visible }).then(recargar);
@@ -155,6 +207,9 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
+  temporizadoresCargaCapas.forEach((temporizador) => clearTimeout(temporizador));
+  temporizadoresCargaCapas.clear();
   store.limpiarMapa();
 });
 </script>
@@ -252,18 +307,21 @@ onUnmounted(() => {
               :mapa="mapa"
               :capas="capas"
               @vista="cambiarVista"
+              @estado-capa="cambiarEstadoCargaCapa"
             />
             <GeocontenidosMapasVisorSwipe
               v-else-if="mapa.map_type === 'swipe'"
               :mapa="mapa"
               :capas="capas"
               @vista="cambiarVista"
+              @estado-capa="cambiarEstadoCargaCapa"
             />
             <GeocontenidosMapasVisorDual
               v-else-if="mapa.map_type === 'dual'"
               :mapa="mapa"
               :capas="capas"
               @vista="cambiarVista"
+              @estado-capa="cambiarEstadoCargaCapa"
             />
           </div>
 
@@ -287,6 +345,7 @@ onUnmounted(() => {
           <GeocontenidosMapasPanelCapas
             :capas="capas"
             :mapa="mapa"
+            :estados-carga="estadosCargaCapas"
             :editable="editandoCapas"
             @toggle="onToggle"
             @opacidad="onOpacidad"

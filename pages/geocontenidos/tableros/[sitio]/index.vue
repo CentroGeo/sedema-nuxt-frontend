@@ -157,6 +157,7 @@ const pestanias = computed(() => [
   { id: 'identidad', titulo: 'Identidad del sitio' },
   { id: 'banda', titulo: 'Banda institucional', deshabilitada: esNuevo.value },
   { id: 'estructura', titulo: 'Estructura', deshabilitada: esNuevo.value },
+  { id: 'wms', titulo: 'Capas de referencia', deshabilitada: esNuevo.value },
   { id: 'datos', titulo: 'Cuadros de datos', deshabilitada: esNuevo.value },
 ]);
 
@@ -257,6 +258,10 @@ cargarSitio();
             v-if="sitio.id && activeTab === 'estructura'"
             :site-id="sitio.id"
           />
+        </template>
+
+        <template #contenido-wms>
+          <TablerosAdminTabCapasWms v-if="sitio.id && activeTab === 'wms'" :site-id="sitio.id" />
         </template>
 
         <template #contenido-datos>

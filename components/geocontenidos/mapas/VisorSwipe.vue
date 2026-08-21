@@ -17,7 +17,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['vista']);
+const emit = defineEmits(['vista', 'estado-capa']);
 
 function alMoverVista({ acercamiento, centro }) {
   if (!Array.isArray(centro) || centro.length < 2) return;
@@ -31,13 +31,6 @@ function alMoverVista({ acercamiento, centro }) {
 const config = useRuntimeConfig();
 const { gnoxyFetch } = useGnoxyUrl();
 
-// Teselas: capas públicas se piden directo a GeoServer (sin el proxy Nitro) →
-// más rápido. Las privadas van por gnoxy (inyecta auth).
-// Nota: el fetch directo requiere CORS habilitado en GeoServer.
-const fetchDirecto = (url) => fetch(url);
-function consultaCapa(capa) {
-  return capa.dataset_is_published === true ? fetchDirecto : gnoxyFetch;
-}
 const mapasStore = useMapasStore();
 
 const mapaRef = ref(null);
@@ -102,6 +95,34 @@ const vista = computed(() => ({
 
 const wmsFuente = computed(() => `${config.public.geoserverUrl}/wms?`);
 
+function esCapaRemota(capa) {
+  return String(capa.dataset_sourcetype || '').toUpperCase() === 'REMOTE';
+}
+
+function nombreCapaWms(capa) {
+  return capa.wms_layer_name || capa.name;
+}
+
+function fuenteCapaWms(capa) {
+  if (esCapaRemota(capa) && capa.wms_url) {
+    return capa.wms_url;
+  }
+
+  return wmsFuente.value;
+}
+
+// Las capas remotas utilizan gnoxy para evitar restricciones CORS.
+// Las capas locales públicas conservan la petición directa a GeoServer.
+const fetchDirecto = (url) => fetch(url);
+
+function consultaCapa(capa) {
+  if (esCapaRemota(capa)) {
+    return gnoxyFetch;
+  }
+
+  return capa.dataset_is_published === true ? fetchDirecto : gnoxyFetch;
+}
+
 const ladoMap = { left: 'izquierdo', right: 'derecho' };
 
 const capasOrdenadas = computed(() =>
@@ -125,9 +146,9 @@ const capasOrdenadas = computed(() =>
         <template v-for="capa in capasOrdenadas" :key="`swipe-${capa.id}-${capa.style || 'def'}`">
           <SisdaiCapaWms
             v-if="capa.layer_type === 'wms'"
+            :capa="nombreCapaWms(capa)"
+            :fuente="fuenteCapaWms(capa)"
             :key="`wms-${capa.id}-${capa.style || 'def'}`"
-            :capa="capa.name"
-            :fuente="wmsFuente"
             :consulta="consultaCapa(capa)"
             :estilo="capa.style || undefined"
             :opacidad="capa.opacity"
@@ -135,6 +156,19 @@ const capasOrdenadas = computed(() =>
             :posicion="capa.stack_order"
             :lado="ladoMap[capa.map_position]"
             :mosaicos="true"
+            @al-iniciar-carga="
+              emit('estado-capa', {
+                id: capa.id,
+                estado: 'loading',
+              })
+            "
+            @al-finalizar-carga="
+              (cargaExitosa) =>
+                emit('estado-capa', {
+                  id: capa.id,
+                  estado: cargaExitosa ? 'success' : 'error',
+                })
+            "
           />
 
           <GeocontenidosMapasCapaTeselada
@@ -154,7 +188,6 @@ const capasOrdenadas = computed(() =>
 
         <slot />
       </SisdaiMapa>
-      <GeocontenidosMapasControlInfo :titulo="mapa.name" />
       <GeocontenidosMapasControlCapaBase v-model="baseLayerActual" />
       <GeocontenidosMapasLeyendaMapa
         :capas="capasOrdenadas"
