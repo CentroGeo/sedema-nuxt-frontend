@@ -392,8 +392,8 @@ watch(estaLogueado, (v) => {
             </div>
           </template>
         </GeocontenidosSisdaiModal>
-      </ClientOnly> </template
-    ><!-- /v-else autenticado -->
+      </ClientOnly> 
+    </template>   
   </div>
 </template>
 
