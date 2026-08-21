@@ -16,6 +16,9 @@ const { cargarConfiguracionModulos, estaHabilitado, estaSubmoduloHabilitado } =
 
 const catalogoHabilitado = estaHabilitado('catalogo');
 
+const levantamientoHabilitado = estaHabilitado('levantamiento');
+const mostrarProyectosLevantamiento = estaSubmoduloHabilitado('levantamiento-proyectos');
+
 const puedeRevisarSolicitudes = computed(() =>
   ['superuser', 'administrator', 'editor'].includes(
     storeAdministracion.perfilActual?.profile
@@ -31,8 +34,8 @@ const SUBMODULOS_EXPLORAR = [
   'catalogo-externos',
 ];
 
-const subPaginas = computed(() =>
-  [
+const subPaginas = computed(() => {
+  const paginas = [
     {
       ids: SUBMODULOS_EXPLORAR,
       pictograma: 'pictograma-explorar',
@@ -57,18 +60,35 @@ const subPaginas = computed(() =>
       ruta: `${ruta}/explorar/tablas`,
       globo: 'Datos tabulados',
     },
-    {
-      id: 'catalogo-externos',
-      pictograma: 'pictograma-flkt',
-      ruta: `${ruta}/explorar/catalogos-externos`,
-      globo: 'Catálogos externos',
-    },
   ].filter((pagina) =>
     (pagina.ids ?? [pagina.id]).some(
       (id) => estaSubmoduloHabilitado(id).value
     )
-  )
-);
+  );
+
+  if (
+    levantamientoHabilitado.value &&
+    mostrarProyectosLevantamiento.value
+  ) {
+    paginas.push({
+      id: 'levantamiento-proyectos',
+      pictograma: 'pictograma-proyectos',
+      ruta: '/levantamiento/proyectos',
+      globo: 'Proyectos',
+    });
+  }
+
+  if (estaSubmoduloHabilitado('catalogo-externos').value) {
+    paginas.push({
+      id: 'catalogo-externos',
+      pictograma: 'pictograma-flkt',
+      ruta: `${ruta}/explorar/catalogos-externos`,
+      globo: 'Catálogos externos',
+    });
+  }
+
+  return paginas;
+});
 
 const paginasSesion = computed(() => {
   const paginas = [

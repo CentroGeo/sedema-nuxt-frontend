@@ -13,15 +13,10 @@ function iniciarSesion() {
 
 const sitios = ref([]);
 const estaCargando = ref(false);
+const inputBusqueda = ref('');
+const seleccionOrden = ref('titulo');
 const paginaActual = ref(0);
 const elementosPorPagina = 6;
-
-const totalPags = computed(() => Math.max(1, Math.ceil(sitios.value.length / elementosPorPagina)));
-
-const sitiosPaginados = computed(() => {
-  const inicio = paginaActual.value * elementosPorPagina;
-  return sitios.value.slice(inicio, inicio + elementosPorPagina);
-});
 
 async function cargarSitios() {
   estaCargando.value = true;
@@ -34,6 +29,47 @@ async function cargarSitios() {
     estaCargando.value = false;
   }
 }
+
+const sitiosFiltrados = computed(() => {
+  const termino = inputBusqueda.value.trim().toLowerCase();
+  let lista = sitios.value;
+  if (termino) {
+    lista = lista.filter(
+      (s) =>
+        (s.name || '').toLowerCase().includes(termino) ||
+        (s.subtitle || '').toLowerCase().includes(termino)
+    );
+  }
+  return [...lista].sort((a, b) => {
+    switch (seleccionOrden.value) {
+      case 'titulo':
+        return (a.name || '').localeCompare(b.name || '');
+      case 'fecha_descendente':
+        return new Date(b.created || 0) - new Date(a.created || 0);
+      case 'fecha_ascendente':
+        return new Date(a.created || 0) - new Date(b.created || 0);
+      default:
+        return 0;
+    }
+  });
+});
+
+function limpiarBusqueda() {
+  inputBusqueda.value = '';
+}
+
+const totalPags = computed(() =>
+  Math.max(1, Math.ceil(sitiosFiltrados.value.length / elementosPorPagina))
+);
+
+const sitiosPaginados = computed(() => {
+  const inicio = paginaActual.value * elementosPorPagina;
+  return sitiosFiltrados.value.slice(inicio, inicio + elementosPorPagina);
+});
+
+watch([inputBusqueda, seleccionOrden], () => {
+  paginaActual.value = 0;
+});
 
 // --- Modal de confirmación de eliminación ---
 const modalEliminar = ref(null);
@@ -145,9 +181,74 @@ watch(estaLogueado, (v) => {
         </p>
       </div>
 
+      <div v-if="sitios.length > 0" class="flex flex-alineado-final brecha-3 m-b-4">
+        <!-- Selector Orden -->
+        <div class="columna-8">
+          <ClientOnly>
+            <label for="selector-orden-tableros">Ordenar por</label>
+            <select
+              id="selector-orden-tableros"
+              v-model="seleccionOrden"
+              name="selector-orden-tableros"
+              :disabled="estaCargando"
+            >
+              <option value="titulo">Título</option>
+              <option value="fecha_descendente">Más Reciente</option>
+              <option value="fecha_ascendente">Más Antiguo</option>
+            </select>
+          </ClientOnly>
+        </div>
+        <!-- Campo de búsqueda -->
+        <div class="columna-8">
+          <ClientOnly>
+            <label for="busqueda-tableros">Campo de búsqueda</label>
+            <form class="campo-busqueda" @submit.prevent>
+              <input
+                id="busqueda-tableros"
+                v-model="inputBusqueda"
+                type="search"
+                class="campo-busqueda-entrada"
+                placeholder="Buscar tableros..."
+                :disabled="estaCargando"
+              />
+
+              <button
+                v-if="inputBusqueda"
+                class="boton-pictograma boton-sin-contenedor-secundario campo-busqueda-borrar"
+                aria-label="Borrar"
+                type="button"
+                :disabled="estaCargando"
+                @click="limpiarBusqueda"
+              >
+                <span aria-hidden="true" class="pictograma-cerrar" />
+              </button>
+
+              <button
+                class="boton-primario boton-pictograma campo-busqueda-buscar"
+                aria-label="Buscar"
+                type="button"
+                :disabled="estaCargando"
+              >
+                <span class="pictograma-buscar" aria-hidden="true" />
+              </button>
+            </form>
+          </ClientOnly>
+        </div>
+      </div>
+
       <GeocontenidosLoader v-if="estaCargando" />
 
-      <div v-else-if="sitios.length > 0" class="grid reticula-12">
+      <div v-else-if="sitiosFiltrados.length === 0 && sitios.length > 0" class="flex">
+        <div
+          class="flex flex-contenido-centrado columna-16 borde-redondeado-16 m-2 fondo-color-informacion texto-color-informacion p-2"
+        >
+          <p class="nota texto-color-informacion m-2">
+            No se encontraron resultados que coincidan con la búsqueda.
+          </p>
+        </div>
+      </div>
+
+      <div v-else-if="sitiosFiltrados.length > 0" class="grid reticula-12">
         <div v-for="sitio in sitiosPaginados" :key="sitio.id" class="columna-8 columna-4-esc">
           <div class="tarjeta">
             <div class="tarjeta-cuerpo">
@@ -169,7 +270,7 @@ watch(estaLogueado, (v) => {
 
               <p class="tarjeta-titulo m-0 m-b-1">{{ sitio.name }}</p>
 
-              <p v-if="sitio.subtitle" class="tarjeta-etiqueta m-0 m-b-1">{{ sitio.subtitle }}</p>
+              <p class="tarjeta-etiqueta tarjeta-subtitulo m-0 m-b-1">{{ sitio.subtitle }}</p>
 
               <p class="tarjeta-etiqueta m-0 m-b-1 flex flex-alineado-centrado">
                 <span class="pictograma-persona m-r-1" aria-hidden="true" />
@@ -235,14 +336,14 @@ watch(estaLogueado, (v) => {
       </div>
 
       <UiPaginador
-        v-if="sitios.length > 0"
+        v-if="sitiosFiltrados.length > 0"
         class="m-t-4"
         :pagina-parent="paginaActual"
         :total-paginas="totalPags"
         @cambio="paginaActual = $event"
       />
 
-      <div v-else class="texto-centrado">
+      <div v-else-if="sitios.length === 0" class="texto-centrado">
         <p class="h3">No hay tableros disponibles.</p>
       </div>
 
@@ -300,6 +401,11 @@ watch(estaLogueado, (v) => {
   color: var(--color-neutro-5);
   margin-bottom: 24px;
 }
+
+#selector-orden-tableros {
+  height: 56px;
+}
+
 .sesion-requerida {
   display: flex;
   flex-direction: column;
@@ -342,15 +448,29 @@ watch(estaLogueado, (v) => {
   flex-direction: column;
 
   &-cuerpo {
+    flex: 0 0 auto;
     padding: 12px 16px;
     background-color: var(--color-primario-4);
     color: var(--texto-inverso);
 
     .tarjeta-titulo {
+      display: -webkit-box;
+      overflow: hidden;
+      height: calc(1.1rem * 1.25 * 2);
       color: var(--texto-inverso);
       font-size: 1.1rem;
       line-height: 1.25;
       font-weight: 700;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    .tarjeta-subtitulo {
+      display: -webkit-box;
+      overflow: hidden;
+      height: calc(0.85rem * 1.3);
+      -webkit-line-clamp: 1;
+      -webkit-box-orient: vertical;
     }
 
     .tarjeta-etiqueta {

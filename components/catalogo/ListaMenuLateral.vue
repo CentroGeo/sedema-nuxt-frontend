@@ -7,9 +7,11 @@ const route = useRoute();
 const storeCatalogo = useCatalogoStore();
 const storeAdministracion = useAdministracionStore();
 
-const esSuperusuaria = computed(() => storeCatalogo.userInfo?.is_superuser);
-
-const { cargarConfiguracionModulos, estaSubmoduloHabilitado } = useConfiguracionModulos();
+const {
+  cargarConfiguracionModulos,
+  estaHabilitado,
+  estaSubmoduloHabilitado,
+} = useConfiguracionModulos();
 
 const mostrarCapas = estaSubmoduloHabilitado('catalogo-capas');
 const mostrarTablas = estaSubmoduloHabilitado('catalogo-tablas');
@@ -20,10 +22,19 @@ const mostrarCargar = estaSubmoduloHabilitado('catalogo-cargar');
 const mostrarServiciosRemotos = estaSubmoduloHabilitado('catalogo-servicios-remotos');
 const mostrarRevision = estaSubmoduloHabilitado('catalogo-revision');
 
+const levantamientoHabilitado = estaHabilitado('levantamiento');
+const mostrarProyectosLevantamiento = estaSubmoduloHabilitado('levantamiento-proyectos');
+
 const puedeRevisarSolicitudes = computed(() =>
   ['superuser', 'administrator', 'editor'].includes(
     storeAdministracion.perfilActual?.profile
   )
+);
+
+const mostrarProyectos = computed(
+  () =>
+    levantamientoHabilitado.value &&
+    mostrarProyectosLevantamiento.value
 );
 
 const mostrarExplorar = computed(
@@ -31,7 +42,8 @@ const mostrarExplorar = computed(
     mostrarCapas.value ||
     mostrarTablas.value ||
     mostrarDocumentos.value ||
-    mostrarExternos.value
+    mostrarExternos.value ||
+    mostrarProyectos.value
 );
 
 const mostrarSesion = computed(
@@ -84,6 +96,12 @@ onMounted(async () => {
             <li v-if="mostrarDocumentos">
               <nuxt-link to="/catalogo/explorar/documentos">
                 Documentos
+              </nuxt-link>
+            </li>
+
+            <li v-if="mostrarProyectos">
+              <nuxt-link to="/levantamiento/proyectos">
+                Proyectos
               </nuxt-link>
             </li>
 

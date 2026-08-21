@@ -20,6 +20,8 @@ const modal = ref(null);
 const guardando = ref(false);
 const error = ref('');
 const previewIcono = ref(null);
+const modalGuardado = ref(null);
+const guardadoConExito = ref(false);
 
 const esEdicion = computed(() => !!props.cuadro);
 
@@ -155,7 +157,12 @@ async function guardar() {
 
     if (data?.id) {
       emit('guardado', data);
-      modal.value?.cerrar();
+      guardadoConExito.value = true;
+      modalGuardado.value?.abrir();
+      setTimeout(() => {
+        modalGuardado.value?.cerrar();
+        modal.value?.cerrar();
+      }, 1200);
     } else {
       error.value = data?.detail || JSON.stringify(data);
     }
@@ -354,6 +361,17 @@ watch(
         </form>
       </template>
     </TablerosAdminModalBase>
+
+    <GeocontenidosSisdaiModal ref="modalGuardado" :permitir-cerrar="false">
+      <template #encabezado>
+        <h2 class="m-t-0">Cuadro de datos guardado</h2>
+      </template>
+
+      <p v-if="guardadoConExito" class="texto-color-exito">
+        <span class="pictograma-aprobado m-r-1" />
+        El cuadro de datos se guardó correctamente.
+      </p>
+    </GeocontenidosSisdaiModal>
   </ClientOnly>
 </template>
 
