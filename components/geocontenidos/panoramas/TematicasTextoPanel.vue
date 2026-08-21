@@ -197,7 +197,7 @@ async function alCerrarContenidos() {
             <p v-if="errorGuardado" class="texto-color-error m-b-4">{{ errorGuardado }}</p>
 
             <div class="m-b-4">
-              <label for="nombre-tematica-texto">Nombre</label>
+              <label for="nombre-tematica-texto">Nombre *</label>
               <input id="nombre-tematica-texto" v-model="formulario.name" type="text" required />
             </div>
 

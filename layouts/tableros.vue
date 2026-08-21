@@ -6,6 +6,7 @@ import { useAccesibilidadStore } from '~/stores/accesibilidad';
 
 const accesibilidadStore = useAccesibilidadStore();
 const { mostrarIdentidadGobMx } = useIdentidadGobMx();
+const { perfil } = useAplicarPerfilSisdai();
 </script>
 
 <template>
@@ -18,7 +19,7 @@ const { mostrarIdentidadGobMx } = useIdentidadGobMx();
     </div>
 
     <client-only>
-      <SisdaiMenuAccesibilidad :objeto-store="accesibilidadStore" perfil-color="sigic" />
+      <SisdaiMenuAccesibilidad :objeto-store="accesibilidadStore" :perfil-color="perfil" />
     </client-only>
     <SisdaiPiePaginaGobMx v-if="mostrarIdentidadGobMx" />
   </div>

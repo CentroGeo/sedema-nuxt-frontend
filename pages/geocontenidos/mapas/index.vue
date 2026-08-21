@@ -8,17 +8,16 @@ const modalCrear = ref(null);
 const paginaActual = ref(0);
 const inputBusqueda = ref('');
 const seleccionOrden = ref('titulo');
+const elementosPorPagina = 6;
 
 async function cargar(pagina) {
   // Sin filtro is_public: el backend devuelve los públicos a cualquiera y, si
   // hay sesión, también los privados del dueño (get_queryset).
-  await mapasStore.cargarMapas({ page: pagina + 1 });
+  await mapasStore.cargarMapas({ page: pagina + 1, pageSize: elementosPorPagina });
 }
 
-const totalMapas = computed(() => mapasStore.pagination.total ?? 0);
-
 const totalPags = computed(() =>
-  Math.max(1, Math.ceil((mapasStore.pagination.total || 0) / mapasStore.pagination.page_size))
+  Math.max(1, Math.ceil((mapasStore.pagination.total || 0) / elementosPorPagina))
 );
 
 /**
@@ -53,94 +52,78 @@ function alCrear(mapa) {
   navigateTo(`/geocontenidos/mapas/${mapa.id}`);
 }
 
-// Selección para borrado masivo (solo tarjetas propias/admin muestran checkbox).
-const seleccionados = ref([]);
-const eliminando = ref(false);
-
-function alternarSeleccion(mapaId, marcado) {
-  if (marcado) {
-    if (!seleccionados.value.includes(mapaId)) seleccionados.value.push(mapaId);
-  } else {
-    seleccionados.value = seleccionados.value.filter((id) => id !== mapaId);
-  }
-}
-
 const modalConfirmar = ref(null);
 
-async function eliminarSeleccionados() {
-  const ids = [...seleccionados.value];
-  if (!ids.length) return;
-  const cuantos = ids.length === 1 ? '1 mapa' : `${ids.length} mapas`;
+async function eliminarMapaIndividual(mapa) {
+  if (!mapa) return;
   const ok = await modalConfirmar.value?.abrir({
-    titulo: 'Eliminar mapas',
-    mensaje: `¿Eliminar ${cuantos}? Esta acción no se puede deshacer.`,
+    titulo: 'Eliminar mapa',
+    mensaje: `¿Eliminar "${mapa.name}"? Esta acción no se puede deshacer.`,
     textoConfirmar: 'Eliminar',
   });
   if (!ok) return;
-  eliminando.value = true;
-  const resultados = await Promise.all(ids.map((id) => mapasStore.eliminarMapa(id)));
-  eliminando.value = false;
-  const fallidos = ids.filter((_, i) => !resultados[i]);
-  seleccionados.value = fallidos;
-  await cargar(paginaActual.value);
-  if (fallidos.length) {
+  const exito = await mapasStore.eliminarMapa(mapa.id);
+  if (exito) {
+    await cargar(paginaActual.value);
+  } else {
     await modalConfirmar.value?.abrir({
       titulo: 'Error al eliminar',
-      mensaje: `No se pudieron eliminar ${fallidos.length} de ${ids.length} mapas.`,
+      mensaje: 'No se pudo eliminar el mapa.',
       soloAviso: true,
     });
   }
 }
 
 watch(paginaActual, (p) => {
-  // La selección es por página cargada; se limpia al cambiar de página.
-  seleccionados.value = [];
   cargar(p);
 });
 
+function alCambiarVisibilidadPestania() {
+  if (document.visibilityState === 'visible') {
+    cargar(paginaActual.value);
+  }
+}
+
 onMounted(() => {
   cargar(paginaActual.value);
-  modalCrear.value?.abrir();
+  document.addEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
 });
 </script>
 
 <template>
   <main id="principal" class="contenedor m-b-10">
-    <h1>Mapas</h1>
+    <div>
+      <h2>Bienvenido a Mapas</h2>
 
-    <div class="flex m-t-2">
-      <button v-if="estaLogueado" class="boton-primario" type="button" @click="modalCrear?.abrir()">
-        Crear Mapa
-      </button>
-      <button
-        v-if="estaLogueado"
-        class="boton-secundario"
-        type="button"
-        :disabled="seleccionados.length === 0 || eliminando"
-        @click="eliminarSeleccionados"
+      <p
+        class="fondo-color-acento borde-redondeado-8 borde-l borde-grosor-4 p-4"
+        style="border-color: var(--color-primario-4)"
       >
-        <span class="pictograma-eliminar" aria-hidden="true" />
-        {{
-          eliminando
-            ? 'Eliminando…'
-            : `Eliminar seleccionados${seleccionados.length ? ` (${seleccionados.length})` : ''}`
-        }}
-      </button>
+        Los Mapas son composiciones interactivas donde puedes visualizar, combinar y personalizar
+        capas geográficas con simbologías y herramientas de análisis.
+      </p>
+
+      <div class="flex m-b-4">
+        <button
+          v-if="estaLogueado"
+          class="boton boton-primario"
+          type="button"
+          @click="modalCrear?.abrir()"
+        >
+          <span class="pictograma-agregar m-r-1" />
+          Crear Mapa
+        </button>
+      </div>
     </div>
 
     <GeocontenidosMapasModalCrearMapa ref="modalCrear" @creado="alCrear" />
     <GeocontenidosModalConfirmar ref="modalConfirmar" />
 
-    <!-- <NuxtLink
-      v-if="estaLogueado"
-      to="/geocontenidos/mapas/crear"
-      class="boton boton-primario m-b-4"
-    >
-      <span class="pictograma-agregar m-r-1" aria-hidden="true" />
-      Crear mapa
-    </NuxtLink> -->
-
-    <div class="flex">
+    <div class="flex flex-alineado-final brecha-3 m-b-4">
       <!-- Selector Orden -->
       <div class="columna-8">
         <ClientOnly>
@@ -149,7 +132,6 @@ onMounted(() => {
             id="selector-orden-mapas-geocontenidos"
             v-model="seleccionOrden"
             name="selector-orden-mapas-geocontenidos"
-            class="m-b-2"
             :disabled="mapasStore.isLoading"
           >
             <option value="titulo">Título</option>
@@ -160,48 +142,40 @@ onMounted(() => {
       </div>
       <!-- Campo de búsqueda -->
       <div class="columna-8">
-        <div class="flex flex-contenido-separado">
-          <div class="columna-16">
-            <ClientOnly>
-              <label for="busqueda-mapas-geocontenidos"> Campo de búsqueda </label>
-              <form class="campo-busqueda" @submit.prevent>
-                <input
-                  id="busqueda-mapas-geocontenidos"
-                  v-model="inputBusqueda"
-                  type="search"
-                  class="campo-busqueda-entrada"
-                  placeholder="Campo de búsqueda"
-                  :disabled="mapasStore.isLoading"
-                />
+        <ClientOnly>
+          <label for="busqueda-mapas-geocontenidos">Campo de búsqueda</label>
+          <form class="campo-busqueda" @submit.prevent>
+            <input
+              id="busqueda-mapas-geocontenidos"
+              v-model="inputBusqueda"
+              type="search"
+              class="campo-busqueda-entrada"
+              placeholder="Buscar mapas..."
+              :disabled="mapasStore.isLoading"
+            />
 
-                <button
-                  class="boton-pictograma boton-sin-contenedor-secundario campo-busqueda-borrar m-0 m-r-1"
-                  aria-label="Borrar"
-                  type="button"
-                  :disabled="mapasStore.isLoading"
-                  @click="limpiarBusqueda"
-                >
-                  <span aria-hidden="true" class="pictograma-cerrar" />
-                </button>
+            <button
+              v-if="inputBusqueda"
+              class="boton-pictograma boton-sin-contenedor-secundario campo-busqueda-borrar"
+              aria-label="Borrar"
+              type="button"
+              :disabled="mapasStore.isLoading"
+              @click="limpiarBusqueda"
+            >
+              <span aria-hidden="true" class="pictograma-cerrar" />
+            </button>
 
-                <button
-                  class="boton-primario boton-pictograma campo-busqueda-buscar"
-                  aria-label="Buscar"
-                  type="button"
-                  :disabled="mapasStore.isLoading"
-                >
-                  <span class="pictograma-buscar" aria-hidden="true" />
-                </button>
-              </form>
-            </ClientOnly>
-          </div>
-        </div>
+            <button
+              class="boton-primario boton-pictograma campo-busqueda-buscar"
+              aria-label="Buscar"
+              type="button"
+              :disabled="mapasStore.isLoading"
+            >
+              <span class="pictograma-buscar" aria-hidden="true" />
+            </button>
+          </form>
+        </ClientOnly>
       </div>
-    </div>
-
-    <div class="flex">
-      <h2>Mapas</h2>
-      <UiNumeroElementos :numero="totalMapas" />
     </div>
 
     <GeocontenidosLoader v-if="mapasStore.isLoading" />
@@ -218,17 +192,14 @@ onMounted(() => {
 
     <template v-if="mapasFiltrados.length !== 0 && !mapasStore.isLoading">
       <ClientOnly>
-        <div class="flex flex-contenido-inicio">
-          <GeocontenidosMapasTarjetaMapa
-            v-for="mapa in mapasFiltrados"
-            :key="mapa.id"
-            :mapa="mapa"
-            :seleccionado="seleccionados.includes(mapa.id)"
-            @seleccionar="alternarSeleccion(mapa.id, $event)"
-          />
+        <div class="grid reticula-12">
+          <div v-for="mapa in mapasFiltrados" :key="mapa.id" class="columna-8 columna-4-esc">
+            <GeocontenidosMapasTarjetaMapa :mapa="mapa" @eliminar="eliminarMapaIndividual" />
+          </div>
         </div>
 
         <UiPaginador
+          class="m-t-4"
           :pagina-parent="paginaActual"
           :total-paginas="totalPags"
           @cambio="paginaActual = $event"
@@ -237,3 +208,11 @@ onMounted(() => {
     </template>
   </main>
 </template>
+
+<style lang="scss" scoped>
+.modulo-geocontenidos .contenedor {
+  .grid.reticula-12 {
+    grid-template-columns: repeat(12, 1fr);
+  }
+}
+</style>

@@ -83,10 +83,12 @@ export default defineEventHandler(async (event) => {
       return uploadJson;
     }
 
-    // 2️⃣ Polling para verificar estado del procesamiento
+    // 2️⃣ Espera corta: resuelve en línea las capas rápidas y detecta fallos inmediatos.
+    //    GeoNode importa de forma asíncrona; si al agotar la espera sigue corriendo,
+    //    se devuelve el execution_id y el cliente continúa el monitoreo sin bloquear.
     const statusUrl = `${configEnv.public.geonodeApi}/resource-service/execution-status/${executionId}`;
     let statusJson = null;
-    const maxAttempts = 20; // 20 * 5s = 100s máx
+    const maxAttempts = 3; // 3 * 5s = 15s de espera en línea
     const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -119,7 +121,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // 3️⃣ Devolver resultado final al frontend
-    if (statusJson?.status === 'finished') {
+    if (statusJson?.status === 'finished' && statusJson?.output_params?.resources?.length > 0) {
       const resource = statusJson.output_params.resources[0];
       return {
         success: true,
@@ -133,12 +135,16 @@ export default defineEventHandler(async (event) => {
         success: false,
         message: statusJson?.log || 'GeoNode no pudo procesar el archivo.',
         status: 'failed',
+        detail: statusJson?.log || null,
       };
     } else {
+      // Sigue en proceso (o el sondeo corto no obtuvo respuesta): el cliente
+      // continúa el monitoreo con el execution_id.
       return {
-        success: false,
-        message: 'El procesamiento no se completó en el tiempo esperado',
-        status: statusJson?.status,
+        success: true,
+        execution_id: executionId,
+        message: 'La capa sigue procesándose en GeoNode',
+        status: statusJson?.status ?? 'running',
       };
     }
   } catch (error) {

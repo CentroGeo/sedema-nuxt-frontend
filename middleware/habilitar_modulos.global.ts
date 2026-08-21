@@ -69,8 +69,8 @@ export default defineNuxtRouteMiddleware((to) => {
 
     // --- Panoramas ---
     '/geocontenidos/panoramas': flags.enablePanoramas,
-    // --- Constructor de landing page ---
-    '/landing-builder': flags.enableAuth && flags.enableLandingBuilder,
+    // --- Constructor de páginas (dentro de Administración) ---
+    '/administracion/constructor-paginas': flags.enableAuth && flags.enableLandingBuilder,
   };
 
   for (const [prefix, allowed] of Object.entries(rules)) {

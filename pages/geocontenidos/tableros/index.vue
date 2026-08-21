@@ -13,6 +13,15 @@ function iniciarSesion() {
 
 const sitios = ref([]);
 const estaCargando = ref(false);
+const paginaActual = ref(0);
+const elementosPorPagina = 6;
+
+const totalPags = computed(() => Math.max(1, Math.ceil(sitios.value.length / elementosPorPagina)));
+
+const sitiosPaginados = computed(() => {
+  const inicio = paginaActual.value * elementosPorPagina;
+  return sitios.value.slice(inicio, inicio + elementosPorPagina);
+});
 
 async function cargarSitios() {
   estaCargando.value = true;
@@ -139,14 +148,35 @@ watch(estaLogueado, (v) => {
       <GeocontenidosLoader v-if="estaCargando" />
 
       <div v-else-if="sitios.length > 0" class="grid reticula-12">
-        <div v-for="sitio in sitios" :key="sitio.id" class="columna-8 columna-4-esc">
+        <div v-for="sitio in sitiosPaginados" :key="sitio.id" class="columna-8 columna-4-esc">
           <div class="tarjeta">
             <div class="tarjeta-cuerpo">
-              <p class="tarjeta-titulo">{{ sitio.name }}</p>
+              <div
+                class="fila-etiquetas-superiores flex flex-contenido-fin flex-alineado-centrado m-b-1"
+              >
+                <span
+                  class="etiqueta-compacta etiqueta-estado"
+                  :class="sitio.is_public ? 'estado-publico' : 'estado-privado'"
+                >
+                  <span
+                    :class="sitio.is_public ? 'pictograma-ojo-ver' : 'pictograma-privado'"
+                    class="m-r-1"
+                    aria-hidden="true"
+                  />
+                  {{ sitio.is_public ? 'Público' : 'Privado' }}
+                </span>
+              </div>
 
-              <p v-if="sitio.subtitle" class="tarjeta-etiqueta">{{ sitio.subtitle }}</p>
+              <p class="tarjeta-titulo m-0 m-b-1">{{ sitio.name }}</p>
 
-              <p class="tarjeta-etiqueta">Creado: {{ formatearFecha(sitio.created) }}</p>
+              <p v-if="sitio.subtitle" class="tarjeta-etiqueta m-0 m-b-1">{{ sitio.subtitle }}</p>
+
+              <p class="tarjeta-etiqueta m-0 m-b-1 flex flex-alineado-centrado">
+                <span class="pictograma-persona m-r-1" aria-hidden="true" />
+                <span>{{ sitio.owner?.username || sitio.owner || 'Anónimo' }}</span>
+              </p>
+
+              <p class="tarjeta-etiqueta m-0">Creado: {{ formatearFecha(sitio.created) }}</p>
             </div>
 
             <div class="tarjeta-pie flex">
@@ -178,8 +208,12 @@ watch(estaLogueado, (v) => {
                   :title="sitio.is_public ? 'Hacer privado' : 'Hacer público'"
                   @click="togglearPublico(sitio)"
                 >
-                  <i :class="sitio.is_public ? 'fas fa-eye' : 'fas fa-eye-slash'" class="m-r-1" />
-                  {{ sitio.is_public ? 'Público' : 'Privado' }}
+                  <span
+                    :class="sitio.is_public ? 'pictograma-ojo-ver' : 'pictograma-privado'"
+                    class="m-r-1"
+                    aria-hidden="true"
+                  />
+                  {{ sitio.is_public ? 'Hacer Privado' : 'Hacer Público' }}
                 </button>
 
                 <NuxtLink
@@ -199,6 +233,14 @@ watch(estaLogueado, (v) => {
           </div>
         </div>
       </div>
+
+      <UiPaginador
+        v-if="sitios.length > 0"
+        class="m-t-4"
+        :pagina-parent="paginaActual"
+        :total-paginas="totalPags"
+        @cambio="paginaActual = $event"
+      />
 
       <div v-else class="texto-centrado">
         <p class="h3">No hay tableros disponibles.</p>
@@ -292,20 +334,75 @@ watch(estaLogueado, (v) => {
   .grid.reticula-12 {
     grid-template-columns: repeat(12, 1fr);
   }
-  .tarjeta {
-    &-cuerpo {
-      background-color: var(--color-primario-4);
+}
+
+.tarjeta {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+
+  &-cuerpo {
+    padding: 12px 16px;
+    background-color: var(--color-primario-4);
+    color: var(--texto-inverso);
+
+    .tarjeta-titulo {
       color: var(--texto-inverso);
+      font-size: 1.1rem;
+      line-height: 1.25;
+      font-weight: 700;
     }
-    &-pie {
-      flex-direction: column;
-      gap: 0.5rem;
-      padding-top: 0.75rem;
-      button,
-      a {
-        display: block;
-      }
+
+    .tarjeta-etiqueta {
+      color: var(--texto-inverso);
+      font-size: 0.85rem;
+      line-height: 1.3;
     }
   }
+  &-pie {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 16px;
+    gap: 0.5rem;
+
+    button,
+    a {
+      display: block;
+      width: 100%;
+      text-align: center;
+    }
+  }
+}
+
+.fila-etiquetas-superiores {
+  min-height: 24px;
+}
+
+.etiqueta-compacta {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: max-content;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.estado-publico {
+  background-color: var(--color-secundario-1);
+  color: var(--color-primario-4);
+  border-color: var(--color-primario-4);
+}
+
+.estado-privado {
+  background-color: var(--color-neutro-2);
+  color: var(--color-neutro-5);
+  border-color: var(--color-neutro-4);
 }
 </style>

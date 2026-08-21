@@ -10,7 +10,10 @@ const REDES_SOCIALES = [
   { valor: 'linkedin', etiqueta: 'LinkedIn' },
 ];
 
-const esConstructor = computed(() => route.path.startsWith('/landing-builder'));
+const enPaginaConstructor = computed(() =>
+  route.path.startsWith('/administracion/constructor-paginas')
+);
+const esConstructor = computed(() => enPaginaConstructor.value && store.enEdicionLienzo);
 const esPaginaPublica = computed(() => route.path.startsWith('/paginas/'));
 
 const identidadActiva = computed(() => (esConstructor.value ? store : store.identidadPublica));
@@ -40,6 +43,9 @@ const estiloTemaFooter = computed(() => {
 
 const mostrarFooter = computed(() => {
   if (esConstructor.value) return true;
+  // Menú de 4 botones o listas del constructor: sin footer (evita que un
+  // paginaInicioActiva residual de una navegación previa lo muestre aquí).
+  if (enPaginaConstructor.value) return false;
   if (!esPaginaPublica.value && !store.paginaInicioActiva) return false;
 
   const pie = piePaginaActivo.value;

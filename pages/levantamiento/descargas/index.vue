@@ -28,19 +28,11 @@ const storeLevantamiento = useLevantamientoStore();
           ]"
         />
 
-        <div class="flex titulo-contenido-levantamiento">
-          <h2>Descargas aprobadas</h2>
-          <UiNumeroElementos
-            :numero="storeLevantamiento.obtenerTotalDescargasAprobadas()"
-            etiqueta="Descargas"
-          />
-        </div>
-        <div
-          v-if="!storeLevantamiento.existenDescargasAprobadas"
-          class="flex texto-centrado contenido-levantamiento"
-        >
-          <LevantamientoSolicitaUnaDescarga></LevantamientoSolicitaUnaDescarga>
-        </div>
+        <LevantamientoPanelDescargasUsuario
+          estado="APROBADO"
+          titulo="Descargas aprobadas"
+          mensaje-vacio="Las descargas aprobadas aparecerán en esta sección."
+        />
       </main>
     </template>
   </UiLayoutPaneles>
