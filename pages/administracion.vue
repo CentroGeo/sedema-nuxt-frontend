@@ -2,14 +2,17 @@
 definePageMeta({ middleware: 'admin' });
 
 const ruta = '/administracion';
+const store = useAdministracionStore();
 
-const submodulos = [
-  { nombre: 'Gestión de módulos', ruta: `${ruta}/modulos` },
+const submodulos = computed(() => [
+  ...(store.perfilActual?.can_manage_modules
+    ? [{ nombre: 'Gestión de módulos', ruta: `${ruta}/modulos` }]
+    : []),
   { nombre: 'Gestión de permisos', ruta: `${ruta}/permisos` },
   { nombre: 'Gestión de categorías y metadatos', ruta: `${ruta}/categorias` },
   { nombre: 'Gestión de estilos y apariencias', ruta: `${ruta}/estilos-apariencia` },
   { nombre: 'Constructor de Páginas', ruta: `${ruta}/constructor-paginas` },
-];
+]);
 </script>
 
 <template>

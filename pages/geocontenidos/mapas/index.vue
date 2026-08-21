@@ -8,15 +8,16 @@ const modalCrear = ref(null);
 const paginaActual = ref(0);
 const inputBusqueda = ref('');
 const seleccionOrden = ref('titulo');
+const elementosPorPagina = 6;
 
 async function cargar(pagina) {
   // Sin filtro is_public: el backend devuelve los públicos a cualquiera y, si
   // hay sesión, también los privados del dueño (get_queryset).
-  await mapasStore.cargarMapas({ page: pagina + 1 });
+  await mapasStore.cargarMapas({ page: pagina + 1, pageSize: elementosPorPagina });
 }
 
 const totalPags = computed(() =>
-  Math.max(1, Math.ceil((mapasStore.pagination.total || 0) / mapasStore.pagination.page_size))
+  Math.max(1, Math.ceil((mapasStore.pagination.total || 0) / elementosPorPagina))
 );
 
 /**
@@ -198,6 +199,7 @@ onUnmounted(() => {
         </div>
 
         <UiPaginador
+          class="m-t-4"
           :pagina-parent="paginaActual"
           :total-paginas="totalPags"
           @cambio="paginaActual = $event"

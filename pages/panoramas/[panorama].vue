@@ -638,9 +638,33 @@ function alternarWmsExterno(item) {
   wmsExternosEncendidos.add(item.id);
 }
 
-// Ref además de la extensión inicial del panorama, zoomACapa
-// la reasigna en caliente para hacer fit a la extensión de una capa.
 const vista = ref({ centro: [-103.5, 23.6], acercamiento: 5 });
+// --- Sincronización automática de capas y estilos al volver a la pestaña ---
+async function recargarPanoramaCompleto() {
+  // 1. Limpia la memoria interna de capas y marcadores para no usar datos viejos
+  Object.keys(capasPorTopico).forEach((k) => delete capasPorTopico[k]);
+  Object.keys(marcadoresPorCapa).forEach((k) => delete marcadoresPorCapa[k]);
+
+  await cargarPanorama();
+
+  if (topicoModalId.value) {
+    await cargarTopico(topicoModalId.value);
+  }
+}
+
+function alCambiarVisibilidadPestania() {
+  if (document.visibilityState === 'visible') {
+    recargarPanoramaCompleto();
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
 </script>
 
 <template>
