@@ -79,13 +79,13 @@ const onGuardarVista = ({ zoom, center_lat, center_long }) =>
 
 // Las ediciones de capas persisten al instante (PATCH por cambio); lo único
 // efímero es la vista (zoom/centro). "Guardar" la persiste y regresa a la lista.
-const modalStatus = ref(null);
-const estatusAlGuardar = reactive({
-  cargando: false,
-  estado: undefined,
-  mensaje: '',
-  textoCargando: '',
-});
+//const modalStatus = ref(null);
+//const estatusAlGuardar = reactive({
+//cargando: false,
+//estado: undefined,
+//mensaje: '',
+//textoCargando: '',
+//});
 
 const guardando = ref(false);
 async function guardarYSalir() {
