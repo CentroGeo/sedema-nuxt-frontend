@@ -3,6 +3,15 @@ import { defineStore } from 'pinia';
 export const useLevantamientoStore = defineStore('levantamiento', () => {
   const config = useRuntimeConfig();
   const apiUrl = config.public.levantamientoBackendUrl;
+  const { data: session } = useAuth();
+
+  function authHeaders(headers = {}) {
+    const accessToken = session.value?.accessToken;
+    return {
+      ...headers,
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    };
+  }
 
   return {
     catalogoColapsado: ref(false),
@@ -543,6 +552,7 @@ export const useLevantamientoStore = defineStore('levantamiento', () => {
 
         const data = await $fetch(`${apiUrl}/projects/reviewer/list`, {
           method: 'POST',
+          headers: authHeaders(),
           body: body,
         });
 
@@ -563,6 +573,7 @@ export const useLevantamientoStore = defineStore('levantamiento', () => {
 
         const data = await $fetch(`${apiUrl}/projects/reviewer/list`, {
           method: 'POST',
+          headers: authHeaders(),
           body: body,
         });
 
@@ -578,9 +589,9 @@ export const useLevantamientoStore = defineStore('levantamiento', () => {
       try {
         const response = await fetch(`${apiUrl}/projects/reviewer/status/${idProyecto}`, {
           method: 'POST',
-          headers: {
+          headers: authHeaders({
             'Content-Type': 'application/json',
-          },
+          }),
           body: JSON.stringify(payload),
         });
 
@@ -608,6 +619,7 @@ export const useLevantamientoStore = defineStore('levantamiento', () => {
 
         const data = await $fetch(`${apiUrl}/projects/reviewer/list`, {
           method: 'POST',
+          headers: authHeaders(),
           body: body,
         });
 

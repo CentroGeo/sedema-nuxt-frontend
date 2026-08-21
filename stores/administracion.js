@@ -1,6 +1,75 @@
 import { defineStore } from 'pinia';
 
 export const useAdministracionStore = defineStore('administracion', () => {
+  const config = useRuntimeConfig();
+  const usuarios = ref([]);
+  const totalUsuarios = ref(0);
+  const resumenUsuarios = ref({
+    total_users: 0,
+    total_administrators: 0,
+    active_editors_30_days: 0,
+  });
+  const cargandoUsuarios = ref(false);
+  const errorUsuarios = ref('');
+  const guardandoPerfil = ref(false);
+  const perfilActual = ref(null);
+
+  async function solicitudAdministracion(path, options = {}) {
+    const { gnoxyFetch } = useGnoxyUrl();
+    const response = await gnoxyFetch(`${config.public.geonodeApi}/administration/${path}`, {
+      ...options,
+      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = body.detail || body.errors?.[0] || 'No fue posible completar la operación.';
+      throw new Error(message);
+    }
+    return body;
+  }
+
+  async function cargarPerfilActual() {
+    perfilActual.value = await solicitudAdministracion('me/');
+    return perfilActual.value;
+  }
+
+  async function cargarUsuarios({ search = '', page = 1 } = {}) {
+    cargandoUsuarios.value = true;
+    errorUsuarios.value = '';
+    try {
+      const query = new URLSearchParams({ page: String(page), page_size: '20' });
+      if (search.trim()) query.set('search', search.trim());
+      const data = await solicitudAdministracion(`users/?${query}`);
+      usuarios.value = data.results;
+      totalUsuarios.value = data.count;
+      resumenUsuarios.value = data.summary || {
+        total_users: data.count,
+        total_administrators: 0,
+        active_editors_30_days: 0,
+      };
+      return data;
+    } catch (error) {
+      errorUsuarios.value = error.message;
+      throw error;
+    } finally {
+      cargandoUsuarios.value = false;
+    }
+  }
+
+  async function cambiarPerfilUsuario(userId, profile) {
+    guardandoPerfil.value = true;
+    try {
+      const actualizado = await solicitudAdministracion(`users/${userId}/profile/`, {
+        method: 'PATCH',
+        body: JSON.stringify({ profile }),
+      });
+      const index = usuarios.value.findIndex((usuario) => usuario.id === userId);
+      if (index !== -1) usuarios.value[index] = actualizado;
+      return actualizado;
+    } finally {
+      guardandoPerfil.value = false;
+    }
+  }
   // --- Módulos (con submódulos anidados) ---
   const modulos = reactive([
     {
@@ -189,6 +258,16 @@ export const useAdministracionStore = defineStore('administracion', () => {
   }
 
   return {
+    usuarios,
+    totalUsuarios,
+    resumenUsuarios,
+    cargandoUsuarios,
+    errorUsuarios,
+    guardandoPerfil,
+    perfilActual,
+    cargarPerfilActual,
+    cargarUsuarios,
+    cambiarPerfilUsuario,
     modulos,
     rolesBase,
     rolesPersonalizados,
