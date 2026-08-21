@@ -39,6 +39,9 @@ onMounted(async () => {
               <nuxt-link to="/catalogo/explorar/documentos">Documentos</nuxt-link>
             </li>
             <li>
+              <nuxt-link to="/levantamiento/proyectos">Proyectos</nuxt-link>
+            </li>
+            <li>
               <nuxt-link to="/catalogo/explorar/catalogos-externos">Servicios remotos</nuxt-link>
             </li>
           </ul>

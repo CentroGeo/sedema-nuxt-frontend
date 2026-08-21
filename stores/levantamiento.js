@@ -114,6 +114,14 @@ export const useLevantamientoStore = defineStore('levantamiento', () => {
         console.error('Error cargando proyecto:', err);
       }
     },
+    async obtenerProyectoPublicoPorId(id) {
+      return $fetch(`${apiUrl}/projects/public/${id}`);
+    },
+    // Recupera solo la ficha pública del marcador seleccionado; el backend
+    // valida proyecto, estado y visibilidad antes de devolver su contenido.
+    async obtenerAportePublico(projectId, contributionId) {
+      return $fetch(`${apiUrl}/projects/public/${projectId}/contributions/${contributionId}`);
+    },
     async crearAporte(formData) {
       const response = await fetch(`${apiUrl}/raising/user/create`, {
         method: 'POST',
