@@ -320,5 +320,13 @@ cargarSitio();
     max-width: 420px;
     margin: 0;
   }
+
+  div[class*='modal'] button[class*='cerrar'],
+  div[class*='modal'] button[aria-label='Cerrar'] {
+    background-color: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+  }
 }
 </style>

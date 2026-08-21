@@ -47,6 +47,15 @@ const abrirCompartir = () => modalCompartir.value?.abrir();
 const editandoCapas = ref(false);
 const alternarEdicionCapas = () => (editandoCapas.value = !editandoCapas.value);
 
+const modalStatus = ref(null);
+
+const estatusAlGuardar = reactive({
+  cargando: false,
+  estado: true,
+  textoCargando: 'Guardando mapa...',
+  mensaje: '',
+});
+
 const recargar = () => store.cargarMapa(mapaId.value);
 
 function alCambiarVisibilidadPestania() {
@@ -88,18 +97,19 @@ const onGuardarVista = ({ zoom, center_lat, center_long }) =>
 
 // Las ediciones de capas persisten al instante (PATCH por cambio); lo único
 // efímero es la vista (zoom/centro). "Guardar" la persiste y regresa a la lista.
-const modalStatus = ref(null);
-const estatusAlGuardar = reactive({
-  cargando: false,
-  estado: undefined,
-  mensaje: '',
-  textoCargando: '',
-});
+//const modalStatus = ref(null);
+//const estatusAlGuardar = reactive({
+//cargando: false,
+//estado: undefined,
+//mensaje: '',
+//textoCargando: '',
+//});
 
 const guardando = ref(false);
 async function guardarYSalir() {
   const m = store.activeMap;
   if (!m) return;
+
   guardando.value = true;
   estatusAlGuardar.cargando = true;
   estatusAlGuardar.textoCargando = 'Guardando mapa...';
@@ -307,23 +317,29 @@ onUnmounted(() => {
       <GeocontenidosMapasModalCompartir ref="modalCompartir" :mapa="mapa" />
       <GeocontenidosModalConfirmar ref="modalConfirmar" />
 
-      <SisdaiModal ref="modalStatus">
-        <template #encabezado>
-          <span v-if="estatusAlGuardar.cargando" />
-          <h2 v-else>{{ estatusAlGuardar.estado ? 'Guardado con éxito' : 'Error' }}</h2>
-        </template>
+      <ClientOnly>
+        <SisdaiModal ref="modalStatus">
+          <template #encabezado>
+            <span v-if="estatusAlGuardar.cargando" />
+            <h2 v-else>{{ estatusAlGuardar.estado ? 'Guardado con éxito' : 'Error' }}</h2>
+          </template>
 
-        <template #cuerpo>
-          <GeocontenidosLoader
-            v-if="estatusAlGuardar.cargando"
-            :mensaje="estatusAlGuardar.textoCargando"
-          />
-          <p v-else-if="estatusAlGuardar.estado === false" v-text="estatusAlGuardar.mensaje" />
-          <p v-else class="texto-centrado">
-            <span class="pictograma-aprobado pictograma-grande" />
-          </p>
-        </template>
-      </SisdaiModal>
+          <template #cuerpo>
+            <GeocontenidosLoader
+              v-if="estatusAlGuardar.cargando"
+              :mensaje="estatusAlGuardar.textoCargando"
+            />
+            <p
+              v-else-if="estatusAlGuardar.estado === false"
+              class="alineacion-centrada"
+              v-text="estatusAlGuardar.mensaje"
+            />
+            <p v-else class="alineacion-centrada">
+              <span class="pictograma-aprobado pictograma-grande" />
+            </p>
+          </template>
+        </SisdaiModal>
+      </ClientOnly>
     </template>
   </ClientOnly>
 </template>
@@ -552,5 +568,12 @@ onUnmounted(() => {
       }
     }
   }
+}
+
+.alineacion-centrada {
+  display: flex !important;
+  justify-content: center !important;
+  text-align: center !important;
+  width: 100% !important;
 }
 </style>

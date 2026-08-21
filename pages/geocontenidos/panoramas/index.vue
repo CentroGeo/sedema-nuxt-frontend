@@ -72,6 +72,11 @@ async function eliminarPanorama(id) {
       </NuxtLink>
     </div>
 
+    <div class="flex">
+      <h2>Panoramas</h2>
+      <UiNumeroElementos :numero="panoramas.length" />
+    </div>
+
     <GeocontenidosLoader v-if="estaCargando" />
 
     <div v-else-if="panoramas.length > 0" class="grid reticula-12">
