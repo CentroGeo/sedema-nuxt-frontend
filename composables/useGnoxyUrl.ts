@@ -4,14 +4,22 @@ export function useGnoxyUrl() {
   function gnoxyUrl(inputUrl: string): string {
     if (!inputUrl) return '';
 
-    const { geonodeUrl } = config.public;
+    const geonodeUrl = String(config.public.geonodeUrl || '');
+    const geonodeHost = geonodeUrl.replace(/^https?:\/\//, '');
 
-    // Caso 1: URL empieza con geonodeUrl → traducir a gnoxy normal
-    if (inputUrl.startsWith(geonodeUrl)) {
-      return inputUrl.replace(geonodeUrl, `${config.app.baseURL}api/gnoxy`);
+    // Caso 1: URL de GeoNode (sea http://, https:// o ruta /uploaded/)
+    if (
+      (geonodeUrl && inputUrl.startsWith(geonodeUrl)) ||
+      (geonodeHost && inputUrl.replace(/^https?:\/\//, '').startsWith(geonodeHost)) ||
+      inputUrl.startsWith('/uploaded/') ||
+      inputUrl.startsWith('/media/')
+    ) {
+      const rutaRelativa = inputUrl.replace(/^https?:\/\/[^/]+/, '');
+      const pathLimpio = rutaRelativa.startsWith('/') ? rutaRelativa : `/${rutaRelativa}`;
+      return `${config.app.baseURL}api/gnoxy${pathLimpio}`;
     }
 
-    // Caso 2: cualquier otra URL → usar gnoxy/proxy con encode
+    // Caso 2: cualquier otra URL externa real → usar gnoxy/proxy con encode
     return `${config.app.baseURL}api/gnoxy/proxy/?url=${encodeURIComponent(inputUrl)}`;
   }
 
