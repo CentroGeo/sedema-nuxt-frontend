@@ -127,7 +127,9 @@ export function useConfiguracionModulos() {
     try {
       const respuesta = await gnoxyFetch(endpoint);
       if (!respuesta.ok) {
-        throw new Error(`No fue posible obtener la configuración de módulos (${respuesta.status}).`);
+        throw new Error(
+          `No fue posible obtener la configuración de módulos (${respuesta.status}).`
+        );
       }
 
       const recibida: unknown = await respuesta.json();
@@ -187,7 +189,9 @@ export function useConfiguracionModulos() {
 
     if (!respuesta.ok) {
       const detalle = await respuesta.json().catch(() => null);
-      throw new Error(detalle?.detail || 'No fue posible actualizar la configuración de submódulos.');
+      throw new Error(
+        detalle?.detail || 'No fue posible actualizar la configuración de submódulos.'
+      );
     }
 
     const recibida: unknown = await respuesta.json();
