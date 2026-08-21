@@ -113,7 +113,7 @@ async function guardarCambios() {
       </div>
 
       <div class="m-b-4">
-        <label for="nombre">Nombre <span class="requerido">*</span></label>
+        <label for="nombre">Nombre de la historia *</label>
         <input
           id="nombre"
           v-model="nombre"
@@ -125,8 +125,7 @@ async function guardarCambios() {
 
       <div class="m-b-4">
         <label for="descripcion">
-          Descripción <span class="requerido">*</span> ({{ formulario.description.length }} /
-          {{ 250 }})
+          Descripción * ({{ formulario.description.length }} / {{ 250 }})
         </label>
         <textarea
           id="descripcion"

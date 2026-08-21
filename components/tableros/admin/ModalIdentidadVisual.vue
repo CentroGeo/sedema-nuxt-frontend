@@ -8,6 +8,8 @@ const { fetchConfigSitio, actualizarConfigSitio } = useTableroApi();
 
 const modal = ref(null);
 const guardando = ref(false);
+const modalGuardado = ref(null);
+const estatusGuardado = reactive({ guardando: false, exito: null, mensaje: '' });
 
 const FUENTES = [
   'Roboto',
@@ -53,11 +55,25 @@ async function abrir() {
 
 async function guardar() {
   guardando.value = true;
+  modalGuardado.value?.abrir();
+  estatusGuardado.guardando = true;
+  estatusGuardado.exito = null;
+  estatusGuardado.mensaje = '';
+
   try {
     await actualizarConfigSitio(props.siteId, config, userData.value?.accessToken);
-    modal.value?.cerrar();
+    estatusGuardado.guardando = false;
+    estatusGuardado.exito = true;
+
+    setTimeout(() => {
+      modalGuardado.value?.cerrar();
+      modal.value?.cerrar();
+    }, 1200);
   } catch (e) {
     console.error('Error al guardar configuración:', e);
+    estatusGuardado.guardando = false;
+    estatusGuardado.exito = false;
+    estatusGuardado.mensaje = e?.message || 'Ocurrió un error al guardar la configuración.';
   } finally {
     guardando.value = false;
   }
@@ -216,6 +232,29 @@ defineExpose({ abrir });
         </form>
       </template>
     </TablerosAdminModalBase>
+
+    <GeocontenidosSisdaiModal ref="modalGuardado" :permitir-cerrar="!estatusGuardado.guardando">
+      <template #encabezado>
+        <h2 class="m-t-0">
+          {{ estatusGuardado.exito === false ? 'Error al guardar' : 'Identidad visual' }}
+        </h2>
+      </template>
+
+      <GeocontenidosLoader v-if="estatusGuardado.guardando" mensaje="Guardando configuración..." />
+
+      <p v-else-if="estatusGuardado.exito === true" class="texto-color-exito">
+        <span class="pictograma-aprobado m-r-1" />
+        La identidad visual se guardó correctamente.
+      </p>
+
+      <p v-else class="texto-color-error">{{ estatusGuardado.mensaje }}</p>
+
+      <template v-if="estatusGuardado.exito === false" #pie>
+        <div class="flex flex-contenido-final">
+          <button class="boton boton-primario" @click="modalGuardado?.cerrar()">Cerrar</button>
+        </div>
+      </template>
+    </GeocontenidosSisdaiModal>
   </ClientOnly>
 </template>
 

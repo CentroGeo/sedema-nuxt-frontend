@@ -1,5 +1,5 @@
 <script setup>
-definePageMeta({ middleware: 'admin' });
+definePageMeta({ middleware: ['admin', 'superusuario'] });
 </script>
 
 <template>

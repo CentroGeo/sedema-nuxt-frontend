@@ -39,6 +39,10 @@ const subgrupoEditandoId = ref(null);
 const formularioSubgrupo = reactive({ name: '', icon: '', info_text: '' });
 const guardandoSubgrupo = ref(false);
 
+// --- Confirmación de guardado (grupo o subgrupo) ---
+const modalGuardado = ref(null);
+const estatusGuardado = reactive({ titulo: '', guardando: false, exito: null, mensaje: '' });
+
 async function cargarDetalle() {
   cargandoDetalle.value = true;
   try {
@@ -184,12 +188,25 @@ function abrirEdicionGrupo() {
 async function guardarGrupo() {
   if (!formularioGrupo.name) return;
   guardandoGrupo.value = true;
+  estatusGuardado.titulo = 'grupo';
+  estatusGuardado.guardando = true;
+  estatusGuardado.exito = null;
+  estatusGuardado.mensaje = '';
+  modalGuardado.value?.abrir();
   try {
     await actualizarGrupo(props.grupo.id, formularioGrupo, userData.value?.accessToken);
     editandoGrupo.value = false;
     emit('cambio');
+    estatusGuardado.guardando = false;
+    estatusGuardado.exito = true;
+    setTimeout(() => {
+      modalGuardado.value?.cerrar();
+    }, 1200);
   } catch (e) {
     console.error('Error al actualizar grupo:', e);
+    estatusGuardado.guardando = false;
+    estatusGuardado.exito = false;
+    estatusGuardado.mensaje = e?.message || 'No se pudo guardar el grupo.';
   } finally {
     guardandoGrupo.value = false;
   }
@@ -205,6 +222,11 @@ function abrirEdicionSubgrupo(sg) {
 async function guardarSubgrupo(sgId) {
   if (!formularioSubgrupo.name) return;
   guardandoSubgrupo.value = true;
+  estatusGuardado.titulo = 'subgrupo';
+  estatusGuardado.guardando = true;
+  estatusGuardado.exito = null;
+  estatusGuardado.mensaje = '';
+  modalGuardado.value?.abrir();
   const form = new FormData();
   form.append('name', formularioSubgrupo.name);
   if (formularioSubgrupo.icon) form.append('icon', formularioSubgrupo.icon);
@@ -214,8 +236,16 @@ async function guardarSubgrupo(sgId) {
     subgrupoEditandoId.value = null;
     await cargarDetalle();
     emit('cambio');
+    estatusGuardado.guardando = false;
+    estatusGuardado.exito = true;
+    setTimeout(() => {
+      modalGuardado.value?.cerrar();
+    }, 1200);
   } catch (e) {
     console.error('Error al actualizar subgrupo:', e);
+    estatusGuardado.guardando = false;
+    estatusGuardado.exito = false;
+    estatusGuardado.mensaje = e?.message || 'No se pudo guardar el subgrupo.';
   } finally {
     guardandoSubgrupo.value = false;
   }
@@ -445,6 +475,36 @@ onMounted(cargarDetalle);
               <span v-if="isBeingDeleted" class="cargador cargador-chico m-r-1" />
               Eliminar
             </button>
+          </div>
+        </template>
+      </GeocontenidosSisdaiModal>
+
+      <GeocontenidosSisdaiModal ref="modalGuardado" :permitir-cerrar="!estatusGuardado.guardando">
+        <template #encabezado>
+          <h2 class="m-t-0">
+            {{
+              estatusGuardado.exito === false
+                ? 'Error al guardar'
+                : `Guardar ${estatusGuardado.titulo}`
+            }}
+          </h2>
+        </template>
+
+        <GeocontenidosLoader
+          v-if="estatusGuardado.guardando"
+          :mensaje="`Guardando ${estatusGuardado.titulo}...`"
+        />
+
+        <p v-else-if="estatusGuardado.exito === true" class="texto-color-exito">
+          <span class="pictograma-aprobado m-r-1" />
+          El {{ estatusGuardado.titulo }} se guardó correctamente.
+        </p>
+
+        <p v-else class="texto-color-error">{{ estatusGuardado.mensaje }}</p>
+
+        <template v-if="estatusGuardado.exito === false" #pie>
+          <div class="flex flex-contenido-final">
+            <button class="boton boton-primario" @click="modalGuardado?.cerrar()">Cerrar</button>
           </div>
         </template>
       </GeocontenidosSisdaiModal>

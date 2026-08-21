@@ -7,7 +7,7 @@ definePageMeta({ middleware: 'auth' });
 
 const config = useRuntimeConfig();
 const { data: userData } = useAuth();
-const { gnoxyFetch } = useGnoxyUrl();
+const { gnoxyFetch, gnoxyUrl } = useGnoxyUrl();
 const { panorama } = useRoute().params;
 
 const esNuevo = computed(() => panorama === 'nuevo');
@@ -30,16 +30,82 @@ const formulario = reactive({
   header_title: '',
   header_color: '#1a1a2e',
   header_title_color: '#ffffff',
+  header_height: 60,
 });
+
+const logos = ref([]);
+
+function normalizarLogosServidor(logosServidor = [], logoLegacyUrl = '') {
+  if (Array.isArray(logosServidor) && logosServidor.length > 0) {
+    return logosServidor.map((logo, index) => ({
+      key: `topbar-saved-${logo.id || index + 1}`,
+      id: logo.id || null,
+      icon: logo.icon || '',
+      icon_url: logo.icon_url || '',
+      icon_link: logo.icon_link || '',
+      alt_text: logo.alt_text || '',
+      stack_order: logo.stack_order || index + 1,
+      archivo: null,
+      previewUrl: '',
+      esNuevo: false,
+    }));
+  }
+
+  if (logoLegacyUrl) {
+    return [
+      {
+        key: 'topbar-legacy-1',
+        id: null,
+        icon: '',
+        icon_url: logoLegacyUrl,
+        icon_link: '',
+        alt_text: '',
+        stack_order: 1,
+        archivo: null,
+        previewUrl: '',
+        esNuevo: false,
+      },
+    ];
+  }
+
+  return [];
+}
+
+function obtenerImagen(logo) {
+  if (logo.previewUrl) return logo.previewUrl;
+  if (logo.icon_url) return logo.icon_url;
+  if (logo.icon) return gnoxyUrl(logo.icon);
+  return '';
+}
 
 const pestanas = computed(() =>
   [
-    { id: 'configuracion', nombre: 'Configuración', disponible: true },
-    { id: 'detalles', nombre: 'Detalles', disponible: true },
-    { id: 'encabezado', nombre: 'Encabezado', disponible: formulario.template_use === 'normal' },
-    { id: 'tematicas', nombre: 'Temáticas', disponible: !esNuevo.value },
-    { id: 'tematicas-texto', nombre: 'Temáticas de Texto', disponible: !esNuevo.value },
-    { id: 'wms-externos', nombre: 'WMS Externos', disponible: !esNuevo.value },
+    { id: 'configuracion', nombre: 'Configuración', icono: 'pictograma-editar', disponible: true },
+    { id: 'detalles', nombre: 'Detalles', icono: 'pictograma-documento', disponible: true },
+    {
+      id: 'encabezado',
+      nombre: 'Encabezado',
+      icono: 'pictograma-visualizador',
+      disponible: formulario.template_use === 'normal',
+    },
+    {
+      id: 'tematicas',
+      nombre: 'Temáticas',
+      icono: 'pictograma-mapa-generador',
+      disponible: !esNuevo.value,
+    },
+    {
+      id: 'tematicas-texto',
+      nombre: 'Temáticas de Texto',
+      icono: 'pictograma-escribir',
+      disponible: !esNuevo.value,
+    },
+    {
+      id: 'wms-externos',
+      nombre: 'WMS Externos',
+      icono: 'pictograma-enlace-externo',
+      disponible: !esNuevo.value,
+    },
   ].filter((p) => p.disponible)
 );
 const tabInicial = useRoute().query.tab;
@@ -56,9 +122,6 @@ const estatusAlGuardar = reactive({
   mensaje: '',
   textoCargando: '',
 });
-
-const logoActualUrl = ref(null);
-const nuevoLogo = ref(null);
 
 const vista = ref({ centro: [-103.5, 23.6], acercamiento: 5 });
 
@@ -89,7 +152,8 @@ async function cargarDatosPanorama() {
   formulario.header_title = data.header_title || '';
   formulario.header_color = data.header_color || '#1a1a2e';
   formulario.header_title_color = data.header_title_color || '#ffffff';
-  logoActualUrl.value = data.header_logo || null;
+  formulario.header_height = data.header_height || 60;
+  logos.value = normalizarLogosServidor(data.header_logos, data.header_logo);
 
   if (data.bbox_x0 !== null && data.bbox_x0 !== undefined) {
     vista.value = { extension: `${data.bbox_x0},${data.bbox_y0},${data.bbox_x1},${data.bbox_y1}` };
@@ -101,8 +165,6 @@ async function cargarDatosPanorama() {
 cargarDatosPanorama();
 
 function alMoverVista({ vista: vistaOl }) {
-  // El backend guarda el bbox en DecimalField(decimal_places=10); los floats crudos de OL
-  // suelen traer mas decimales de los permitidos y el guardado truena con un 400.
   const [x0, y0, x1, y1] = vistaOl.calculateExtent().map((n) => Number(n.toFixed(6)));
   formulario.bbox_x0 = x0;
   formulario.bbox_y0 = y0;
@@ -110,41 +172,139 @@ function alMoverVista({ vista: vistaOl }) {
   formulario.bbox_y1 = y1;
 }
 
-function alSeleccionarLogo(event) {
-  nuevoLogo.value = event.target.files?.[0] || null;
-}
-
-function construirCuerpoPeticion() {
-  if (!nuevoLogo.value) {
-    return { body: JSON.stringify(formulario), esFormData: false };
-  }
-
+function construirFormDataHeader() {
   const formData = new FormData();
-  Object.entries(formulario).forEach(([clave, valor]) => {
-    if (valor === null || valor === undefined) return;
-    formData.append(clave, valor);
+  const manifest = [];
+
+  logos.value.forEach((logo, index) => {
+    const datosLogo = {
+      icon_url: logo.icon_url || '',
+      icon_link: (logo.icon_link || '').trim(),
+      alt_text: (logo.alt_text || '').trim(),
+    };
+
+    if (logo.id) {
+      manifest.push({ id: logo.id, ...datosLogo });
+      return;
+    }
+
+    if (logo.archivo) {
+      const fileKey = `logo_file_${index}`;
+      formData.append(fileKey, logo.archivo, logo.archivo.name);
+      manifest.push({ file_key: fileKey, ...datosLogo });
+      return;
+    }
+
+    if (logo.icon_url) {
+      manifest.push(datosLogo);
+    }
   });
-  formData.append('header_logo', nuevoLogo.value);
-  return { body: formData, esFormData: true };
+
+  formData.append(
+    'configuration',
+    JSON.stringify({
+      header_title: formulario.header_title,
+      header_color: formulario.header_color,
+      header_title_color: formulario.header_title_color,
+      header_height: formulario.header_height,
+    })
+  );
+  formData.append('manifest', JSON.stringify(manifest));
+
+  return formData;
 }
 
 async function guardarCambios() {
+  const altura = Number(formulario.header_height);
+  if (!Number.isInteger(altura) || altura < 32 || altura > 120) {
+    formulario.header_height = 60;
+  } else {
+    formulario.header_height = altura;
+  }
+
   modalStatus.value?.abrirModal();
   estatusAlGuardar.cargando = true;
   estatusAlGuardar.textoCargando = 'Guardando...';
 
-  const url = esNuevo.value
-    ? `${config.public.geonodeApi}/panoramas/`
-    : `${config.public.geonodeApi}/panoramas/${panorama}/`;
-
-  const { body, esFormData } = construirCuerpoPeticion();
   const headers = { Authorization: `Bearer ${userData.value?.accessToken}` };
-  if (!esFormData) headers['Content-Type'] = 'application/json';
 
-  const respuesta = await gnoxyFetch(url, {
-    method: esNuevo.value ? 'POST' : 'PATCH',
-    headers,
-    body,
+  if (esNuevo.value) {
+    const respuesta = await gnoxyFetch(`${config.public.geonodeApi}/panoramas/`, {
+      method: 'POST',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(formulario),
+    });
+
+    if (!respuesta.ok) {
+      estatusAlGuardar.cargando = false;
+      estatusAlGuardar.estado = false;
+      estatusAlGuardar.mensaje = 'Ocurrió un error al crear el panorama.';
+      return;
+    }
+
+    const data = await respuesta.json();
+
+    if (logos.value.length > 0) {
+      const formData = construirFormDataHeader();
+      await gnoxyFetch(`${config.public.geonodeApi}/panoramas/${data.id}/sync-header/`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+    }
+
+    estatusAlGuardar.cargando = false;
+    estatusAlGuardar.estado = true;
+    setTimeout(() => {
+      modalStatus.value?.cerrarModal();
+      navigateTo(`/geocontenidos/panoramas/${data.id}/editar`);
+    }, 1200);
+    return;
+  }
+
+  if (pestanaActiva.value === 'encabezado') {
+    const formData = construirFormDataHeader();
+    const respuesta = await gnoxyFetch(
+      `${config.public.geonodeApi}/panoramas/${panorama}/sync-header/`,
+      {
+        method: 'POST',
+        headers,
+        body: formData,
+      }
+    );
+
+    if (!respuesta.ok) {
+      estatusAlGuardar.cargando = false;
+      estatusAlGuardar.estado = false;
+      estatusAlGuardar.mensaje = 'Ocurrió un error al guardar el encabezado del panorama.';
+      return;
+    }
+
+    const data = await respuesta.json();
+    formulario.header_title = data.header_title || '';
+    formulario.header_color = data.header_color || '#1a1a2e';
+    formulario.header_title_color = data.header_title_color || '#ffffff';
+    formulario.header_height = data.header_height || 60;
+    logos.value = normalizarLogosServidor(data.header_logos, data.header_logo);
+
+    estatusAlGuardar.cargando = false;
+    estatusAlGuardar.estado = true;
+    setTimeout(() => {
+      modalStatus.value?.cerrarModal();
+    }, 1200);
+    return;
+  }
+
+  const respuesta = await gnoxyFetch(`${config.public.geonodeApi}/panoramas/${panorama}/`, {
+    method: 'PATCH',
+    headers: {
+      ...headers,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(formulario),
   });
 
   if (!respuesta.ok) {
@@ -154,16 +314,11 @@ async function guardarCambios() {
     return;
   }
 
-  const data = await respuesta.json();
-  nuevoLogo.value = null;
-
+  await respuesta.json();
   estatusAlGuardar.cargando = false;
   estatusAlGuardar.estado = true;
   setTimeout(() => {
     modalStatus.value?.cerrarModal();
-    if (esNuevo.value) {
-      navigateTo(`/geocontenidos/panoramas/${data.id}/editar`);
-    }
   }, 1200);
 }
 </script>
@@ -173,16 +328,21 @@ async function guardarCambios() {
     <GeocontenidosTituloVolver volver="/panoramas" titulo="Edición del panorama" />
 
     <div class="editor-panorama__cuerpo flex">
-      <nav class="editor-panorama__menu">
-        <button
-          v-for="pestana in pestanas"
-          :key="pestana.id"
-          class="editor-panorama__item"
-          :class="{ activo: pestanaActiva === pestana.id }"
-          @click="pestanaActiva = pestana.id"
-        >
-          {{ pestana.nombre }}
-        </button>
+      <nav class="editor-panorama__menu panel-acciones-columna">
+        <div class="lista-acciones flex-vertical">
+          <button
+            v-for="pestana in pestanas"
+            :key="pestana.id"
+            type="button"
+            class="boton-accion-lateral boton-sin-contenedor-secundario"
+            :class="{ activo: pestanaActiva === pestana.id }"
+            :aria-pressed="pestanaActiva === pestana.id"
+            @click="pestanaActiva = pestana.id"
+          >
+            <span :class="pestana.icono" aria-hidden="true" />
+            <span>{{ pestana.nombre }}</span>
+          </button>
+        </div>
       </nav>
 
       <div class="editor-panorama__contenido">
@@ -194,7 +354,7 @@ async function guardarCambios() {
             <h2>Configuración principal del panorama</h2>
 
             <div class="m-b-4">
-              <label for="nombre">Nombre</label>
+              <label for="nombre">Nombre *</label>
               <input id="nombre" v-model="formulario.name" type="text" required />
             </div>
 
@@ -300,42 +460,90 @@ async function guardarCambios() {
               <input id="header-titulo" v-model="formulario.header_title" type="text" />
             </div>
 
-            <div class="flex flex-contenido-separado m-b-4">
-              <div>
+            <div class="grid-encabezado-controles m-b-4">
+              <div class="campo-color">
                 <label for="header-color">Color de fondo</label>
-                <input id="header-color" v-model="formulario.header_color" type="color" />
+                <div class="color-picker-fila">
+                  <input id="header-color" v-model="formulario.header_color" type="color" />
+                  <input
+                    v-model="formulario.header_color"
+                    type="text"
+                    maxlength="7"
+                    placeholder="#1a1a2e"
+                  />
+                </div>
               </div>
 
-              <div>
+              <div class="campo-color">
                 <label for="header-color-titulo">Color del texto</label>
+                <div class="color-picker-fila">
+                  <input
+                    id="header-color-titulo"
+                    v-model="formulario.header_title_color"
+                    type="color"
+                  />
+                  <input
+                    v-model="formulario.header_title_color"
+                    type="text"
+                    maxlength="7"
+                    placeholder="#ffffff"
+                  />
+                </div>
+              </div>
+
+              <div class="campo-altura">
+                <label for="header-height">Alto (px)</label>
                 <input
-                  id="header-color-titulo"
-                  v-model="formulario.header_title_color"
-                  type="color"
+                  id="header-height"
+                  v-model.number="formulario.header_height"
+                  type="number"
+                  min="32"
+                  max="120"
                 />
               </div>
             </div>
 
             <div class="m-b-4">
-              <label for="header-logo">Logo</label>
-              <input id="header-logo" type="file" accept="image/*" @change="alSeleccionarLogo" />
-              <p v-if="logoActualUrl && !nuevoLogo" class="formulario-ayuda">
-                Ya hay un logo cargado. Selecciona un archivo para reemplazarlo.
-              </p>
-              <p v-if="nuevoLogo" class="formulario-ayuda">
-                Nuevo archivo seleccionado: {{ nuevoLogo.name }}
-              </p>
+              <label class="formulario-etiqueta">Vista previa</label>
+              <div
+                class="encabezado-preview"
+                :style="{
+                  backgroundColor: formulario.header_color || '#1a1a2e',
+                  color: formulario.header_title_color || '#ffffff',
+                  height: `${formulario.header_height || 60}px`,
+                }"
+              >
+                <span v-if="formulario.header_title" class="encabezado-preview__titulo">
+                  {{ formulario.header_title }}
+                </span>
+                <span v-else class="encabezado-preview__placeholder">
+                  Vista previa del encabezado
+                </span>
+
+                <div v-if="logos.length" class="encabezado-preview__logos">
+                  <div
+                    v-for="(logo, index) in logos"
+                    :key="`preview-${logo.key || index}`"
+                    class="encabezado-preview__logo"
+                  >
+                    <span class="encabezado-preview__indice">{{ index + 1 }}</span>
+                    <img
+                      v-if="obtenerImagen(logo)"
+                      :src="obtenerImagen(logo)"
+                      :alt="logo.alt_text || `Logo ${index + 1}`"
+                      :style="{
+                        maxHeight: `${Math.max(20, Number(formulario.header_height || 60) - 20)}px`,
+                      }"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div
-              class="p-3 borde-redondeado-8 m-b-4"
-              :style="{
-                backgroundColor: formulario.header_color,
-                color: formulario.header_title_color,
-              }"
-            >
-              <strong>{{ formulario.header_title || 'Vista previa del título' }}</strong>
-            </div>
+            <TablerosAdminSubidorLogosTopBar
+              v-model:logos="logos"
+              :disabled="estatusAlGuardar.cargando"
+            />
           </div>
 
           <input
@@ -396,30 +604,6 @@ async function guardarCambios() {
     align-items: flex-start;
   }
 
-  &__menu {
-    width: 220px;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    border-right: 1px solid var(--color-secundario-4);
-  }
-
-  &__item {
-    text-align: left;
-    padding: 12px 16px;
-    background: none;
-    color: inherit;
-    border: none;
-    cursor: pointer;
-    border-left: 3px solid transparent;
-
-    &.activo {
-      background-color: var(--color-primario-4);
-      border-left-color: var(--color-primario-1);
-      font-weight: bold;
-    }
-  }
-
   &__contenido {
     flex: 1;
     padding: 0 24px;
@@ -437,5 +621,178 @@ async function guardarCambios() {
 .mapa-vista-inicial {
   height: 400px;
   width: 100%;
+}
+
+.grid-encabezado-controles {
+  display: grid;
+  grid-template-columns: 1fr 1fr 120px;
+  gap: 1.25rem;
+  align-items: start;
+
+  @media (max-width: 700px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.color-picker-fila {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+
+  input[type='color'] {
+    width: 42px;
+    height: 38px;
+    padding: 2px;
+    border: 1px solid var(--color-neutro-2, #ccc);
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  input[type='text'] {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.campo-altura {
+  input[type='number'] {
+    margin-top: 0.25rem;
+    width: 100%;
+  }
+}
+
+.encabezado-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 1.25rem;
+  border: 1px dashed var(--color-neutro-2, #ccc);
+  border-radius: 6px;
+  overflow: hidden;
+  box-sizing: border-box;
+  margin-top: 0.25rem;
+  transition:
+    background-color 0.2s,
+    color 0.2s,
+    height 0.2s;
+
+  &__titulo {
+    font-size: 0.95rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__placeholder {
+    font-size: 0.85rem;
+    font-style: italic;
+    opacity: 0.6;
+  }
+
+  &__logos {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.85rem;
+    margin-left: auto;
+  }
+
+  &__logo {
+    position: relative;
+    display: grid;
+    place-items: center;
+    background: #ffffff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+
+    img {
+      width: auto;
+      max-width: 120px;
+      object-fit: contain;
+    }
+  }
+
+  &__indice {
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--color-primario-4, #991f47);
+    color: #ffffff;
+    font-size: 0.6rem;
+    font-weight: 700;
+  }
+}
+
+.editor-panorama__menu {
+  width: 250px;
+  min-width: 250px;
+  box-sizing: border-box;
+  padding: 16px 12px;
+  background-color: var(--fondo);
+  border-right: 1px solid var(--color-neutro-2, #e0e0e0);
+}
+
+.lista-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.boton-accion-lateral {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-family: var(--tipografia-familia, 'Montserrat', sans-serif);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--texto-primario);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  line-height: 1.3;
+
+  .pictograma,
+  [class^='pictograma-'],
+  [class*=' pictograma-'] {
+    font-size: 1.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    background-color: transparent;
+    border-color: var(--color-neutro-2, #e0e0e0);
+  }
+
+  &.activo {
+    background-color: var(--color-primario-4);
+    color: var(--texto-inverso, #ffffff);
+    font-weight: 600;
+    border-color: var(--color-primario-4);
+
+    .pictograma,
+    [class^='pictograma-'],
+    [class*=' pictograma-'] {
+      color: var(--texto-inverso, #ffffff);
+    }
+  }
 }
 </style>

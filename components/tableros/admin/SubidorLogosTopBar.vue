@@ -323,12 +323,23 @@ defineExpose({
           <p class="formulario-ayuda">Opción A — subir archivo</p>
 
           <input
+            id="topbar-input-archivo"
             ref="inputArchivo"
             type="file"
             accept="image/*"
+            class="subidor-logos-topbar__input-oculto"
             :disabled="disabled"
             @change="agregarArchivo"
           />
+
+          <label
+            for="topbar-input-archivo"
+            class="boton boton-secundario boton-chico subidor-logos-topbar__boton-archivo"
+            :class="{ 'esta-deshabilitado': disabled }"
+          >
+            <span class="pictograma-subir m-r-1" />
+            Seleccionar archivo
+          </label>
         </div>
 
         <div class="subidor-logos-topbar__separador">o</div>
@@ -529,6 +540,30 @@ defineExpose({
   &__opcion {
     flex: 1;
     min-width: 220px;
+  }
+
+  &__input-oculto {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  &__boton-archivo {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    margin-top: 0.15rem;
+
+    &.esta-deshabilitado {
+      pointer-events: none;
+      opacity: 0.5;
+    }
   }
 
   &__separador {

@@ -80,6 +80,9 @@ export function useDownloadResources() {
    * @returns {Promise<string>}
    */
   async function downloadMetadata(resource) {
+    if (!resource?.uuid) {
+      return 'Error';
+    }
     const maxAttempts = 5;
     const api = new URL(`${config.public.geonodeUrl}/catalogue/csw`);
     api.search = new URLSearchParams({
@@ -99,14 +102,22 @@ export function useDownloadResources() {
             return 'Error';
           } else {
             console.warn(`Falló el intento ${attempt + 1}.`);
+            continue;
           }
         }
-        const dataBlob = await res.blob();
+        const xmlText = await res.text();
+        // Un CSW con permisos insuficientes o uuid inexistente responde 200 con
+        // un GetRecordByIdResponse vacío o un ExceptionReport: no es un metadato válido.
+        if (!xmlText.includes('MD_Metadata')) {
+          return 'Error';
+        }
+        const dataBlob = new Blob([xmlText], { type: 'application/xml' });
         const blobLink = URL.createObjectURL(dataBlob);
         const anchor = document.createElement('a');
         anchor.href = blobLink;
         anchor.style.display = 'none';
-        anchor.download = `${resource.title}_metadata.xml`;
+        const safeTitle = resource.title.replace(/[/\\:*?"<>|]/g, '_');
+        anchor.download = `${safeTitle}_metadata.xml`;
         document.body.appendChild(anchor);
         anchor.click();
         document.body.removeChild(anchor);

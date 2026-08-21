@@ -14,11 +14,45 @@ import pictogramas from '~/utils/geocontenidos/pictogramas.json';
 
 definePageMeta({ layout: 'geohistorias' });
 
-const { gnoxyFetch } = useGnoxyUrl();
+const { gnoxyFetch, gnoxyUrl } = useGnoxyUrl();
 const config = useRuntimeConfig();
 const { panorama: panoramaId } = useRoute().params;
 
 const panorama = reactive({ cargando: true, datos: null, sinAcceso: false });
+
+const logosEncabezado = computed(() => {
+  const lista = panorama.datos?.header_logos;
+  if (Array.isArray(lista) && lista.length > 0) {
+    return lista;
+  }
+  if (panorama.datos?.header_logo) {
+    return [
+      {
+        icon_url: panorama.datos.header_logo,
+        icon_link: '',
+        alt_text: '',
+      },
+    ];
+  }
+  return [];
+});
+
+function obtenerLogoSrc(logo) {
+  if (logo.icon_url) return logo.icon_url;
+  if (logo.icon) return gnoxyUrl(logo.icon);
+  return '';
+}
+
+const alturaEncabezado = computed(() => {
+  if (
+    panorama.datos?.template_use === 'normal' &&
+    (panorama.datos?.header_title || logosEncabezado.value.length)
+  ) {
+    return `${panorama.datos?.header_height || 60}px`;
+  }
+  return '0px';
+});
+
 // topicoModalId: se pueden combinar capas de varias temáticas a la vez sobre el mapa, como en geoweb
 const topicoModalId = ref(null);
 const textoActivoId = ref(null);
@@ -604,13 +638,37 @@ function alternarWmsExterno(item) {
   wmsExternosEncendidos.add(item.id);
 }
 
-// Ref además de la extensión inicial del panorama, zoomACapa
-// la reasigna en caliente para hacer fit a la extensión de una capa.
 const vista = ref({ centro: [-103.5, 23.6], acercamiento: 5 });
+// --- Sincronización automática de capas y estilos al volver a la pestaña ---
+async function recargarPanoramaCompleto() {
+  // 1. Limpia la memoria interna de capas y marcadores para no usar datos viejos
+  Object.keys(capasPorTopico).forEach((k) => delete capasPorTopico[k]);
+  Object.keys(marcadoresPorCapa).forEach((k) => delete marcadoresPorCapa[k]);
+
+  await cargarPanorama();
+
+  if (topicoModalId.value) {
+    await cargarTopico(topicoModalId.value);
+  }
+}
+
+function alCambiarVisibilidadPestania() {
+  if (document.visibilityState === 'visible') {
+    recargarPanoramaCompleto();
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
 </script>
 
 <template>
-  <main class="panorama">
+  <main class="panorama" :style="{ '--header-alto': alturaEncabezado }">
     <GeocontenidosLoader v-if="panorama.cargando" />
 
     <p v-else-if="panorama.sinAcceso" class="texto-centrado h3 p-4">
@@ -619,20 +677,40 @@ const vista = ref({ centro: [-103.5, 23.6], acercamiento: 5 });
 
     <template v-else>
       <header
-        v-if="panorama.datos.template_use === 'normal' && panorama.datos.header_title"
+        v-if="
+          panorama.datos.template_use === 'normal' &&
+          (panorama.datos.header_title || logosEncabezado.length)
+        "
         class="panorama__encabezado"
         :style="{
           backgroundColor: panorama.datos.header_color || '#1a1a2e',
           color: panorama.datos.header_title_color || '#ffffff',
+          height: `${panorama.datos.header_height || 60}px`,
         }"
       >
-        <img
-          v-if="panorama.datos.header_logo"
-          :src="panorama.datos.header_logo"
-          alt=""
-          class="panorama__encabezado-logo"
-        />
-        <h1 class="m-0">{{ panorama.datos.header_title }}</h1>
+        <h1 v-if="panorama.datos.header_title" class="m-0 panorama__encabezado-titulo">
+          {{ panorama.datos.header_title }}
+        </h1>
+
+        <div v-if="logosEncabezado.length" class="panorama__encabezado-logos">
+          <component
+            :is="logo.icon_link ? 'a' : 'div'"
+            v-for="(logo, idx) in logosEncabezado"
+            :key="`header-logo-${idx}`"
+            :href="logo.icon_link || undefined"
+            :target="logo.icon_link ? '_blank' : undefined"
+            :rel="logo.icon_link ? 'noopener noreferrer' : undefined"
+            class="panorama__encabezado-logo-item"
+          >
+            <img
+              :src="obtenerLogoSrc(logo)"
+              :alt="logo.alt_text || panorama.datos.name || `Logo ${idx + 1}`"
+              :style="{
+                maxHeight: `${Math.max(20, (panorama.datos.header_height || 60) - 20)}px`,
+              }"
+            />
+          </component>
+        </div>
       </header>
 
       <div class="panorama__contenedor">
@@ -1004,18 +1082,47 @@ const vista = ref({ centro: [-103.5, 23.6], acercamiento: 5 });
   &__encabezado {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 16px;
-    padding: 12px 24px;
+    padding: 0 24px;
+    box-sizing: border-box;
+    flex-shrink: 0;
   }
 
-  &__encabezado-logo {
-    height: 40px;
-    width: auto;
+  &__encabezado-titulo {
+    font-size: 1.15rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__encabezado-logos {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-left: auto;
+  }
+
+  &__encabezado-logo-item {
+    display: flex;
+    align-items: center;
+    background: #ffffff;
+    border-radius: 4px;
+    padding: 3px 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    text-decoration: none;
+
+    img {
+      width: auto;
+      object-fit: contain;
+    }
   }
 
   &__contenedor {
     display: flex;
-    height: calc(100vh - 51px);
+    height: calc(100vh - var(--header-alto, 60px));
   }
 
   &__temas {

@@ -228,7 +228,7 @@ async function eliminarMarcador(id) {
 
               <form @submit.prevent="guardarMarcador">
                 <div class="m-b-4">
-                  <label for="marcador-titulo">Título</label>
+                  <label for="marcador-titulo">Título *</label>
                   <input id="marcador-titulo" v-model="formulario.title" type="text" required />
                 </div>
 

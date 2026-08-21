@@ -47,6 +47,8 @@ const modal = ref(null);
 const guardando = ref(false);
 const recalculando = ref(false);
 const error = ref('');
+const modalGuardado = ref(null);
+const guardadoConExito = ref(false);
 
 const TIPOS_GRAFICA = [
   {
@@ -564,7 +566,12 @@ async function guardar() {
     }
 
     emit(esEdicion.value ? 'guardado' : 'creado', { ...data, avisoRecalculo });
-    modal.value?.cerrar();
+    guardadoConExito.value = true;
+    modalGuardado.value?.abrir();
+    setTimeout(() => {
+      modalGuardado.value?.cerrar();
+      modal.value?.cerrar();
+    }, 1200);
   } catch (e) {
     error.value = e?.message || 'Error al guardar el indicador';
   } finally {
@@ -1079,6 +1086,17 @@ onBeforeUnmount(() => {
         </form>
       </template>
     </TablerosAdminModalBase>
+
+    <GeocontenidosSisdaiModal ref="modalGuardado" :permitir-cerrar="false">
+      <template #encabezado>
+        <h2 class="m-t-0">Indicador guardado</h2>
+      </template>
+
+      <p v-if="guardadoConExito" class="texto-color-exito">
+        <span class="pictograma-aprobado m-r-1" />
+        El indicador se guardó correctamente.
+      </p>
+    </GeocontenidosSisdaiModal>
   </ClientOnly>
 </template>
 

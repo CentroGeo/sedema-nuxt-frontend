@@ -29,7 +29,7 @@ function setActions(resource) {
   if (resource.sourcetype === 'REMOTE') {
     return 'Ver';
   } else {
-    return 'Ver, Descargar';
+    return 'Ver, Descargar, Metadatos XML';
   }
 }
 

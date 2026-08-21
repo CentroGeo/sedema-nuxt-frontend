@@ -5,13 +5,19 @@ const estaLogueado = computed(() => status.value === 'authenticated');
 const route = useRoute();
 
 const storeCatalogo = useCatalogoStore();
-const esSuperusuaria = computed(() => storeCatalogo.userInfo.is_superuser);
+const storeAdministracion = useAdministracionStore();
+const puedeRevisarSolicitudes = computed(() =>
+  ['superuser', 'administrator', 'editor'].includes(storeAdministracion.perfilActual?.profile)
+);
 
 onMounted(async () => {
   if (!estaLogueado.value) {
     storeCatalogo.userInfo = {};
-  } else if (estaLogueado.value && !storeCatalogo.userInfo?.is_superuser) {
-    await storeCatalogo.getUserInfo();
+  } else {
+    await Promise.all([
+      !storeCatalogo.userInfo?.username ? storeCatalogo.getUserInfo() : Promise.resolve(),
+      storeAdministracion.cargarPerfilActual().catch(() => null),
+    ]);
   }
 });
 </script>
@@ -31,6 +37,9 @@ onMounted(async () => {
             </li>
             <li>
               <nuxt-link to="/catalogo/explorar/documentos">Documentos</nuxt-link>
+            </li>
+            <li>
+              <nuxt-link to="/levantamiento/proyectos">Proyectos</nuxt-link>
             </li>
             <li>
               <nuxt-link to="/catalogo/explorar/catalogos-externos">Servicios remotos</nuxt-link>
@@ -55,7 +64,7 @@ onMounted(async () => {
         <li>
           <nuxt-link to="/catalogo/servicios-remotos">Carga de servicios remotos</nuxt-link>
         </li>
-        <li v-if="esSuperusuaria">
+        <li v-if="puedeRevisarSolicitudes">
           <nuxt-link
             :class="{
               ['router-link-active router-link-exact-active']: route.path.includes(
