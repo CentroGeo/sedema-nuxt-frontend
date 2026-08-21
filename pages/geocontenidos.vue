@@ -1,20 +1,11 @@
 <script setup>
 definePageMeta({ middleware: ['auth', 'redireccionar-modulo-geocontenidos'] });
 
-const config = useRuntimeConfig();
-const { status } = useAuth();
-const storeCatalogo = useCatalogoStore();
-const storeLandingBuilder = useLandingBuilderStore();
 const { cargarConfiguracionModulos, estaHabilitado, estaSubmoduloHabilitado } =
   useConfiguracionModulos();
 
 const ruta = '/geocontenidos';
 const geocontenidosHabilitados = estaHabilitado('geocontenidos');
-
-const esAdmin = computed(() => Boolean(storeCatalogo.userInfo?.is_superuser));
-const mostrarConstructor = computed(
-  () => config.public.enableLandingBuilder && status.value === 'authenticated' && esAdmin.value
-);
 
 const itemsMenu = computed(() => {
   const items = [
@@ -25,14 +16,6 @@ const itemsMenu = computed(() => {
     { id: 'geocontenidos-importar', nombre: 'Importar datos', ruta: `${ruta}/importar-datos` },
   ].filter((item) => estaSubmoduloHabilitado(item.id).value);
 
-  if (mostrarConstructor.value) {
-    items.push({
-      nombre: 'Constructor de Páginas',
-      ruta: '/landing-builder',
-      accionesConstructor: true,
-    });
-  }
-
   if (estaSubmoduloHabilitado('geocontenidos-micrositios').value) {
     items.push({ nombre: 'Micrositios' });
   }
@@ -40,79 +23,14 @@ const itemsMenu = computed(() => {
   return items;
 });
 
-const submenusAbiertos = reactive({});
-
 onMounted(() => {
   cargarConfiguracionModulos();
 });
 
+const submenusAbiertos = reactive({});
+
 function alternarSubmenu(nombre) {
   submenusAbiertos[nombre] = !submenusAbiertos[nombre];
-  if (nombre === 'Constructor de Páginas' && !submenusAbiertos[nombre]) {
-    accionConstructorAbierta.value = null;
-  }
-}
-
-function alternarAccionConstructor(accion) {
-  accionConstructorAbierta.value = accionConstructorAbierta.value === accion ? null : accion;
-}
-
-function cerrarMenuConstructor() {
-  submenusAbiertos['Constructor de Páginas'] = false;
-  accionConstructorAbierta.value = null;
-}
-
-// Mismo aviso que ya existía en pages/landing-builder/index.vue al cambiar
-// de página con cambios sin guardar en el lienzo, ahora reutilizable desde
-// este menú.
-async function confirmarSiHayCambiosSinGuardar() {
-  if (!storeLandingBuilder.hayCambiosSinGuardar()) return true;
-
-  const mensaje = storeLandingBuilder.paginaEditandoId
-    ? 'Tienes cambios sin guardar en la página que estás editando. Se perderán si continúas. ¿Deseas continuar?'
-    : 'Tienes bloques sin guardar en el lienzo. Se perderán si continúas. ¿Deseas continuar?';
-
-  return Boolean(
-    await modalConfirmar.value?.abrir({
-      titulo: 'Cambios sin guardar',
-      mensaje,
-      textoConfirmar: 'Continuar',
-    })
-  );
-}
-
-async function crearPaginaDesdeMenu() {
-  if (!puedeCrearPagina.value) return;
-  if (!(await confirmarSiHayCambiosSinGuardar())) return;
-
-  storeLandingBuilder.cancelarEdicionPagina();
-  storeLandingBuilder.solicitarLienzoEnBlanco = true;
-  cerrarMenuConstructor();
-  await navigateTo('/landing-builder');
-}
-
-async function editarPaginaDesdeMenu(pagina) {
-  if (!(await confirmarSiHayCambiosSinGuardar())) return;
-
-  storeLandingBuilder.cargarPaginaParaEditar(pagina);
-  cerrarMenuConstructor();
-  await navigateTo('/landing-builder');
-}
-
-async function eliminarPaginaDesdeMenu(pagina) {
-  const ok = await modalConfirmar.value?.abrir({
-    titulo: 'Eliminar página',
-    mensaje: `¿Estás seguro que deseas eliminar la página publicada "${pagina.nombre}"?`,
-    textoConfirmar: 'Eliminar',
-  });
-  if (!ok) return;
-
-  await storeLandingBuilder.eliminarPagina(pagina.id);
-}
-
-function verPaginaDesdeMenu(pagina) {
-  cerrarMenuConstructor();
-  navigateTo(`/paginas/${pagina.slug}`, { open: { target: '_blank' } });
 }
 
 const menuLateralRef = ref(null);

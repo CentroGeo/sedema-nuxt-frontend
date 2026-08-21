@@ -30,8 +30,6 @@ onMounted(() => {
 
 await cargarConfiguracionModulos();
 
-const esConstructor = computed(() => {
-  return route.path.startsWith('/landing-builder');
 const enPaginaConstructor = computed(() => {
   return route.path.startsWith('/administracion/constructor-paginas');
 });
@@ -45,31 +43,12 @@ const esPaginaPublica = computed(() => {
   return route.path.startsWith('/paginas/');
 });
 
-// Indica si "/" está mostrando una página del constructor (elegida como
-// página de inicio) en vez del index por defecto, para que el nav muestre
-// los logos propios de esa página igual que en /paginas/[slug].
-const paginaInicioActiva = ref(false);
-
-const IDENTIDAD_PUBLICA_VACIA = {
-  nombrePlataforma: '',
-  logoUrl: null,
-  logoSecundarioUrl: null,
-  logoTerceroUrl: null,
-  logoCuartoUrl: null,
-};
-
-// Identidad (logos + nombre) de la página pública que se está viendo, propia
-// de esa página y por eso independiente del borrador del constructor.
-const identidadPublica = ref({ ...IDENTIDAD_PUBLICA_VACIA });
-
-function establecerIdentidadPublica(identidad) {
-  identidadPublica.value = identidad || IDENTIDAD_PUBLICA_VACIA;
-}
-
 // MainNavegacion vive en el layout persistente: al navegar entre páginas por
 // SPA el componente no se remonta, así que hay que observar la ruta en vez
 // de depender solo de onMounted para refrescar la identidad de la página
-// pública que se está viendo.
+// pública que se está viendo. La identidad pública (logos, nombre, color,
+// pie de página) vive en el store para que MainPiePagina.vue pueda leer el
+// mismo dato ya cargado, sin repetir el fetch.
 watch(
   () => route.fullPath,
   async () => {
@@ -83,19 +62,11 @@ watch(
     }
 
     store.cargarPaginas();
+    await store.cargarIdentidadPaginaActual(route);
+  },
+  { immediate: true }
+);
 
-    if (route.path === '/') {
-      try {
-        const pagina = await $fetch('/api/landing-builder/pagina-inicio');
-        establecerIdentidadPublica(pagina?.identidad);
-        paginaInicioActiva.value = Boolean(pagina);
-      } catch (err) {
-        console.error('Error al cargar la identidad de la página de inicio:', err);
-        establecerIdentidadPublica(null);
-        paginaInicioActiva.value = false;
-      }
-      return;
-    }
 // Color de tema (header + footer) de la página actual: el borrador en modo
 // constructor, o la identidad publicada en modo página pública / inicio.
 // Estando en /administracion/constructor-paginas (aunque no en el lienzo,
@@ -109,23 +80,29 @@ const colorTemaActivo = computed(() => {
   return null;
 });
 
-    paginaInicioActiva.value = false;
+const estiloTemaHeader = computed(() => {
+  if (!colorTemaActivo.value) return {};
+  const tintClaro = calcularColorClaro(colorTemaActivo.value);
+  return {
+    '--navegacion-primaria-fondo': colorTemaActivo.value,
+    '--navegacion-primaria-color': calcularColorTextoContraste(colorTemaActivo.value),
+    // Fondo hover/focus de los enlaces del menú: un tinte claro del mismo
+    // color elegido (no el rosado fijo de sisdai-css), con su propio
+    // contraste de texto, para que siga siendo legible con cualquier color.
+    '--tema-pagina-cursor-fondo': tintClaro,
+    '--tema-pagina-cursor-color': calcularColorTextoContraste(tintClaro),
+  };
+});
 
-    if (!esPaginaPublica.value) {
-      establecerIdentidadPublica(null);
-      return;
-    }
+const popoverColorAbierto = ref(false);
+const popoverColorRef = ref(null);
+onClickOutside(popoverColorRef, () => {
+  popoverColorAbierto.value = false;
+});
 
-    try {
-      const pagina = await $fetch(`/api/landing-builder/paginas/${route.params.slug}`);
-      establecerIdentidadPublica(pagina?.identidad);
-    } catch (err) {
-      console.error('Error al cargar la identidad de la página:', err);
-      establecerIdentidadPublica(null);
-    }
-  },
-  { immediate: true }
-);
+function alternarPopoverColor() {
+  popoverColorAbierto.value = !popoverColorAbierto.value;
+}
 
 async function iniciarSesion() {
   await signIn('keycloak', {
@@ -140,7 +117,6 @@ const mostrarLevantamiento = estaHabilitado('levantamiento');
 const mostrarAuth = computed(() => config.public.enableAuth);
 const mostrarAcercaDe = computed(() => config.public.enableAcercaDe);
 const mostrarGeocontenidos = estaHabilitado('geocontenidos');
-
 const modalCambiarLogo1 = ref(null);
 const modalCambiarLogo2 = ref(null);
 const modalCambiarLogo3 = ref(null);
@@ -546,7 +522,13 @@ function eliminarLogo4() {
         <NuxtLink class="nav-hipervinculo" to="/ia">Análisis Inteligencia Artificial</NuxtLink>
       </li>
       <li v-if="mostrarLevantamiento && status === 'authenticated'">
-        <NuxtLink class="nav-hipervinculo" to="/levantamiento" target="_blank" rel="noopener noreferrer">Levantamiento</NuxtLink>
+        <NuxtLink
+          class="nav-hipervinculo"
+          to="/levantamiento"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Levantamiento</NuxtLink
+        >
       </li>
       <li v-if="mostrarGeocontenidos && status === 'authenticated'">
         <NuxtLink class="nav-hipervinculo" to="/geocontenidos">Geocontenidos</NuxtLink>
@@ -843,5 +825,39 @@ body[data-tema='oscuro'] {
       background: var(--campo-enfoque-fondo);
     }
   }
+}
+
+.contenedor-color-tema-nav {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+}
+
+.boton-color-tema-nav {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--color-neutro-3, #bdbdbd);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--color-primario-2, rgb(105 28 50));
+  }
+}
+
+.popover-color-tema-nav {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 10000;
+  width: max-content;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--color-neutro-6, #141414);
+  color: var(--color-neutro-0, #ffffff);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 </style>
