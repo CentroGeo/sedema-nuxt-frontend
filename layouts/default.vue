@@ -10,6 +10,7 @@ const accesibilidadStore = useAccesibilidadStore();
 const route = useRoute();
 const currentPath = computed(() => route.fullPath);
 const { mostrarIdentidadGobMx } = useIdentidadGobMx();
+const { perfil } = useAplicarPerfilSisdai();
 
 useHead(() => ({
   meta: [
@@ -35,7 +36,7 @@ useHead(() => ({
     <!-- parece que botón flotante agrega un id al elemento html que no
     coincide al hacer server side rendering -->
     <client-only>
-      <SisdaiMenuAccesibilidad :objeto-store="accesibilidadStore" perfil-color="sigic" />
+      <SisdaiMenuAccesibilidad :objeto-store="accesibilidadStore" :perfil-color="perfil" />
     </client-only>
     <SisdaiPiePaginaGobMx v-if="mostrarIdentidadGobMx" />
   </div>
