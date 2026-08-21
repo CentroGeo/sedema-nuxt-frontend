@@ -14,9 +14,10 @@ const topBar = ref(null);
 const logos = ref([]);
 const cargando = ref(false);
 const guardando = ref(false);
-const mensajeGuardado = ref('');
 const errorGuardado = ref('');
 const snapshotInicial = ref('');
+const modalGuardado = ref(null);
+const guardadoConExito = ref(false);
 
 const form = reactive({
   show: false,
@@ -107,7 +108,6 @@ function aplicarDatosServidor(datos) {
 
 async function cargar() {
   cargando.value = true;
-  mensajeGuardado.value = '';
   errorGuardado.value = '';
 
   try {
@@ -136,12 +136,13 @@ function validarFormulario() {
 }
 
 async function guardar() {
-  mensajeGuardado.value = '';
   errorGuardado.value = '';
 
   if (!validarFormulario()) return;
 
   guardando.value = true;
+  guardadoConExito.value = false;
+  modalGuardado.value?.abrir();
 
   try {
     const formData = new FormData();
@@ -214,11 +215,11 @@ async function guardar() {
     limpiarPreviewsLocales();
     aplicarDatosServidor(actualizado);
 
-    mensajeGuardado.value = 'Configuración guardada correctamente.';
+    guardadoConExito.value = true;
 
     setTimeout(() => {
-      mensajeGuardado.value = '';
-    }, 3000);
+      modalGuardado.value?.cerrar();
+    }, 1200);
   } catch (e) {
     console.error('Error al guardar banda institucional:', e);
 
@@ -403,10 +404,6 @@ onBeforeUnmount(() => {
 
           <span v-else> La configuración está actualizada. </span>
 
-          <p v-if="mensajeGuardado" class="tab-banda__mensaje-ok">
-            {{ mensajeGuardado }}
-          </p>
-
           <p v-if="errorGuardado" class="formulario-ayuda color-error">
             {{ errorGuardado }}
           </p>
@@ -417,6 +414,29 @@ onBeforeUnmount(() => {
         </button>
       </footer>
     </form>
+
+    <ClientOnly>
+      <GeocontenidosSisdaiModal ref="modalGuardado" :permitir-cerrar="!guardando">
+        <template #encabezado>
+          <h2 class="m-t-0">{{ errorGuardado ? 'Error al guardar' : 'Banda institucional' }}</h2>
+        </template>
+
+        <GeocontenidosLoader v-if="guardando" mensaje="Guardando configuración..." />
+
+        <p v-else-if="guardadoConExito" class="texto-color-exito">
+          <span class="pictograma-aprobado m-r-1" />
+          La configuración de la banda institucional se guardó correctamente.
+        </p>
+
+        <p v-else class="texto-color-error">{{ errorGuardado }}</p>
+
+        <template v-if="!guardando && !guardadoConExito" #pie>
+          <div class="flex flex-contenido-final">
+            <button class="boton boton-primario" @click="modalGuardado?.cerrar()">Cerrar</button>
+          </div>
+        </template>
+      </GeocontenidosSisdaiModal>
+    </ClientOnly>
   </div>
 </template>
 
@@ -670,10 +690,6 @@ onBeforeUnmount(() => {
     p {
       margin: 0.35rem 0 0;
     }
-  }
-
-  &__mensaje-ok {
-    color: var(--color-exito, #2e7d32);
   }
 
   @media (max-width: 700px) {
