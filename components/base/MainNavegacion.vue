@@ -539,6 +539,25 @@ function eliminarLogo4() {
       <li v-if="mostrarAcercaDe">
         <NuxtLink class="nav-hipervinculo" to="/acerca-de">Acerca de</NuxtLink>
       </li>
+      <li v-if="esAdmin">
+        <button
+          type="button"
+          class="boton-secundario boton-chico boton-alternar-identidad-gobmx"
+          :aria-pressed="mostrarIdentidadGobMx"
+          :title="
+            mostrarIdentidadGobMx
+              ? 'Ocultar la identidad de Gobierno de México en todo el sitio'
+              : 'Mostrar la identidad de Gobierno de México en todo el sitio'
+          "
+          @click="alternarIdentidadGobMx"
+        >
+          <span
+            :class="mostrarIdentidadGobMx ? 'pictograma-ojo-ver' : 'pictograma-ojo-ocultar'"
+            aria-hidden="true"
+          ></span>
+          Identidad GobMX: {{ mostrarIdentidadGobMx ? 'Activada' : 'Desactivada' }}
+        </button>
+      </li>
       <li v-if="mostrarAuth">
         <NuxtLink v-if="status === 'authenticated'" class="nav-hipervinculo" to="/mi-cuenta">
           Mi cuenta
