@@ -13,7 +13,7 @@ export const basemapsPanorama = [
   {
     id: 'osm',
     label: 'Open Street Map',
-    fuente: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    fuente: 'https://{a-c}.tile.openstreetmap.org/{z}/{x}/{y}.png',
   },
   {
     id: 'imagery',

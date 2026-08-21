@@ -1,7 +1,9 @@
 <script setup>
 import SisdaiModal from '@centrogeomx/sisdai-componentes/src/componentes/modal/SisdaiModal.vue';
+import { useDownloadResources } from '~/composables/useDownloadResources';
 import { useResourcesSupplements } from '~/composables/useResourcesSupplements';
 import { categoriesInSpanish, resourceTypeDic, wait } from '~/utils/consulta';
+import { canDownloadMetadataXml, MENSAJE_METADATOS_INCOMPLETOS } from '~/utils/metadatos';
 import SelectedLayer from '~/utils/consulta/SelectedLayer';
 import SelectedResource from '~/utils/consulta/SelectedResource';
 
@@ -25,7 +27,8 @@ const config = useRuntimeConfig();
 const route = useRoute();
 const router = useRouter();
 const { gnoxyFetch } = useGnoxyUrl();
-const { getSLDs } = useResourcesSupplements();
+const { getSLDs, fetchByPk } = useResourcesSupplements();
+const { downloadMetadata } = useDownloadResources();
 
 const { data } = useAuth();
 const token = data.value?.accessToken;
@@ -52,6 +55,9 @@ const recursoSolicitud = ref({});
 const modalCancelarSolicitud = ref(null);
 const modalVolverEditar = ref(null);
 const recursoReabrir = ref(null);
+const downloadingXmlPk = ref(null);
+const modalErrorMetadatos = ref(null);
+const mensajeErrorMetadatos = ref('');
 const dictTable = ref({
   pk: 'pk',
   titulo: 'Título',
@@ -305,6 +311,31 @@ function notifyDownloadOneChild(resource) {
 }
 
 /**
+ * Descarga el XML de metadatos (ISO 19139) de un recurso de la tabla
+ * @param resource renglón de la tabla (usa recurso_completo, con fallback por pk)
+ */
+async function descargarMetadatosXml(resource) {
+  if (downloadingXmlPk.value !== null) {
+    return;
+  }
+  downloadingXmlPk.value = resource.pk;
+  const recurso = resource.recurso_completo ?? (await fetchByPk(resource.pk));
+  if (!canDownloadMetadataXml(recurso)) {
+    downloadingXmlPk.value = null;
+    mensajeErrorMetadatos.value = `${MENSAJE_METADATOS_INCOMPLETOS}.`;
+    modalErrorMetadatos.value?.abrirModal();
+    return;
+  }
+  const status = await downloadMetadata(recurso);
+  downloadingXmlPk.value = null;
+  if (status !== 'Ok') {
+    mensajeErrorMetadatos.value =
+      'No se pudo descargar el archivo de metadatos. Verifica tu conexión a internet e inténtalo de nuevo.';
+    modalErrorMetadatos.value?.abrirModal();
+  }
+}
+
+/**
  * Abre el modal de confirmación de eliminación de un recurso
  * @param resource
  */
@@ -435,9 +466,8 @@ async function confirmarEliminar() {
   if (wasDeletionSuccesful.value) {
     setTimeout(() => {
       modalEliminar.value?.cerrarModal();
-      const router = useRouter();
-      router.go(0);
-    }, 2000);
+      window.location.reload();
+    }, 1500);
   }
 }
 
@@ -726,6 +756,17 @@ async function volverAEditar() {
                   <span class="pictograma-archivo-descargar"></span>
                 </button>
                 <button
+                  v-if="datum[variable].split(', ').includes('Metadatos XML')"
+                  v-globo-informacion:izquierda="'Descargar metadatos (XML)'"
+                  class="boton-pictograma boton-secundario"
+                  aria-label="Descargar metadatos XML"
+                  type="button"
+                  :disabled="downloadingXmlPk === datum.pk"
+                  @click="descargarMetadatosXml(datum)"
+                >
+                  <span class="pictograma-documento"></span>
+                </button>
+                <button
                   v-if="datum[variable].split(', ').includes('Volver a editar')"
                   v-globo-informacion:izquierda="'Volver a editar'"
                   class="boton-pictograma boton-secundario"
@@ -993,6 +1034,22 @@ async function volverAEditar() {
           <button class="boton-primario boton-chico" type="button" @click="volverAEditar">
             Volver a editar
           </button>
+        </template>
+      </SisdaiModal>
+      <!-- Modal de error al descargar metadatos XML -->
+      <SisdaiModal ref="modalErrorMetadatos">
+        <template #encabezado>
+          <h2>Descargar metadatos</h2>
+        </template>
+        <template #cuerpo>
+          <div
+            class="flex m-y-2 borde-redondeado-16 flex-contenido-centrado fondo-color-error texto-color-error borde p-1"
+          >
+            <div class="columna-3 flex-vertical-centrado">
+              <span class="pictograma-alerta pictograma-grande"></span>
+            </div>
+            <p class="columna-13">{{ mensajeErrorMetadatos }}</p>
+          </div>
         </template>
       </SisdaiModal>
     </ClientOnly>

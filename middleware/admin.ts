@@ -5,13 +5,14 @@ export default defineNuxtRouteMiddleware(async () => {
     return navigateTo('/');
   }
 
-  const storeCatalogo = useCatalogoStore();
-
-  if (!storeCatalogo.userInfo?.is_superuser) {
-    await storeCatalogo.getUserInfo();
+  const store = useAdministracionStore();
+  try {
+    await store.cargarPerfilActual();
+  } catch {
+    return navigateTo('/');
   }
 
-  if (!storeCatalogo.userInfo?.is_superuser) {
+  if (!store.perfilActual?.can_access_administration) {
     return navigateTo('/');
   }
 });

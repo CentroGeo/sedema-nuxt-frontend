@@ -4,10 +4,18 @@ import { tieneRolAdministrador } from '~/utils/levantamiento';
 const route = useRoute();
 const { data } = useAuth();
 const storeLevantamiento = useLevantamientoStore();
-const esAdministradorLevantamiento = computed(() => tieneRolAdministrador(data.value?.accessToken));
+const storeAdministracion = useAdministracionStore();
+const esAdministradorLevantamiento = computed(
+  () =>
+    tieneRolAdministrador(data.value?.accessToken) ||
+    ['superuser', 'administrator', 'editor'].includes(storeAdministracion.perfilActual?.profile)
+);
 
 onMounted(async () => {
-  await storeLevantamiento.obtenerEsRevisor(data.value?.user.email);
+  await Promise.all([
+    storeLevantamiento.obtenerEsRevisor(data.value?.user.email),
+    storeAdministracion.cargarPerfilActual().catch(() => null),
+  ]);
 });
 </script>
 <template>

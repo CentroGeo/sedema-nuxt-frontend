@@ -15,8 +15,7 @@ const mostrarMarca = computed(() => route.query.marca === 'true');
 
 const urlVisualizar = computed(() => (mapa.value ? `/mapas/${mapa.value.id}` : '#'));
 
-onMounted(async () => {
-  // Anónimo solo puede ver mapas públicos; privado/inexistente → 404 → mensaje neutro.
+async function recargarMapa() {
   const data = await fetchMapa(String(route.params.id)).catch(() => null);
 
   if (data?.id) {
@@ -24,6 +23,21 @@ onMounted(async () => {
   }
 
   cargando.value = false;
+}
+
+function alCambiarVisibilidadPestania() {
+  if (document.visibilityState === 'visible') {
+    recargarMapa();
+  }
+}
+
+onMounted(async () => {
+  await recargarMapa();
+  document.addEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
 });
 </script>
 

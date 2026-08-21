@@ -363,12 +363,12 @@ async function eliminar(capa) {
 .panel-capas {
   padding: 12px;
   background-color: var(--fondo);
-  border-left: 1px solid var(--color-neutro-1);
   overflow-y: auto;
   height: 100%;
   width: 100%;
   max-width: none;
   min-width: 0;
+  box-sizing: border-box;
 }
 
 .panel-encabezado {

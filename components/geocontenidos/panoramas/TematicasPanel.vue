@@ -308,7 +308,7 @@ async function alSoltar(event, idQuitar, posicionQuitar) {
             <p v-if="errorGuardado" class="texto-color-error m-b-4">{{ errorGuardado }}</p>
 
             <div class="m-b-4">
-              <label for="nombre-tematica">Nombre</label>
+              <label for="nombre-tematica">Nombre *</label>
               <input id="nombre-tematica" v-model="formulario.name" type="text" required />
             </div>
 

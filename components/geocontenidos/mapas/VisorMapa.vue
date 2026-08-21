@@ -143,17 +143,19 @@ const capasOrdenadas = computed(() =>
       >
         <SisdaiCapaXyz :key="`base-${baseLayerActual}`" :posicion="0" :fuente="baseLayerUrl" />
 
-        <template v-for="capa in capasOrdenadas" :key="capa.id">
+        <template v-for="capa in capasOrdenadas" :key="`wms-${capa.id}-${capa.style || 'def'}`">
           <SisdaiCapaWms
             v-if="capa.layer_type === 'wms'"
             :capa="nombreCapaWms(capa)"
             :fuente="fuenteCapaWms(capa)"
+            :key="`wms-layer-${capa.id}-${capa.style || 'def'}`"
             :consulta="consultaCapa(capa)"
             :estilo="capa.style || undefined"
             :opacidad="capa.opacity"
             :visible="capa.visible"
             :posicion="capa.stack_order"
             :mosaicos="true"
+            :preload="1"
             @al-iniciar-carga="
               emit('estado-capa', {
                 id: capa.id,

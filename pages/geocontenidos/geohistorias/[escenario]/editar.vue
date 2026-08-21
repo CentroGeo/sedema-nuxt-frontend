@@ -19,6 +19,13 @@ const formulario = reactive({
   url_id: '',
 });
 
+const estatusAlGuardar = reactive({
+  cargando: false,
+  estado: true,
+  textoCargando: 'Guardando...',
+  mensaje: '',
+});
+
 const { api, modal, mostrarModalCargando, mostrarModalError, mostrarModalExito } = useApi();
 
 async function cargarDatosEscenario() {
@@ -71,6 +78,16 @@ async function guardarCambios() {
   }
 
   mostrarModalExito();
+
+  setTimeout(() => {
+    const botonCerrar = document.querySelector(
+      '.sisdai-modal button, .sisdai-modal [aria-label="Cerrar"]'
+    );
+    if (botonCerrar) {
+      botonCerrar.focus();
+    }
+  }, 100);
+
   await wait(1500);
   modal.visible = false;
 
@@ -96,7 +113,7 @@ async function guardarCambios() {
       </div>
 
       <div class="m-b-4">
-        <label for="nombre">Nombre de la historia</label>
+        <label for="nombre">Nombre de la historia *</label>
         <input
           id="nombre"
           v-model="nombre"
@@ -108,7 +125,7 @@ async function guardarCambios() {
 
       <div class="m-b-4">
         <label for="descripcion">
-          Descripción ({{ formulario.description.length }} / {{ 250 }})
+          Descripción * ({{ formulario.description.length }} / {{ 250 }})
         </label>
         <textarea
           id="descripcion"
@@ -206,18 +223,62 @@ async function guardarCambios() {
       </div>
     </section>
 
-    <section class="flex flex-contenido-final">
+    <section class="flex" style="justify-content: space-between; align-items: center">
       <NuxtLink to="/geocontenidos/geohistorias" class="boton boton-secundario">Volver</NuxtLink>
 
-      <button type="submit" class="boton-primario" @click="accionGuardar = 'recargar'">
-        Guardar
-      </button>
-
-      <button type="submit" class="boton-primario" @click="accionGuardar = 'escenas'">
-        Guardar y Editar escenas
-      </button>
+      <div style="display: flex; gap: 1rem">
+        <button type="submit" class="boton-primario" @click="accionGuardar = 'recargar'">
+          Guardar
+        </button>
+        <button type="submit" class="boton-primario" @click="accionGuardar = 'escenas'">
+          Guardar y Editar escenas
+        </button>
+      </div>
     </section>
 
     <GeocontenidosLoaderModal v-bind="modal" @al-cerrar="modal.visible = false" />
+
+    <ClientOnly>
+      <SisdaiModal ref="modalStatus">
+        <template #encabezado>
+          <span v-if="estatusAlGuardar.cargando" />
+          <h2 v-else>{{ estatusAlGuardar.estado ? 'Guardado con éxito' : 'Error' }}</h2>
+        </template>
+
+        <template #cuerpo>
+          <GeocontenidosLoader
+            v-if="estatusAlGuardar.cargando"
+            :mensaje="estatusAlGuardar.textoCargando"
+          />
+          <p
+            v-else-if="estatusAlGuardar.estado === false"
+            class="alineacion-centrada"
+            v-text="estatusAlGuardar.mensaje"
+          />
+          <p v-else class="alineacion-centrada">
+            <span class="pictograma-aprobado pictograma-grande" />
+          </p>
+        </template>
+
+        <template #pie>
+          <button
+            class="boton-secundario boton-chico"
+            type="button"
+            @click="modalStatus.cerrarModal()"
+          >
+            Cerrar
+          </button>
+        </template>
+      </SisdaiModal>
+    </ClientOnly>
   </form>
 </template>
+
+<style lang="scss" scoped>
+.alineacion-centrada {
+  display: flex !important;
+  justify-content: center !important;
+  text-align: center !important;
+  width: 100% !important;
+}
+</style>

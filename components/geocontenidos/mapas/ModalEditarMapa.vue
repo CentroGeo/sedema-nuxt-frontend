@@ -111,7 +111,7 @@ defineExpose({ abrir, cerrar });
         />
 
         <div class="m-t-2">
-          <SisdaiSelector v-model="form.map_type" etiqueta="Tipo de mapa">
+          <SisdaiSelector v-model="form.map_type" etiqueta="Tipo de mapa*">
             <option value="regular">Regular</option>
             <option value="swipe">Swipe</option>
             <option value="dual">Dual</option>

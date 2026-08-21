@@ -174,18 +174,12 @@ export const useResourcesConsultaStore = defineStore('resourcesConsulta', () => 
      */
     async fetchResourcesByPk(resourceType = storeConsulta.resourceType, pkListToFind) {
       const lista = [];
-      const resourcesPks = resources[resourceType].map((resource) => resource.pk);
       for (const pk of pkListToFind) {
-        if (resourcesPks.includes(pk)) {
-          const resource = resources[resourceType].find((resource) => resource.pk === pk);
+        const resource = await this.fetchResourceByPk(pk);
+        if (resource && resource !== 'Error') {
           lista.push(resource);
         } else {
-          const resource = await this.fetchResourceByPk(pk);
-          if (resource !== 'Error') {
-            lista.push(resource);
-          } else {
-            storeSelected.removeByPk(pk);
-          }
+          storeSelected.removeByPk(pk);
         }
       }
       selectedResources[resourceType] = lista;

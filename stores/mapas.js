@@ -36,7 +36,7 @@ export const useMapasStore = defineStore('mapas', () => {
       `?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0` +
       `&LAYER=${name}&STYLE=${style}` +
       `&TILEMATRIXSET=EPSG:3857&TILEMATRIX=EPSG:3857:{z}&TILEROW={y}&TILECOL={x}` +
-      `&FORMAT=image/png`
+      `&FORMAT=image/png&_t=${Date.now()}`
     );
   }
 
@@ -45,15 +45,15 @@ export const useMapasStore = defineStore('mapas', () => {
   const abrirModalAgregarCapas = () => (modalAgregarCapasAbierto.value = true);
   const cerrarModalAgregarCapas = () => (modalAgregarCapasAbierto.value = false);
 
-  async function cargarMapas({ page = 1 } = {}) {
+  async function cargarMapas({ page = 1, pageSize = 6 } = {}) {
     isLoading.value = true;
     try {
-      const data = await api.fetchMapas({ page }); // ← requiere el ajuste de 1 línea (abajo)
+      const data = await api.fetchMapas({ page, page_size: pageSize }); // ← requiere el ajuste de 1 línea (abajo)
       maps.value = data.results ?? [];
       pagination.value = {
         total: data.total ?? 0,
         page: data.page ?? page,
-        page_size: data.page_size ?? 10,
+        page_size: data.page_size ?? pageSize,
       };
     } finally {
       isLoading.value = false;
@@ -73,6 +73,13 @@ export const useMapasStore = defineStore('mapas', () => {
   function limpiarMapa() {
     activeMap.value = null;
     mapaCargado.value = false;
+  }
+  // Igual que cargarMapa pero sin isLoadingMap: la página usa esa bandera
+  // para desmontar toda la vista, así que no sirve para refrescar con algo
+  // (ej. el modal de capas) ya abierto encima.
+  async function refrescarMapa(id) {
+    activeMap.value = await api.fetchMapa(id).catch(() => null);
+    return activeMap.value;
   }
   const crearMapa = (payload) => api.crearMapa(payload, token());
   const actualizarMapa = (id, payload) => api.actualizarMapa(id, payload, token());
@@ -99,7 +106,12 @@ export const useMapasStore = defineStore('mapas', () => {
     return Array.isArray(creadas) && creadas.length > 0 && creadas.every((r) => r && r.id);
   }
   const actualizarCapa = (id, payload) => api.actualizarCapa(id, payload, token());
-  const actualizarEstiloCapa = (id, style) => api.actualizarEstiloCapa(id, style, token());
+  async function actualizarEstiloCapa(id, style) {
+    const res = await api.actualizarEstiloCapa(id, style, token());
+    const layer = (activeMap.value?.layers ?? []).find((l) => l.id === id);
+    if (layer) layer.style = style;
+    return res;
+  }
   const eliminarCapa = (id) => api.eliminarCapa(id, token());
   const reordenarCapas = (items) => api.reordenarCapas(items, token());
 
@@ -125,6 +137,7 @@ export const useMapasStore = defineStore('mapas', () => {
     cerrarModalAgregarCapas,
     cargarMapas,
     cargarMapa,
+    refrescarMapa,
     limpiarMapa,
     crearMapa,
     actualizarMapa,

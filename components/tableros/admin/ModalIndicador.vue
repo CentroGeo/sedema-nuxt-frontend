@@ -46,6 +46,8 @@ const modal = ref(null);
 const guardando = ref(false);
 const recalculando = ref(false);
 const error = ref('');
+const modalGuardado = ref(null);
+const guardadoConExito = ref(false);
 
 const TIPOS_GRAFICA = [
   {
@@ -139,6 +141,9 @@ async function cargarAtributos(pk) {
   try {
     const data = await fetchDatasetAttributes(pk);
     const dataset = data?.dataset ?? data;
+    if (dataset?.title && capaSeleccionada.value) {
+      capaSeleccionada.value.title = dataset.title;
+    }
     const attrs = dataset?.attribute_set ?? [];
     atributos.value = attrs.filter((a) => !GEO_ATTRS.has(a.attribute));
     return dataset;
@@ -530,7 +535,12 @@ async function guardar() {
     }
 
     emit(esEdicion.value ? 'guardado' : 'creado', { ...data, avisoRecalculo });
-    modal.value?.cerrar();
+    guardadoConExito.value = true;
+    modalGuardado.value?.abrir();
+    setTimeout(() => {
+      modalGuardado.value?.cerrar();
+      modal.value?.cerrar();
+    }, 1200);
   } catch (e) {
     error.value = e?.message || 'Error al guardar el indicador';
   } finally {
@@ -555,6 +565,20 @@ async function recalcularColores(id, token) {
     return e?.message || 'No se pudo conectar con el servidor para calcular los colores.';
   }
 }
+
+function alCambiarVisibilidadPestania() {
+  if (document.visibilityState === 'visible' && capaSeleccionada.value?.pk) {
+    cargarAtributos(capaSeleccionada.value.pk);
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
 </script>
 
 <template>
@@ -1015,6 +1039,17 @@ async function recalcularColores(id, token) {
         </form>
       </template>
     </TablerosAdminModalBase>
+
+    <GeocontenidosSisdaiModal ref="modalGuardado" :permitir-cerrar="false">
+      <template #encabezado>
+        <h2 class="m-t-0">Indicador guardado</h2>
+      </template>
+
+      <p v-if="guardadoConExito" class="texto-color-exito">
+        <span class="pictograma-aprobado m-r-1" />
+        El indicador se guardó correctamente.
+      </p>
+    </GeocontenidosSisdaiModal>
   </ClientOnly>
 </template>
 

@@ -126,6 +126,7 @@ export function useTableroApi() {
       if (category) params.set('filter{category.identifier.in}', category);
       if (sourceType) params.set('filter{sourcetype}', sourceType);
       if (subtype) params.set('filter{subtype}', subtype);
+      params.set('_t', String(Date.now()));
       const url = `${config.public.geonodeApi}/datasets/?${params.toString()}`;
       if (token) {
         return gnoxyFetch(url, { headers: { Authorization: `Bearer ${token}` } }).then((r) =>
@@ -242,7 +243,7 @@ export function useTableroApi() {
     fetchIndicador: (id: number) => fetchJson(`${baseUrl}/indicators/${id}/`),
 
     fetchDatosIndicador: (indicatorId: number) =>
-      fetchJson(`${baseUrl}/indicators/${indicatorId}/view-data/`),
+      fetchJson(`${baseUrl}/indicators/${indicatorId}/view-data/?t=${Date.now()}`),
 
     fetchInfoIndicador: (indicatorId: number) =>
       fetchJson(`${baseUrl}/indicators/${indicatorId}/info/`),

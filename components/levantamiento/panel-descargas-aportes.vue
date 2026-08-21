@@ -287,17 +287,6 @@ watch(
               {{ estado === 'NO REVISADO' ? 'Revisar solicitud' : 'Ver detalle' }}
               <span class="pictograma-flecha-derecha" aria-hidden="true" />
             </button>
-            <button
-              v-if="estado === 'APROBADO' && descarga.file_path"
-              type="button"
-              class="boton-primario boton-chico"
-              disabled
-              aria-disabled="true"
-              title="Descarga aún no disponible"
-            >
-              Descargar aportes
-              <span class="pictograma-archivo-descargar" aria-hidden="true" />
-            </button>
           </div>
         </article>
       </div>
