@@ -184,6 +184,7 @@ watch(estaLogueado, (v) => {
       <div class="flex">
         <h2>Tableros</h2>
         <UiNumeroElementos :numero="sitios.length" />
+      </div>
       <div v-if="sitios.length > 0" class="flex flex-alineado-final brecha-3 m-b-4">
         <!-- Selector Orden -->
         <div class="columna-8">
@@ -392,8 +393,8 @@ watch(estaLogueado, (v) => {
             </div>
           </template>
         </GeocontenidosSisdaiModal>
-      </ClientOnly> 
-    </template>   
+      </ClientOnly>
+    </template>
   </div>
 </template>
 
