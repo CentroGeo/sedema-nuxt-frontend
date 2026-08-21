@@ -47,6 +47,7 @@ async function contarCapasDeCategoria(identifier) {
   const params = new URLSearchParams({ page: '1', page_size: '1' });
   params.append('filter{subtype.in}', 'vector');
   params.append('filter{subtype.in}', 'raster');
+  params.append('filter{subtype.in}', 'remote');
   params.append('filter{category.identifier}', identifier);
   const res = await gnoxyFetch(`${api}/datasets/?${params.toString()}`, { headers: headers() });
   if (!res.ok) return 0;
@@ -91,6 +92,7 @@ async function cargarCapas() {
   // hay que repetir el parámetro por cada valor.
   params.append('filter{subtype.in}', 'vector');
   params.append('filter{subtype.in}', 'raster');
+  params.append('filter{subtype.in}', 'remote');
   if (busqueda.value.trim()) {
     params.append('search', busqueda.value.trim());
     params.append('search_fields', 'title');
