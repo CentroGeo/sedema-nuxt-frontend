@@ -7,7 +7,6 @@ const config = useRuntimeConfig();
 const store = useLandingBuilderStore();
 const storeCatalogo = useCatalogoStore();
 const { esAdmin, cargarEsAdmin } = useEsAdmin();
-const { mostrarIdentidadGobMx, alternarIdentidadGobMx } = useIdentidadGobMx();
 const { cargarConfiguracionModulos, estaHabilitado } = useConfiguracionModulos();
 
 watch(
