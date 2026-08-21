@@ -2,6 +2,7 @@
 import { wait } from '@/utils/consulta';
 import SisdaiModal from '@centrogeomx/sisdai-componentes/src/componentes/modal/SisdaiModal.vue';
 import { useDownloadResources } from '~/composables/useDownloadResources';
+import { canDownloadMetadataXml } from '~/utils/metadatos';
 
 const storeSelected = useSelectedResources2Store();
 const storeResources = useResourcesConsultaStore();
@@ -17,12 +18,14 @@ const tagTitle = ref();
 const isDownloadActive = ref(false);
 const hasDownloadFailed = ref(false);
 const isDownloadSlow = ref(false);
+const skippedResources = ref([]);
 const timer = 7000;
 
 function abrirModalDescargaAll() {
   isDownloadActive.value = false;
   hasDownloadFailed.value = false;
   isDownloadSlow.value = false;
+  skippedResources.value = [];
   modalDescargaAll.value?.abrirModal();
   optionsList.value = optionsDict[props.resourceType]['elements'];
   tagTitle.value = optionsDict[props.resourceType]['title'];
@@ -84,6 +87,7 @@ async function downloadAllDocs() {
 
 async function downloadAllMetadata() {
   isDownloadActive.value = true;
+  skippedResources.value = [];
   const resourceList = storeResources.findResources(storeSelected.pks);
   const downloadStatusDict = {};
   //La siguiente línea se pone para agregar alerta si el proceso de descarga toma mas de n segundos
@@ -91,11 +95,16 @@ async function downloadAllMetadata() {
     isDownloadSlow.value = true;
   }, timer);
   for (let i = 0; i < resourceList.length; i++) {
-    if (resourceList[i].sourcetype !== 'REMOTE') {
-      const status = await downloadMetadata(resourceList[i]);
-      downloadStatusDict[resourceList[i].title] = status;
-      await wait(1000);
+    if (resourceList[i].sourcetype === 'REMOTE') {
+      continue;
     }
+    if (!canDownloadMetadataXml(resourceList[i])) {
+      skippedResources.value.push(resourceList[i].title);
+      continue;
+    }
+    const status = await downloadMetadata(resourceList[i]);
+    downloadStatusDict[resourceList[i].title] = status;
+    await wait(1000);
   }
   // Si toma menos de n segundos, se interrumple el timer
   clearTimeout(slowProcessTimeout);
@@ -131,7 +140,7 @@ const optionsDict = {
         },
       },
       {
-        label: 'Metadatos',
+        label: 'Metadatos (XML)',
         action: () => {
           downloadAllMetadata();
         },
@@ -148,7 +157,7 @@ const optionsDict = {
         },
       },
       {
-        label: 'Metadatos',
+        label: 'Metadatos (XML)',
         action: () => {
           downloadAllMetadata();
         },
@@ -204,6 +213,18 @@ defineExpose({
             No se pudo completar la descarga de argunos archivos. Verifica tu conexión a internet e
             inténtalo de nuevo.
           </p>
+        </div>
+        <div v-if="skippedResources.length > 0 && !isDownloadActive" class="tarjeta m-y-2">
+          <div class="tarjeta-cuerpo">
+            <p>
+              {{
+                skippedResources.length === 1
+                  ? 'Se omitió 1 recurso porque no tiene'
+                  : `Se omitieron ${skippedResources.length} recursos porque no tienen`
+              }}
+              los metadatos básicos completos: {{ skippedResources.join(', ') }}.
+            </p>
+          </div>
         </div>
         <div v-for="option in optionsList" :key="option.label">
           <input
