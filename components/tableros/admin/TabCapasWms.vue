@@ -10,9 +10,7 @@ const { data: userData } = useAuth();
 
 const {
   fetchCapasWmsSitio,
-  crearCapaWmsSitio,
-  actualizarCapaWmsSitio,
-  eliminarCapaWmsSitio,
+  guardarCapasWmsSitio,
   fetchDatasetsPaginados,
 } = useTableroApi();
 
@@ -72,6 +70,31 @@ function extraerMensajeError(data, mensajePredeterminado) {
     .map(String);
 
   return mensajes.join(' ') || mensajePredeterminado;
+}
+
+function referenciasMinimas(capas) {
+  return capas.map((capa, posicion) => ({
+    geonode_id: Number(capa.geonode_id),
+    opacity: Number(capa.opacity ?? 1),
+    at_start: Boolean(capa.at_start),
+    stack_order: Number(capa.stack_order ?? posicion),
+  }));
+}
+
+async function persistirCapas(capas) {
+  const respuesta = await guardarCapasWmsSitio(
+    props.siteId,
+    referenciasMinimas(capas),
+    userData.value?.accessToken
+  );
+
+  if (!Array.isArray(respuesta?.reference_layers)) {
+    throw new Error(
+      extraerMensajeError(respuesta, 'No fue posible guardar las capas de referencia.')
+    );
+  }
+
+  capasWms.value = respuesta.reference_layers;
 }
 
 async function cargarCapas() {
@@ -150,24 +173,15 @@ async function agregarCapa(dataset) {
   guardandoDatasetId.value = datasetId;
 
   try {
-    const respuesta = await crearCapaWmsSitio(
+    await persistirCapas([
+      ...capasWms.value,
       {
-        site: Number(props.siteId),
         geonode_id: datasetId,
         opacity: 1,
         at_start: true,
         stack_order: capasWms.value.length,
       },
-      userData.value?.accessToken
-    );
-
-    if (!respuesta?.id) {
-      throw new Error(
-        extraerMensajeError(respuesta, 'No fue posible agregar la capa de referencia.')
-      );
-    }
-
-    await cargarCapas();
+    ]);
     notificarActualizacionWms();
   } catch (error) {
     console.error('No fue posible agregar la capa de referencia:', error);
@@ -182,28 +196,11 @@ async function alternarVisibilidad(capa) {
   operandoId.value = capa.id;
 
   try {
-    const respuesta = await actualizarCapaWmsSitio(
-      capa.id,
-      {
-        at_start: !capa.at_start,
-      },
-      userData.value?.accessToken
+    await persistirCapas(
+      capasWms.value.map((item) =>
+        item.id === capa.id ? { ...item, at_start: !item.at_start } : item
+      )
     );
-
-    if (!respuesta?.id) {
-      throw new Error(
-        extraerMensajeError(respuesta, 'No fue posible cambiar la visibilidad de la capa.')
-      );
-    }
-
-    const indice = capasWms.value.findIndex((item) => item.id === capa.id);
-
-    if (indice !== -1) {
-      capasWms.value[indice] = {
-        ...capasWms.value[indice],
-        ...respuesta,
-      };
-    }
 
     notificarActualizacionWms();
   } catch (error) {
@@ -223,24 +220,9 @@ async function actualizarOpacidad(capa, event) {
   operandoId.value = capa.id;
 
   try {
-    const respuesta = await actualizarCapaWmsSitio(
-      capa.id,
-      { opacity },
-      userData.value?.accessToken
+    await persistirCapas(
+      capasWms.value.map((item) => (item.id === capa.id ? { ...item, opacity } : item))
     );
-
-    if (!respuesta?.id) {
-      throw new Error(extraerMensajeError(respuesta, 'No fue posible actualizar la opacidad.'));
-    }
-
-    const indice = capasWms.value.findIndex((item) => item.id === capa.id);
-
-    if (indice !== -1) {
-      capasWms.value[indice] = {
-        ...capasWms.value[indice],
-        ...respuesta,
-      };
-    }
 
     notificarActualizacionWms();
   } catch (error) {
@@ -279,20 +261,13 @@ async function moverCapa(capa, direccion) {
   operandoId.value = capa.id;
 
   try {
-    const [respuestaActual, respuestaDestino] = await Promise.all([
-      actualizarCapaWmsSitio(capa.id, { stack_order: ordenDestino }, userData.value?.accessToken),
-      actualizarCapaWmsSitio(
-        capaDestino.id,
-        { stack_order: ordenActual },
-        userData.value?.accessToken
-      ),
-    ]);
-
-    if (!respuestaActual?.id || !respuestaDestino?.id) {
-      throw new Error('No fue posible cambiar el orden de las capas.');
-    }
-
-    await cargarCapas();
+    await persistirCapas(
+      capasWms.value.map((item) => {
+        if (item.id === capa.id) return { ...item, stack_order: ordenDestino };
+        if (item.id === capaDestino.id) return { ...item, stack_order: ordenActual };
+        return item;
+      })
+    );
     notificarActualizacionWms();
   } catch (error) {
     console.error('No fue posible ordenar las capas:', error);
@@ -307,13 +282,7 @@ async function eliminarCapa(id) {
   operandoId.value = id;
 
   try {
-    const eliminada = await eliminarCapaWmsSitio(id, userData.value?.accessToken);
-
-    if (!eliminada) {
-      throw new Error('No fue posible eliminar la capa de referencia.');
-    }
-
-    capasWms.value = capasWms.value.filter((capa) => capa.id !== id);
+    await persistirCapas(capasWms.value.filter((capa) => capa.id !== id));
 
     notificarActualizacionWms();
   } catch (error) {
@@ -421,9 +390,6 @@ onBeforeUnmount(() => {
                   {{ capa.dataset_is_published ? 'Publicada' : 'No publicada' }}
                 </span>
 
-                <span v-if="capa.geonode_id == null" class="etiqueta-heredada">
-                  Configuración heredada
-                </span>
               </div>
 
               <div class="tarjeta-wms__resumen">

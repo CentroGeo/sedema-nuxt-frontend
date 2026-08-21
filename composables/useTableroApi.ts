@@ -90,21 +90,21 @@ export function useTableroApi() {
 
     // ---------- Capas de referencia del tablero ----------
     fetchCapasWmsSitio: async (siteId: number | string) => {
-      const data = await fetchJson(
-        `${baseUrl}/site-external-wms/?site=${encodeURIComponent(siteId)}`
-      );
-
-      return Array.isArray(data) ? data : data.results || [];
+      const data = await fetchJson(`${baseUrl}/site-configs/${encodeURIComponent(siteId)}/`);
+      return Array.isArray(data?.reference_layers) ? data.reference_layers : [];
     },
 
-    crearCapaWmsSitio: (datos: unknown, token?: string | null) =>
-      jsonRequest(`${baseUrl}/site-external-wms/`, 'POST', datos, token),
-
-    actualizarCapaWmsSitio: (id: number | string, datos: unknown, token?: string | null) =>
-      jsonRequest(`${baseUrl}/site-external-wms/${id}/`, 'PATCH', datos, token),
-
-    eliminarCapaWmsSitio: (id: number | string, token?: string | null) =>
-      deleteRequest(`${baseUrl}/site-external-wms/${id}/`, token),
+    guardarCapasWmsSitio: (
+      siteId: number | string,
+      referenceLayers: unknown[],
+      token?: string | null
+    ) =>
+      jsonRequest(
+        `${baseUrl}/site-configs/${encodeURIComponent(siteId)}/`,
+        'PATCH',
+        { reference_layers: referenceLayers },
+        token
+      ),
 
     // ---------- GeoNode datasets ----------
     fetchDatasets: (search: string) =>
