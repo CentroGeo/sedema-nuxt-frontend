@@ -1,5 +1,7 @@
 <script setup>
 import SisdaiModal from '@centrogeomx/sisdai-componentes/src/componentes/modal/SisdaiModal.vue';
+import { useMapaCapasAdapter } from '~/composables/capas/useMapaCapasAdapter';
+import { categoriesNamesInSpanish } from '~/utils/consulta';
 
 definePageMeta({ middleware: 'auth' });
 
@@ -11,6 +13,16 @@ const { esAdmin, cargarEsAdmin } = useEsAdmin();
 const mapaId = computed(() => Number(route.params.id));
 const mapa = computed(() => store.activeMap);
 const capas = computed(() => store.layersOrdered);
+
+const adaptadorCapas = useMapaCapasAdapter(mapaId);
+const posicionesCapas = computed(() =>
+  mapa.value?.map_type === 'swipe' || mapa.value?.map_type === 'dual'
+    ? [
+        { value: 'left', label: 'Izquierdo' },
+        { value: 'right', label: 'Derecho' },
+      ]
+    : null
+);
 
 // El owner del backend es {pk, username}; la sesión Keycloak expone email/name.
 const esOwner = computed(() => {
@@ -36,8 +48,11 @@ const alternarEdicionCapas = () => (editandoCapas.value = !editandoCapas.value);
 const recargar = () => store.cargarMapa(mapaId.value);
 
 function alCambiarVisibilidadPestania() {
+  // silencioso: si usara recargar() (isLoadingMap), desmontaría la vista
+  // completa (incluido el modal de capas si está abierto) solo por volver
+  // a la pestaña.
   if (document.visibilityState === 'visible') {
-    recargar();
+    store.refrescarMapa(mapaId.value);
   }
 }
 
@@ -273,7 +288,19 @@ onUnmounted(() => {
         </aside>
       </div>
 
-      <GeocontenidosMapasModalAgregarCapas :mapa-id="mapa.id" :map-type="mapa.map_type" />
+      <CapasModalAgregar
+        :abierto="store.modalAgregarCapasAbierto"
+        :adaptador="adaptadorCapas"
+        :opciones="{
+          contexto: 'mapa',
+          mostrarOpacidad: false,
+          mostrarEstilo: true,
+          posiciones: posicionesCapas,
+          nombreCategoria: (c) => categoriesNamesInSpanish[c.identifier] ?? c.identifier,
+        }"
+        @update:abierto="(v) => (v ? null : store.cerrarModalAgregarCapas())"
+        @guardado="recargar"
+      />
       <GeocontenidosMapasModalEditarMapa ref="modalEditar" :mapa="mapa" @actualizado="recargar" />
       <GeocontenidosMapasModalCompartir ref="modalCompartir" :mapa="mapa" />
       <GeocontenidosModalConfirmar ref="modalConfirmar" />
