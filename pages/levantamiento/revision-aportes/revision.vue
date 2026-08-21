@@ -20,12 +20,7 @@ onMounted(async () => {
 
   cargandoAportes.value = true;
   try {
-    const { aportes: aportesRevision } = await storeLevantamiento.obtenerAportesRevision(email, 'NO REVISADO');
-    const aportesEstado = await storeLevantamiento.obtenerAportesPorEstado(email, 'NO REVISADO');
-
-    const unificados = new Map();
-    [...aportesRevision, ...aportesEstado].forEach((a) => unificados.set(a.id, a));
-    const aportes = Array.from(unificados.values());
+    const { aportes } = await storeLevantamiento.obtenerAportesRevision(email, 'NO REVISADO');
 
     aportesEnRevision.value = aportes.map((aporte, index) => {
       let fotosArray = [];

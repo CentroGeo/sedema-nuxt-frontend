@@ -4,23 +4,25 @@ definePageMeta({
 });
 const storeLevantamiento = useLevantamientoStore();
 const ruta = '/levantamiento';
+const { cargarConfiguracionModulos, estaHabilitado, estaSubmoduloHabilitado } =
+  useConfiguracionModulos();
+const levantamientoHabilitado = estaHabilitado('levantamiento');
+const subPaginas = computed(() =>
+  [
+    { id: 'levantamiento-proyectos', pictograma: 'pictograma-visualizador', ruta: `${ruta}/proyectos`, globo: 'Proyectos' },
+    { id: 'levantamiento-aportes', pictograma: 'pictograma-grupo', ruta: `${ruta}/aportes`, globo: 'Aportes' },
+  ].filter((pagina) => estaSubmoduloHabilitado(pagina.id).value)
+);
+
+onMounted(() => {
+  cargarConfiguracionModulos();
+});
 </script>
 
 <template>
-  <div class="modulo-levantamiento flex">
+  <div v-if="levantamientoHabilitado" class="modulo-levantamiento flex">
     <UiNavegacionLateral
-      :sub-paginas="[
-        {
-          pictograma: 'pictograma-visualizador',
-          ruta: `${ruta}/proyectos`,
-          globo: 'Proyectos',
-        },
-        {
-          pictograma: 'pictograma-grupo',
-          ruta: `${ruta}/aportes`,
-          globo: 'Aportes',
-        },
-      ]"
+      :sub-paginas="subPaginas"
       :funcion-colapsar="storeLevantamiento.alternarCatalogoColapsable"
       :estado-colapable="storeLevantamiento.catalogoColapsado"
       :id-colapsable="storeLevantamiento.idNavegacionLateral"

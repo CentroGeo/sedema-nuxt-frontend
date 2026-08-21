@@ -20,12 +20,10 @@ onMounted(async () => {
 
   cargandoAportes.value = true;
   try {
-    const { aportes: aportesRevision } = await storeLevantamiento.obtenerAportesRevision(email, 'APROBADO');
-    const aportesEstado = await storeLevantamiento.obtenerAportesPorEstado(email, 'APROBADO');
-    
-    const unificados = new Map();
-    [...aportesRevision, ...aportesEstado].forEach((a) => unificados.set(a.id, a));
-    const aportes = Array.from(unificados.values());
+    console.log('Solicitando aportes APROBADOS...');
+
+    const { aportes } = await storeLevantamiento.obtenerAportesRevision(email, 'APROBADO');
+
 
     if (aportes.length > 0) {
       console.log('Estructura del primer aporte aprobado:', aportes[0]);

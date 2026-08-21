@@ -7,6 +7,7 @@ const config = useRuntimeConfig();
 const store = useLandingBuilderStore();
 const storeCatalogo = useCatalogoStore();
 const { esAdmin, cargarEsAdmin } = useEsAdmin();
+const { cargarConfiguracionModulos, estaHabilitado } = useConfiguracionModulos();
 
 watch(
   status,
@@ -25,6 +26,8 @@ watch(
 onMounted(() => {
   cargarEsAdmin();
 });
+
+await cargarConfiguracionModulos();
 
 const enPaginaConstructor = computed(() => {
   return route.path.startsWith('/administracion/constructor-paginas');
@@ -106,14 +109,13 @@ async function iniciarSesion() {
   });
 }
 const mostrarInicio = computed(() => config.public.defaultPage);
-const mostrarCatalogo = computed(() => config.public.enableCatalogoVista);
-const mostrarConsulta = computed(() => config.public.enableConsulta);
-const mostrarIaa = computed(() => config.public.enableIaa);
-const mostrarLevantamiento = computed(() => config.public.enableLevantamiento);
+const mostrarCatalogo = estaHabilitado('catalogo');
+const mostrarConsulta = estaHabilitado('consulta');
+const mostrarIaa = estaHabilitado('ia');
+const mostrarLevantamiento = estaHabilitado('levantamiento');
 const mostrarAuth = computed(() => config.public.enableAuth);
 const mostrarAcercaDe = computed(() => config.public.enableAcercaDe);
-const mostrarGeocontenidos = computed(() => config.public.enableGeocontenidos);
-
+const mostrarGeocontenidos = estaHabilitado('geocontenidos');
 const modalCambiarLogo1 = ref(null);
 const modalCambiarLogo2 = ref(null);
 const modalCambiarLogo3 = ref(null);
@@ -519,7 +521,13 @@ function eliminarLogo4() {
         <NuxtLink class="nav-hipervinculo" to="/ia">Análisis Inteligencia Artificial</NuxtLink>
       </li>
       <li v-if="mostrarLevantamiento && status === 'authenticated'">
-        <NuxtLink class="nav-hipervinculo" to="/levantamiento" target="_blank" rel="noopener noreferrer">Levantamiento</NuxtLink>
+        <NuxtLink
+          class="nav-hipervinculo"
+          to="/levantamiento"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Levantamiento</NuxtLink
+        >
       </li>
       <li v-if="mostrarGeocontenidos && status === 'authenticated'">
         <NuxtLink class="nav-hipervinculo" to="/geocontenidos">Geocontenidos</NuxtLink>

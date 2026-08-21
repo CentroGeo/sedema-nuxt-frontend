@@ -1,15 +1,31 @@
 <script setup>
 definePageMeta({ middleware: ['auth', 'redireccionar-modulo-geocontenidos'] });
 
-const ruta = '/geocontenidos';
+const { cargarConfiguracionModulos, estaHabilitado, estaSubmoduloHabilitado } =
+  useConfiguracionModulos();
 
-const itemsMenu = [
-  { nombre: 'Mapas', ruta: '/geocontenidos/mapas' },
-  { nombre: 'Panoramas', ruta: `${ruta}/panoramas` },
-  { nombre: 'Geo-historias', ruta: `${ruta}/geohistorias` },
-  { nombre: 'Tableros de datos', ruta: `${ruta}/tableros` },
-  { nombre: 'Micrositios' },
-];
+const ruta = '/geocontenidos';
+const geocontenidosHabilitados = estaHabilitado('geocontenidos');
+
+const itemsMenu = computed(() => {
+  const items = [
+    { id: 'geocontenidos-mapas', nombre: 'Mapas', ruta: '/geocontenidos/mapas' },
+    { id: 'geocontenidos-panoramas', nombre: 'Panoramas', ruta: `${ruta}/panoramas` },
+    { id: 'geocontenidos-geohistorias', nombre: 'Geo-historias', ruta: `${ruta}/geohistorias` },
+    { id: 'geocontenidos-tableros', nombre: 'Tableros de datos', ruta: `${ruta}/tableros` },
+    { id: 'geocontenidos-importar', nombre: 'Importar datos', ruta: `${ruta}/importar-datos` },
+  ].filter((item) => estaSubmoduloHabilitado(item.id).value);
+
+  if (estaSubmoduloHabilitado('geocontenidos-micrositios').value) {
+    items.push({ nombre: 'Micrositios' });
+  }
+
+  return items;
+});
+
+onMounted(() => {
+  cargarConfiguracionModulos();
+});
 
 const submenusAbiertos = reactive({});
 
@@ -31,7 +47,7 @@ function alternarMenuColapsable() {
 </script>
 
 <template>
-  <div class="modulo-geocontenidos flex">
+  <div v-if="geocontenidosHabilitados" class="modulo-geocontenidos flex">
     <UiNavegacionLateral
       :sub-paginas="[
         {

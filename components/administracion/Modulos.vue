@@ -2,6 +2,13 @@
 const store = useAdministracionStore();
 
 const expandido = reactive({});
+const error = ref('');
+
+onMounted(() => {
+  store.cargarModulos().catch(() => {
+    error.value = 'No fue posible cargar la configuración global de módulos.';
+  });
+});
 
 function claseEstado(activo) {
   return activo
@@ -22,6 +29,24 @@ function volverAVistaGeneral() {
   vista.value = 'general';
   moduloSeleccionado.value = null;
 }
+
+async function actualizarModulo(modulo, habilitado) {
+  error.value = '';
+  try {
+    await store.actualizarEstadoModulo(modulo.id, habilitado);
+  } catch (err) {
+    error.value = err.message || 'No fue posible guardar el cambio del módulo.';
+  }
+}
+
+async function actualizarSubmodulo(modulo, submodulo, habilitado) {
+  error.value = '';
+  try {
+    await store.actualizarEstadoSubmodulo(modulo.id, submodulo.id, habilitado);
+  } catch (err) {
+    error.value = err.message || 'No fue posible guardar el cambio del submódulo.';
+  }
+}
 </script>
 
 <template>
@@ -29,9 +54,11 @@ function volverAVistaGeneral() {
     <!-- ============ VISTA GENERAL ============ -->
     <section v-if="vista === 'general'" aria-label="Módulos">
       <p class="texto-color-secundario m-b-4">
-        Estructura de módulos disponibles en la plataforma. Un módulo deshabilitado deja de poder
-        asignarse a cualquier rol en Gestión de permisos.
+        Esta configuración se aplica globalmente en el sitio. Un módulo deshabilitado deja de ser
+        accesible por URL y deja de poder asignarse a cualquier rol en Gestión de permisos.
       </p>
+
+      <p v-if="error" class="texto-color-error m-b-3" role="alert">{{ error }}</p>
 
       <div
         v-for="modulo in store.modulos"
@@ -73,9 +100,10 @@ function volverAVistaGeneral() {
                 {{ modulo.habilitado ? 'Activo' : 'Inactivo' }}
               </span>
               <AdministracionSwitch
-                v-model="modulo.habilitado"
+                :model-value="modulo.habilitado"
                 ocultar-texto
                 :aria-label="`Alternar módulo ${modulo.nombre}`"
+                @update:model-value="actualizarModulo(modulo, $event)"
               />
               <button
                 type="button"
@@ -104,10 +132,11 @@ function volverAVistaGeneral() {
                   {{ modulo.habilitado && sub.habilitado ? 'Activo' : 'Inactivo' }}
                 </span>
                 <AdministracionSwitch
-                  v-model="sub.habilitado"
+                  :model-value="sub.habilitado"
                   :disabled="!modulo.habilitado"
                   ocultar-texto
                   :aria-label="`Alternar submódulo ${sub.nombre}`"
+                  @update:model-value="actualizarSubmodulo(modulo, sub, $event)"
                 />
               </div>
             </li>
@@ -137,8 +166,9 @@ function volverAVistaGeneral() {
             {{ moduloSeleccionado.habilitado ? 'Activo' : 'Inactivo' }}
           </span>
           <AdministracionSwitch
-            v-model="moduloSeleccionado.habilitado"
+            :model-value="moduloSeleccionado.habilitado"
             :aria-label="`Alternar módulo ${moduloSeleccionado.nombre}`"
+            @update:model-value="actualizarModulo(moduloSeleccionado, $event)"
           />
         </div>
       </div>
@@ -153,12 +183,21 @@ function volverAVistaGeneral() {
           class="flex flex-contenido-separado"
         >
           <span>{{ sub.nombre }}</span>
-          <span
-            class="p-1 borde-redondeado-8"
-            :class="claseEstado(moduloSeleccionado.habilitado && sub.habilitado)"
-          >
-            {{ moduloSeleccionado.habilitado && sub.habilitado ? 'Activo' : 'Inactivo' }}
-          </span>
+          <div class="flex administracion-columna-derecha" style="gap: 12px">
+            <span
+              class="p-1 borde-redondeado-8"
+              :class="claseEstado(moduloSeleccionado.habilitado && sub.habilitado)"
+            >
+              {{ moduloSeleccionado.habilitado && sub.habilitado ? 'Activo' : 'Inactivo' }}
+            </span>
+            <AdministracionSwitch
+              :model-value="sub.habilitado"
+              :disabled="!moduloSeleccionado.habilitado"
+              ocultar-texto
+              :aria-label="`Alternar submódulo ${sub.nombre}`"
+              @update:model-value="actualizarSubmodulo(moduloSeleccionado, sub, $event)"
+            />
+          </div>
         </li>
       </ul>
 
