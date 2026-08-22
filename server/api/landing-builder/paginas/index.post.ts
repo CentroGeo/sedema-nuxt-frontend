@@ -1,3 +1,4 @@
+import { getServerSession } from '#auth';
 import formidable from 'formidable';
 import { promises as fsp } from 'fs';
 import {
@@ -15,6 +16,11 @@ import {
 import type { LandingBuilderPaginaIdentidad } from '../../../utils/landingBuilderConfig';
 
 export default defineEventHandler(async (event) => {
+  const session = await getServerSession(event);
+  if (!session) {
+    throw createError({ statusCode: 401, statusMessage: 'No autenticado' });
+  }
+
   const form = formidable({ multiples: true });
   const { fields, files } = await new Promise<{
     fields: formidable.Fields;

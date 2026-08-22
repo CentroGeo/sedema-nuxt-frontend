@@ -1,3 +1,4 @@
+import { getServerSession } from '#auth';
 import formidable from 'formidable';
 import { promises as fsp } from 'fs';
 import type {
@@ -18,6 +19,11 @@ import {
 } from '../../../utils/landingBuilderConfig';
 
 export default defineEventHandler(async (event) => {
+  const session = await getServerSession(event);
+  if (!session) {
+    throw createError({ statusCode: 401, statusMessage: 'No autenticado' });
+  }
+
   const id = getRouterParam(event, 'id');
   if (!id) {
     throw createError({ statusCode: 400, statusMessage: 'Falta el identificador de la página' });

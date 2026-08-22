@@ -26,8 +26,15 @@ export function useGnoxyUrl() {
       if (event) {
         const host = event.node.req.headers.host;
         const proto = event.node.req.headers['x-forwarded-proto'] || 'http';
+        const cookie = event.node.req.headers.cookie;
 
-        return fetch(`${proto}://${host}${finalUrl}`, params);
+        return fetch(`${proto}://${host}${finalUrl}`, {
+          ...params,
+          headers: {
+            ...(params as Record<string, unknown>).headers as Record<string, string>,
+            ...(cookie ? { cookie } : {}),
+          },
+        });
       }
 
       // 🔵 CLIENTE

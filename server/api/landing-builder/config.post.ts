@@ -1,3 +1,4 @@
+import { getServerSession } from '#auth';
 import formidable from 'formidable';
 import { promises as fsp } from 'fs';
 import type { LandingBuilderConfig, LandingBuilderTarjeta } from '../../utils/landingBuilderConfig';
@@ -19,6 +20,11 @@ const CAMPOS_REQUERIDOS = [
 ] as const;
 
 export default defineEventHandler(async (event) => {
+  const session = await getServerSession(event);
+  if (!session) {
+    throw createError({ statusCode: 401, statusMessage: 'No autenticado' });
+  }
+
   const form = formidable({ multiples: true, maxFileSize: TAMANO_MAXIMO_VIDEO_BLOQUE });
   const { fields, files } = await new Promise<{
     fields: formidable.Fields;
