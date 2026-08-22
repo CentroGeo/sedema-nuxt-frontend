@@ -28,7 +28,7 @@ export const useCatalogoStore = defineStore('catalogo', () => {
         const url = buildUrl(`${config.public.geonodeApi}/users`, queryParams);
         const request = await gnoxyFetch(url.toString());
         const res = await request.json();
-        this.userInfo = res.users[0];
+        this.userInfo = res.users?.[0];
       }
     },
   };
