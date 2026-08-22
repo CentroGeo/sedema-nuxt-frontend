@@ -19,6 +19,10 @@ function alternarColapsar() {
   colapsado.value = !colapsado.value;
 }
 
+if (!storeCatalogo.userInfo?.is_superuser) {
+  await storeCatalogo.getUserInfo();
+}
+
 const esAdmin = computed(() => Boolean(storeCatalogo.userInfo?.is_superuser));
 const mostrarConstructor = computed(
   () => config.public.enableLandingBuilder && status.value === 'authenticated' && esAdmin.value
