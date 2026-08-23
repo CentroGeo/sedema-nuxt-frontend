@@ -10,14 +10,44 @@ const escenarios = ref([]);
 const estaCargando = ref(false);
 const paginaActual = ref(0);
 const elementosPorPagina = 6;
+const inputBusqueda = ref('');
+const seleccionOrden = ref('titulo');
+
+const escenariosFiltrados = computed(() => {
+  const termino = inputBusqueda.value.trim().toLowerCase();
+  let lista = escenarios.value;
+  if (termino) {
+    lista = lista.filter((e) => (e.name || '').toLowerCase().includes(termino));
+  }
+  return [...lista].sort((a, b) => {
+    switch (seleccionOrden.value) {
+      case 'titulo':
+        return (a.name || '').localeCompare(b.name || '');
+      case 'fecha_descendente':
+        return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+      case 'fecha_ascendente':
+        return new Date(a.created_at || 0) - new Date(b.created_at || 0);
+      default:
+        return 0;
+    }
+  });
+});
 
 const totalPags = computed(() =>
-  Math.max(1, Math.ceil(escenarios.value.length / elementosPorPagina))
+  Math.max(1, Math.ceil(escenariosFiltrados.value.length / elementosPorPagina))
 );
 
 const escenariosPaginados = computed(() => {
   const inicio = paginaActual.value * elementosPorPagina;
-  return escenarios.value.slice(inicio, inicio + elementosPorPagina);
+  return escenariosFiltrados.value.slice(inicio, inicio + elementosPorPagina);
+});
+
+function limpiarBusqueda() {
+  inputBusqueda.value = '';
+}
+
+watch([inputBusqueda, seleccionOrden], () => {
+  paginaActual.value = 0;
 });
 
 async function cargarEscenarios() {
@@ -104,6 +134,57 @@ function formatearFecha(fecha) {
     <div class="flex">
       <h2>Geohistorias</h2>
       <UiNumeroElementos :numero="escenarios.length" />
+    </div>
+
+    <div v-if="escenarios.length > 0" class="flex flex-alineado-final brecha-3 m-b-4">
+      <div class="columna-8">
+        <ClientOnly>
+          <label for="selector-orden-geohistorias">Ordenar por</label>
+          <select
+            id="selector-orden-geohistorias"
+            v-model="seleccionOrden"
+            name="selector-orden-geohistorias"
+            :disabled="estaCargando"
+          >
+            <option value="titulo">Título</option>
+            <option value="fecha_descendente">Más Reciente</option>
+            <option value="fecha_ascendente">Más Antiguo</option>
+          </select>
+        </ClientOnly>
+      </div>
+      <div class="columna-8">
+        <ClientOnly>
+          <label for="busqueda-geohistorias">Campo de búsqueda</label>
+          <form class="campo-busqueda" @submit.prevent>
+            <input
+              id="busqueda-geohistorias"
+              v-model="inputBusqueda"
+              type="search"
+              class="campo-busqueda-entrada"
+              placeholder="Buscar geo-historias..."
+              :disabled="estaCargando"
+            />
+            <button
+              v-if="inputBusqueda"
+              class="boton-pictograma boton-sin-contenedor-secundario campo-busqueda-borrar"
+              aria-label="Borrar"
+              type="button"
+              :disabled="estaCargando"
+              @click="limpiarBusqueda"
+            >
+              <span aria-hidden="true" class="pictograma-cerrar" />
+            </button>
+            <button
+              class="boton-primario boton-pictograma campo-busqueda-buscar"
+              aria-label="Buscar"
+              type="button"
+              :disabled="estaCargando"
+            >
+              <span class="pictograma-buscar" aria-hidden="true" />
+            </button>
+          </form>
+        </ClientOnly>
+      </div>
     </div>
 
     <GeocontenidosLoader v-if="estaCargando" />

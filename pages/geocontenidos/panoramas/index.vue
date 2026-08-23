@@ -10,14 +10,44 @@ const panoramas = ref([]);
 const estaCargando = ref(false);
 const paginaActual = ref(0);
 const elementosPorPagina = 6;
+const inputBusqueda = ref('');
+const seleccionOrden = ref('titulo');
+
+const panoramasFiltrados = computed(() => {
+  const termino = inputBusqueda.value.trim().toLowerCase();
+  let lista = panoramas.value;
+  if (termino) {
+    lista = lista.filter((p) => (p.name || '').toLowerCase().includes(termino));
+  }
+  return [...lista].sort((a, b) => {
+    switch (seleccionOrden.value) {
+      case 'titulo':
+        return (a.name || '').localeCompare(b.name || '');
+      case 'fecha_descendente':
+        return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+      case 'fecha_ascendente':
+        return new Date(a.created_at || 0) - new Date(b.created_at || 0);
+      default:
+        return 0;
+    }
+  });
+});
 
 const totalPags = computed(() =>
-  Math.max(1, Math.ceil(panoramas.value.length / elementosPorPagina))
+  Math.max(1, Math.ceil(panoramasFiltrados.value.length / elementosPorPagina))
 );
 
 const panoramasPaginados = computed(() => {
   const inicio = paginaActual.value * elementosPorPagina;
-  return panoramas.value.slice(inicio, inicio + elementosPorPagina);
+  return panoramasFiltrados.value.slice(inicio, inicio + elementosPorPagina);
+});
+
+function limpiarBusqueda() {
+  inputBusqueda.value = '';
+}
+
+watch([inputBusqueda, seleccionOrden], () => {
+  paginaActual.value = 0;
 });
 
 async function cargarPanoramas() {
@@ -75,6 +105,57 @@ async function eliminarPanorama(id) {
     <div class="flex">
       <h2>Panoramas</h2>
       <UiNumeroElementos :numero="panoramas.length" />
+    </div>
+
+    <div v-if="panoramas.length > 0" class="flex flex-alineado-final brecha-3 m-b-4">
+      <div class="columna-8">
+        <ClientOnly>
+          <label for="selector-orden-panoramas">Ordenar por</label>
+          <select
+            id="selector-orden-panoramas"
+            v-model="seleccionOrden"
+            name="selector-orden-panoramas"
+            :disabled="estaCargando"
+          >
+            <option value="titulo">Título</option>
+            <option value="fecha_descendente">Más Reciente</option>
+            <option value="fecha_ascendente">Más Antiguo</option>
+          </select>
+        </ClientOnly>
+      </div>
+      <div class="columna-8">
+        <ClientOnly>
+          <label for="busqueda-panoramas">Campo de búsqueda</label>
+          <form class="campo-busqueda" @submit.prevent>
+            <input
+              id="busqueda-panoramas"
+              v-model="inputBusqueda"
+              type="search"
+              class="campo-busqueda-entrada"
+              placeholder="Buscar panoramas..."
+              :disabled="estaCargando"
+            />
+            <button
+              v-if="inputBusqueda"
+              class="boton-pictograma boton-sin-contenedor-secundario campo-busqueda-borrar"
+              aria-label="Borrar"
+              type="button"
+              :disabled="estaCargando"
+              @click="limpiarBusqueda"
+            >
+              <span aria-hidden="true" class="pictograma-cerrar" />
+            </button>
+            <button
+              class="boton-primario boton-pictograma campo-busqueda-buscar"
+              aria-label="Buscar"
+              type="button"
+              :disabled="estaCargando"
+            >
+              <span class="pictograma-buscar" aria-hidden="true" />
+            </button>
+          </form>
+        </ClientOnly>
+      </div>
     </div>
 
     <GeocontenidosLoader v-if="estaCargando" />
