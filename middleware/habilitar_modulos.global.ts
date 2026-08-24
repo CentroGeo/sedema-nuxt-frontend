@@ -31,9 +31,11 @@ const RUTAS_SUBMODULOS = [
     submodulo: 'catalogo-servicios-remotos',
     rutas: ['/catalogo/servicios-remotos'],
   },
+  { modulo: 'catalogo', submodulo: 'catalogo-mapas', rutas: ['/catalogo/explorar/mapas'] },
   { modulo: 'consulta', submodulo: 'consulta-capas', rutas: ['/consulta/capas'] },
   { modulo: 'consulta', submodulo: 'consulta-documentos', rutas: ['/consulta/documentos'] },
   { modulo: 'consulta', submodulo: 'consulta-tablas', rutas: ['/consulta/tablas'] },
+  { modulo: 'consulta', submodulo: 'consulta-mapas', rutas: ['/consulta/mapas'] },
   {
     modulo: 'geocontenidos',
     submodulo: 'geocontenidos-mapas',
@@ -108,7 +110,13 @@ const RUTAS_ADICIONALES_MODULOS: Partial<Record<ModuloGestionable, string[]>> = 
 const RUTAS_RAIZ_SECCIONES = [
   {
     ruta: '/catalogo/explorar',
-    submodulos: ['catalogo-capas', 'catalogo-documentos', 'catalogo-tablas', 'catalogo-externos'],
+    submodulos: [
+      'catalogo-capas',
+      'catalogo-documentos',
+      'catalogo-tablas',
+      'catalogo-mapas',
+      'catalogo-externos',
+    ],
   },
 ] as const;
 
@@ -131,8 +139,6 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // banderas de entorno, igual que antes de adoptar la configuración remota.
   const flags = useRuntimeConfig().public;
   const reglasBanderas: Record<string, boolean> = {
-    '/catalogo/explorar/mapas': Boolean(flags.enableMapas),
-    '/consulta/mapas': Boolean(flags.enableMapas),
     '/acerca-de': Boolean(flags.enableAcercaDe),
     '/landing-builder': Boolean(flags.enableAuth && flags.enableLandingBuilder),
   };

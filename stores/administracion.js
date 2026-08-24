@@ -21,6 +21,7 @@ export const useAdministracionStore = defineStore('administracion', () => {
         { id: 'catalogo-capas', nombre: 'Capas geográficas', habilitado: true },
         { id: 'catalogo-documentos', nombre: 'Documentos', habilitado: true },
         { id: 'catalogo-tablas', nombre: 'Datos tabulados', habilitado: true },
+        { id: 'catalogo-mapas', nombre: 'Mapas', habilitado: true },
         { id: 'catalogo-externos', nombre: 'Catálogos externos', habilitado: true },
         { id: 'catalogo-cargar', nombre: 'Cargar archivos', habilitado: true },
         { id: 'catalogo-mis-archivos', nombre: 'Mis archivos', habilitado: true },
@@ -38,6 +39,7 @@ export const useAdministracionStore = defineStore('administracion', () => {
         { id: 'consulta-capas', nombre: 'Capas', habilitado: true },
         { id: 'consulta-documentos', nombre: 'Documentos', habilitado: true },
         { id: 'consulta-tablas', nombre: 'Tablas', habilitado: true },
+        { id: 'consulta-mapas', nombre: 'Mapas', habilitado: true },
       ],
     },
     {

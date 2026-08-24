@@ -8,7 +8,6 @@ definePageMeta({
 
 const ruta = '/catalogo';
 
-const config = useRuntimeConfig();
 const storeCatalogo = useCatalogoStore();
 const { cargarConfiguracionModulos, estaHabilitado, estaSubmoduloHabilitado } =
   useConfiguracionModulos();
@@ -21,6 +20,7 @@ const SUBMODULOS_EXPLORAR = [
   'catalogo-capas',
   'catalogo-documentos',
   'catalogo-tablas',
+  'catalogo-mapas',
   'catalogo-externos',
 ];
 
@@ -50,10 +50,8 @@ const subPaginas = computed(() =>
       ruta: `${ruta}/explorar/tablas`,
       globo: 'Datos tabulados',
     },
-    // Mapas es propio de esta instancia: no existe como submódulo upstream, así
-    // que se filtra por su bandera de entorno (ver habilitar_modulos.global.ts).
     {
-      bandera: Boolean(config.public.enableMapas),
+      id: 'catalogo-mapas',
       pictograma: 'pictograma-explorar',
       ruta: `${ruta}/explorar/mapas`,
       globo: 'Mapas',
@@ -64,11 +62,7 @@ const subPaginas = computed(() =>
       ruta: `${ruta}/explorar/catalogos-externos`,
       globo: 'Catálogos externos',
     },
-  ].filter((pagina) =>
-    pagina.bandera !== undefined
-      ? pagina.bandera
-      : (pagina.ids ?? [pagina.id]).some((id) => estaSubmoduloHabilitado(id).value)
-  )
+  ].filter((pagina) => (pagina.ids ?? [pagina.id]).some((id) => estaSubmoduloHabilitado(id).value))
 );
 
 const paginasSesion = computed(() =>

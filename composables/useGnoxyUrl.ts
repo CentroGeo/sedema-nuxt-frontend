@@ -31,7 +31,7 @@ export function useGnoxyUrl() {
         return fetch(`${proto}://${host}${finalUrl}`, {
           ...params,
           headers: {
-            ...(params as Record<string, unknown>).headers as Record<string, string>,
+            ...((params as Record<string, unknown>).headers as Record<string, string>),
             ...(cookie ? { cookie } : {}),
           },
         });

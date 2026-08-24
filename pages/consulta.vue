@@ -8,7 +8,6 @@ definePageMeta({
 
 const ruta = '/consulta';
 const route = useRoute();
-const config = useRuntimeConfig();
 
 const storeConsulta = useConsultaStore();
 
@@ -37,13 +36,13 @@ const subPaginas = computed(() => {
       ruta: `${ruta}/tablas`,
       globo: 'Tabulados de datos',
     },
+    {
+      id: 'consulta-mapas',
+      pictograma: 'pictograma-explorar',
+      ruta: `${ruta}/mapas`,
+      globo: 'Mapas',
+    },
   ].filter((pagina) => estaSubmoduloHabilitado(pagina.id).value);
-
-  // Mapas es propio de esta instancia: no existe como submódulo upstream, así
-  // que sigue dependiendo de su bandera de entorno (ver habilitar_modulos.global.ts).
-  if (config.public.enableMapas) {
-    paginas.push({ pictograma: 'pictograma-explorar', ruta: `${ruta}/mapas`, globo: 'Mapas' });
-  }
 
   return paginas;
 });

@@ -15,9 +15,11 @@ export const SUBMODULOS_GESTIONABLES = [
   'catalogo-mis-archivos',
   'catalogo-revision',
   'catalogo-servicios-remotos',
+  'catalogo-mapas',
   'consulta-capas',
   'consulta-documentos',
   'consulta-tablas',
+  'consulta-mapas',
   'geocontenidos-mapas',
   'geocontenidos-panoramas',
   'geocontenidos-geohistorias',
@@ -53,9 +55,19 @@ function valoresPredeterminados(): ConfiguracionModulos {
   };
 }
 
+// Submódulos propios de esta instancia cuyo estado predeterminado no es "activo"
+// sino el de su bandera de entorno, para no cambiar el comportamiento actual
+// mientras GeoNode todavía no los reconoce.
+function predeterminadoPorBandera(): Partial<Record<SubmoduloGestionable, boolean>> {
+  const config = useRuntimeConfig();
+  const mapas = Boolean(config.public.enableMapas);
+  return { 'catalogo-mapas': mapas, 'consulta-mapas': mapas };
+}
+
 function valoresPredeterminadosSubmodulos(): ConfiguracionSubmodulos {
+  const porBandera = predeterminadoPorBandera();
   return SUBMODULOS_GESTIONABLES.reduce((resultado, submodulo) => {
-    resultado[submodulo] = true;
+    resultado[submodulo] = porBandera[submodulo] ?? true;
     return resultado;
   }, {} as ConfiguracionSubmodulos);
 }
@@ -88,7 +100,11 @@ function normalizarSubmodulos(valor: unknown): ConfiguracionSubmodulos | null {
   if (
     !SUBMODULOS_GESTIONABLES.every((submodulo) => {
       const estado = recibida[submodulo];
-      return typeof estado === 'boolean' || estado === null;
+      // Una llave ausente se trata igual que `null` (sin configurar): permite
+      // agregar un submódulo en el frontend antes de que GeoNode lo reconozca
+      // sin invalidar toda la configuración, lo que dejaría la plataforma
+      // entera en el fallback de banderas.
+      return typeof estado === 'boolean' || estado === null || estado === undefined;
     })
   ) {
     return null;

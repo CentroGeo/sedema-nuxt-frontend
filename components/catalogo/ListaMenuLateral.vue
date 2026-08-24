@@ -11,8 +11,7 @@ const mostrarCapas = estaSubmoduloHabilitado('catalogo-capas');
 const mostrarTablas = estaSubmoduloHabilitado('catalogo-tablas');
 const mostrarDocumentos = estaSubmoduloHabilitado('catalogo-documentos');
 const mostrarExternos = estaSubmoduloHabilitado('catalogo-externos');
-// Mapas es propio de esta instancia y no tiene submódulo upstream.
-const mostrarMapas = computed(() => Boolean(useRuntimeConfig().public.enableMapas));
+const mostrarMapas = estaSubmoduloHabilitado('catalogo-mapas');
 const mostrarMisArchivos = estaSubmoduloHabilitado('catalogo-mis-archivos');
 const mostrarCargar = estaSubmoduloHabilitado('catalogo-cargar');
 const mostrarServiciosRemotos = estaSubmoduloHabilitado('catalogo-servicios-remotos');
