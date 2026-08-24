@@ -9,13 +9,22 @@ definePageMeta({
 const ruta = '/catalogo';
 
 const storeCatalogo = useCatalogoStore();
+const storeAdministracion = useAdministracionStore();
+
 const { cargarConfiguracionModulos, estaHabilitado, estaSubmoduloHabilitado } =
   useConfiguracionModulos();
-const esSuperusuaria = computed(() => storeCatalogo.userInfo.is_superuser);
+
 const catalogoHabilitado = estaHabilitado('catalogo');
 
-// El acceso "Explorar" es el hub de la sección: se muestra mientras quede
-// habilitado al menos uno de sus submódulos, no solo el de capas.
+const levantamientoHabilitado = estaHabilitado('levantamiento');
+const mostrarProyectosLevantamiento = estaSubmoduloHabilitado('levantamiento-proyectos');
+
+const puedeRevisarSolicitudes = computed(() =>
+  ['superuser', 'administrator', 'editor'].includes(storeAdministracion.perfilActual?.profile)
+);
+
+// El acceso "Explorar" se muestra mientras al menos uno de sus
+// submódulos permanezca habilitado.
 const SUBMODULOS_EXPLORAR = [
   'catalogo-capas',
   'catalogo-documentos',
@@ -24,8 +33,8 @@ const SUBMODULOS_EXPLORAR = [
   'catalogo-externos',
 ];
 
-const subPaginas = computed(() =>
-  [
+const subPaginas = computed(() => {
+  const paginas = [
     {
       ids: SUBMODULOS_EXPLORAR,
       pictograma: 'pictograma-explorar',
@@ -56,17 +65,31 @@ const subPaginas = computed(() =>
       ruta: `${ruta}/explorar/mapas`,
       globo: 'Mapas',
     },
-    {
+  ].filter((pagina) => (pagina.ids ?? [pagina.id]).some((id) => estaSubmoduloHabilitado(id).value));
+
+  if (levantamientoHabilitado.value && mostrarProyectosLevantamiento.value) {
+    paginas.push({
+      id: 'levantamiento-proyectos',
+      pictograma: 'pictograma-proyectos',
+      ruta: '/levantamiento/proyectos',
+      globo: 'Proyectos',
+    });
+  }
+
+  if (estaSubmoduloHabilitado('catalogo-externos').value) {
+    paginas.push({
       id: 'catalogo-externos',
       pictograma: 'pictograma-flkt',
       ruta: `${ruta}/explorar/catalogos-externos`,
       globo: 'Catálogos externos',
-    },
-  ].filter((pagina) => (pagina.ids ?? [pagina.id]).some((id) => estaSubmoduloHabilitado(id).value))
-);
+    });
+  }
 
-const paginasSesion = computed(() =>
-  [
+  return paginas;
+});
+
+const paginasSesion = computed(() => {
+  const paginas = [
     {
       id: 'catalogo-mis-archivos',
       pictograma: 'pictograma-proyectos',
@@ -85,20 +108,26 @@ const paginasSesion = computed(() =>
       ruta: `${ruta}/servicios-remotos`,
       globo: 'Carga de servicios remotos',
     },
-    esSuperusuaria.value
-      ? {
-          id: 'catalogo-revision',
-          pictograma: 'pictograma-buscar',
-          ruta: `${ruta}/revision-solicitudes`,
-          globo: 'Revisión de solicitudes',
-        }
-      : null,
-  ].filter((pagina) => pagina && estaSubmoduloHabilitado(pagina.id).value)
-);
+  ];
+
+  if (puedeRevisarSolicitudes.value && estaSubmoduloHabilitado('catalogo-revision').value) {
+    paginas.push({
+      id: 'catalogo-revision',
+      pictograma: 'pictograma-buscar',
+      ruta: `${ruta}/revision-solicitudes`,
+      globo: 'Revisión de solicitudes',
+    });
+  }
+
+  return paginas.filter((pagina) => estaSubmoduloHabilitado(pagina.id).value);
+});
 
 onMounted(async () => {
-  await cargarConfiguracionModulos();
-  await storeCatalogo.getUserInfo();
+  await Promise.all([
+    cargarConfiguracionModulos(),
+    storeCatalogo.getUserInfo(),
+    storeAdministracion.cargarPerfilActual().catch(() => null),
+  ]);
 });
 
 onUnmounted(() => (document.querySelector('body').className = ''));
@@ -113,6 +142,7 @@ onUnmounted(() => (document.querySelector('body').className = ''));
       :estado-colapable="storeCatalogo.catalogoColapsado"
       :funcion-colapsar="storeCatalogo.alternarCatalogoColapsable"
     />
+
     <div class="contenedor-contenido">
       <NuxtPage />
     </div>
@@ -122,6 +152,7 @@ onUnmounted(() => (document.querySelector('body').className = ''));
 <style lang="scss">
 .modulo-catalogo {
   gap: 0;
+
   .contenedor-contenido {
     flex: 1;
   }

@@ -1,6 +1,7 @@
 <script setup>
 import SisdaiModal from '@centrogeomx/sisdai-componentes/src/componentes/modal/SisdaiModal.vue';
 import { useDownloadResources } from '~/composables/useDownloadResources';
+import { canDownloadMetadataXml, MENSAJE_METADATOS_INCOMPLETOS } from '~/utils/metadatos';
 const props = defineProps({
   resourceType: { type: String, required: true },
   selectedElement: {
@@ -27,6 +28,8 @@ const docExtension = ref(
 const layerType = ref(
   resourceType.value === 'dataLayer' ? selectedElement.value.subtype : 'No aplica'
 );
+// El componente se monta con :key por recurso, es seguro evaluarlo una vez en setup
+const metadataDisabled = !canDownloadMetadataXml(selectedElement.value);
 function abrirModalDescarga() {
   modalDescarga.value?.abrirModal();
   optionsList.value = optionsDict[resourceType.value]['elements'];
@@ -45,8 +48,9 @@ const layerOptions = {
       action: () => downloadRaster(selectedElement.value),
     },
     {
-      label: 'Metadatos',
+      label: 'Metadatos (XML)',
       action: () => downloadMetadata(selectedElement.value),
+      disabled: metadataDisabled,
     },
   ],
   vector: [
@@ -67,8 +71,9 @@ const layerOptions = {
       action: () => downloadWMS(selectedElement.value, 'kml', 'all'),
     },
     {
-      label: 'Metadatos',
+      label: 'Metadatos (XML)',
       action: () => downloadMetadata(selectedElement.value),
+      disabled: metadataDisabled,
     },
   ],
   remote: [],
@@ -94,8 +99,9 @@ const optionsDict = {
         action: () => downloadNoGeometry(selectedElement.value, 'xlsx'),
       },
       {
-        label: 'Metadatos',
+        label: 'Metadatos (XML)',
         action: () => downloadMetadata(selectedElement.value),
+        disabled: metadataDisabled,
       },
     ],
   },
@@ -107,8 +113,9 @@ const optionsDict = {
         action: () => downloadDocs(selectedElement.value),
       },
       {
-        label: 'Metadatos',
+        label: 'Metadatos (XML)',
         action: () => downloadMetadata(selectedElement.value),
+        disabled: metadataDisabled,
       },
     ],
   },
@@ -119,6 +126,12 @@ async function descargarClicked() {
   isDownloadSlow.value = false;
   hasDownloadFailed.value = false;
   const selectedFunction = optionsList.value.find((d) => d.label === selectedOption.value);
+  if (selectedFunction.disabled) {
+    hasDownloadFailed.value = true;
+    downloadError.value = `${MENSAJE_METADATOS_INCOMPLETOS}.`;
+    isDownloadActive.value = false;
+    return;
+  }
 
   //La siguiente línea se pone para agregar alerta si el proceso de descarga toma mas de 3 segundos
   const slowProcessTimeout = setTimeout(() => {
@@ -178,9 +191,17 @@ defineExpose({
               :name="'opciones-descarga'"
               type="radio"
               :value="option.label"
+              :disabled="option.disabled"
             />
 
-            <label :for="`download-option-${option.label}`">{{ option.label }} </label>
+            <label
+              :for="`download-option-${option.label}`"
+              :class="{ 'opcion-deshabilitada': option.disabled }"
+              >{{ option.label }}
+            </label>
+            <span v-if="option.disabled" class="nota-opcion-deshabilitada">
+              {{ MENSAJE_METADATOS_INCOMPLETOS }}
+            </span>
           </div>
           <div class="flex flex-contenido-final">
             <button
@@ -231,5 +252,13 @@ defineExpose({
   text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;
+}
+.opcion-deshabilitada {
+  opacity: 0.5;
+}
+.nota-opcion-deshabilitada {
+  font-size: 0.85em;
+  opacity: 0.7;
+  margin-left: 8px;
 }
 </style>

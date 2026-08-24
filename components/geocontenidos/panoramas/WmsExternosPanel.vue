@@ -166,12 +166,12 @@ async function eliminar(id) {
             <p v-if="errorGuardado" class="texto-color-error m-b-4">{{ errorGuardado }}</p>
 
             <div class="m-b-4">
-              <label for="wms-nombre">Nombre</label>
+              <label for="wms-nombre">Nombre *</label>
               <input id="wms-nombre" v-model="formulario.name" type="text" required />
             </div>
 
             <div class="m-b-4">
-              <label for="wms-url">URL del servicio</label>
+              <label for="wms-url">URL del servicio *</label>
               <input id="wms-url" v-model="formulario.url" type="text" required />
             </div>
 

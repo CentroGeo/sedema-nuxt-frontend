@@ -46,9 +46,7 @@ const error = ref('');
 const posicionDefecto = ref('left');
 
 // Ordenado por stack_order descendente (la capa que se dibuja encima aparece
-// primero). No basta con invertir el array: tras reordenar, el adaptador
-// actualiza el stack_order de cada capa in-place sin recolocarla en el
-// array, así que hay que ordenar explícitamente en cada render.
+// primero)
 const capasExistentes = computed(() =>
   [...(props.adaptador.layersOrdered.value ?? [])].sort((a, b) => b.stack_order - a.stack_order)
 );

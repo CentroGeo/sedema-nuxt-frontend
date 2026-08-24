@@ -157,6 +157,7 @@ const pestanias = computed(() => [
   { id: 'identidad', titulo: 'Identidad del sitio' },
   { id: 'banda', titulo: 'Banda institucional', deshabilitada: esNuevo.value },
   { id: 'estructura', titulo: 'Estructura', deshabilitada: esNuevo.value },
+  { id: 'wms', titulo: 'Capas de referencia', deshabilitada: esNuevo.value },
   { id: 'datos', titulo: 'Cuadros de datos', deshabilitada: esNuevo.value },
 ]);
 
@@ -259,6 +260,10 @@ cargarSitio();
           />
         </template>
 
+        <template #contenido-wms>
+          <TablerosAdminTabCapasWms v-if="sitio.id && activeTab === 'wms'" :site-id="sitio.id" />
+        </template>
+
         <template #contenido-datos>
           <TablerosAdminTabDatos v-if="sitio.id && activeTab === 'datos'" :site-id="sitio.id" />
         </template>
@@ -319,6 +324,14 @@ cargarSitio();
     color: var(--color-texto-secundario, #555);
     max-width: 420px;
     margin: 0;
+  }
+
+  div[class*='modal'] button[class*='cerrar'],
+  div[class*='modal'] button[aria-label='Cerrar'] {
+    background-color: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
   }
 }
 </style>

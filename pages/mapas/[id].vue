@@ -20,12 +20,22 @@ const enlaceFuente = computed(() =>
   mapasStore.activeMap ? rutaApp(`/mapas/${mapasStore.activeMap.id}`) : '#'
 );
 
+// Al volver a la pestaña se refresca por si el mapa cambió mientras no se veía
+// (upstream lo hace con estado local; aquí la vista entera lee del store).
+function alCambiarVisibilidadPestania() {
+  if (document.visibilityState === 'visible') {
+    mapasStore.refrescarMapa(mapaId.value);
+  }
+}
+
 onMounted(async () => {
   // Anónimo solo puede ver mapas públicos; privado/inexistente → mensaje neutro.
   await mapasStore.cargarMapa(mapaId.value);
+  document.addEventListener('visibilitychange', alCambiarVisibilidadPestania);
 });
 
 onUnmounted(() => {
+  document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
   mapasStore.limpiarMapa();
 });
 </script>

@@ -3,6 +3,8 @@ import SisdaiMenuAccesibilidad from '@centrogeomx/sisdai-componentes/src/compone
 import { useAccesibilidadStore } from '~/stores/accesibilidad';
 
 const accesibilidadStore = useAccesibilidadStore();
+const { mostrarIdentidadGobMx } = useIdentidadGobMx();
+const { perfil } = useAplicarPerfilSisdai();
 
 // Font Awesome 6 para los iconos (fa-solid) de los controles del visor de mapa
 // (MapasControlInfo, MapasControlCapaBase). El resto de layouts ya lo cargan.
@@ -19,14 +21,16 @@ useHead({
 <template>
   <div>
     <a href="#principal" class="ir-contenido-principal">Ir a contenido principal</a>
+    <SisdaiNavegacionGobMx v-if="mostrarIdentidadGobMx" />
 
     <div id="principal" class="contenido vista-geohistorias">
       <slot />
     </div>
 
     <client-only>
-      <SisdaiMenuAccesibilidad :objeto-store="accesibilidadStore" perfil-color="sigic" />
+      <SisdaiMenuAccesibilidad :objeto-store="accesibilidadStore" :perfil-color="perfil" />
     </client-only>
+    <SisdaiPiePaginaGobMx v-if="mostrarIdentidadGobMx" />
   </div>
 </template>
 

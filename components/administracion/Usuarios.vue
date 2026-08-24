@@ -2,89 +2,73 @@
 import SisdaiModal from '@centrogeomx/sisdai-componentes/src/componentes/modal/SisdaiModal.vue';
 
 const emit = defineEmits(['ver-detalle-rol']);
+const store = useAdministracionStore();
 
 const roles = ['Administrador', 'Editor', 'Visualizador'];
-
-const usuarios = reactive([
-  {
-    id: 1,
-    nombre: 'Saul morgado',
-    correo: 'psp.saul@centrogeo.edu.mx',
-    rol: 'Administrador',
-    diasAcceso: 0,
-  },
-  {
-    id: 2,
-    nombre: 'Ara aguirre',
-    correo: 'ara.aguirre@centrogeo.edu.mx',
-    rol: 'Administrador',
-    diasAcceso: 1,
-  },
-  {
-    id: 3,
-    nombre: 'Luis Martinez',
-    correo: 'luis.martinez@centrogeo.edu.mx',
-    rol: 'Editor',
-    diasAcceso: 0,
-  },
-  {
-    id: 4,
-    nombre: 'Vicente Flores',
-    correo: 'vicente.flores@centrogeo.edu.mx',
-    rol: 'Editor',
-    diasAcceso: 5,
-  },
-  {
-    id: 5,
-    nombre: 'Arturo Herrera',
-    correo: 'arturo.herrera@centrogeo.edu.mx',
-    rol: 'Editor',
-    diasAcceso: 12,
-  },
-  {
-    id: 6,
-    nombre: 'Karen López',
-    correo: 'karen.lopez@centrogeo.edu.mx',
-    rol: 'Visualizador',
-    diasAcceso: 20,
-  },
-  {
-    id: 7,
-    nombre: 'Pablo López',
-    correo: 'pablo.lopez@centrogeo.edu.mx',
-    rol: 'Visualizador',
-    diasAcceso: 45,
-  },
-]);
-
-let siguienteId = usuarios.length + 1;
+const perfiles = {
+  Administrador: 'administrator',
+  Editor: 'editor',
+  Visualizador: 'viewer',
+};
+const etiquetas = {
+  superuser: 'Superusuario',
+  administrator: 'Administrador',
+  editor: 'Editor',
+  viewer: 'Visualizador',
+};
+const usuarios = reactive([]);
 const busqueda = ref('');
+const paginaActual = ref(0);
+const tamanioPagina = 20;
+const mensajeExito = ref('');
+const errorAccion = ref('');
+let temporizadorBusqueda;
+let solicitudActual = 0;
 
-const usuariosFiltrados = computed(() => {
-  const texto = busqueda.value.trim().toLowerCase();
-  if (!texto) return usuarios;
-  return usuarios.filter(
-    (usuario) =>
-      usuario.nombre.toLowerCase().includes(texto) || usuario.correo.toLowerCase().includes(texto)
-  );
-});
+function mapearUsuario(usuario) {
+  const fecha = usuario.last_login ? new Date(usuario.last_login) : null;
+  const diasAcceso = fecha
+    ? Math.max(0, Math.floor((Date.now() - fecha.getTime()) / 86400000))
+    : null;
+  return {
+    id: usuario.id,
+    nombre: `${usuario.first_name || ''} ${usuario.last_name || ''}`.trim() || usuario.username,
+    correo: usuario.email || 'Sin correo',
+    rol: etiquetas[usuario.profile] || 'Visualizador',
+    diasAcceso,
+    editable: usuario.editable,
+  };
+}
 
-const totalUsuarios = computed(() => usuarios.length);
-const totalAdministradores = computed(
-  () => usuarios.filter((usuario) => usuario.rol === 'Administrador').length
-);
-const totalEditoresActivos = computed(
-  () => usuarios.filter((usuario) => usuario.rol === 'Editor' && usuario.diasAcceso <= 30).length
-);
+async function cargarUsuarios() {
+  const solicitud = ++solicitudActual;
+  try {
+    const data = await store.cargarUsuarios({
+      search: busqueda.value,
+      page: paginaActual.value + 1,
+    });
+    // Descarta respuestas desfasadas si hubo otra búsqueda más reciente
+    if (solicitud !== solicitudActual) return;
+    usuarios.splice(0, usuarios.length, ...data.results.map(mapearUsuario));
+  } catch {
+    if (solicitud === solicitudActual) usuarios.splice(0);
+  }
+}
+
+const totalUsuarios = computed(() => store.resumenUsuarios.total_users);
+const totalPaginas = computed(() => Math.max(1, Math.ceil(store.totalUsuarios / tamanioPagina)));
+const totalAdministradores = computed(() => store.resumenUsuarios.total_administrators);
+const totalEditoresActivos = computed(() => store.resumenUsuarios.active_editors_30_days);
 
 function textoUltimoAcceso(dias) {
+  if (dias === null) return 'Sin registro';
   if (dias === 0) return 'Hoy';
   if (dias === 1) return 'Hace 1 día';
   return `Hace ${dias} días`;
 }
 
 function claseRol(rol) {
-  if (rol === 'Administrador') {
+  if (rol === 'Administrador' || rol === 'Superusuario') {
     return 'texto-color-confirmacion fondo-color-confirmacion borde borde-color-confirmacion';
   }
   if (rol === 'Editor') {
@@ -93,22 +77,12 @@ function claseRol(rol) {
   return 'texto-color-neutro fondo-color-neutro borde borde-color-neutro';
 }
 
-// --- Modal Nuevo usuario / Editar usuario ---
 const modalUsuario = ref(null);
-const modoModalUsuario = ref('crear');
 const formularioUsuario = reactive({ id: null, nombre: '', correo: '', rol: 'Visualizador' });
 
-function abrirModalNuevoUsuario() {
-  modoModalUsuario.value = 'crear';
-  formularioUsuario.id = null;
-  formularioUsuario.nombre = '';
-  formularioUsuario.correo = '';
-  formularioUsuario.rol = 'Visualizador';
-  modalUsuario.value?.abrirModal();
-}
-
 function abrirModalEditarUsuario(usuario) {
-  modoModalUsuario.value = 'editar';
+  mensajeExito.value = '';
+  errorAccion.value = '';
   formularioUsuario.id = usuario.id;
   formularioUsuario.nombre = usuario.nombre;
   formularioUsuario.correo = usuario.correo;
@@ -116,46 +90,40 @@ function abrirModalEditarUsuario(usuario) {
   modalUsuario.value?.abrirModal();
 }
 
-function guardarUsuario() {
-  if (!formularioUsuario.nombre.trim() || !formularioUsuario.correo.trim()) return;
-
-  if (modoModalUsuario.value === 'crear') {
-    usuarios.push({
-      id: siguienteId++,
-      nombre: formularioUsuario.nombre.trim(),
-      correo: formularioUsuario.correo.trim(),
-      rol: formularioUsuario.rol,
-      diasAcceso: 0,
-    });
-  } else {
-    const usuario = usuarios.find((item) => item.id === formularioUsuario.id);
-    if (usuario) {
-      usuario.nombre = formularioUsuario.nombre.trim();
-      usuario.correo = formularioUsuario.correo.trim();
-      usuario.rol = formularioUsuario.rol;
-    }
+async function guardarUsuario() {
+  errorAccion.value = '';
+  mensajeExito.value = '';
+  try {
+    await store.cambiarPerfilUsuario(formularioUsuario.id, perfiles[formularioUsuario.rol]);
+    await cargarUsuarios();
+    mensajeExito.value = `El perfil de ${formularioUsuario.nombre} se actualizó correctamente.`;
+    modalUsuario.value?.cerrarModal();
+  } catch (error) {
+    errorAccion.value = error.message;
   }
-  modalUsuario.value?.cerrarModal();
-}
-
-// --- Modal Eliminar usuario ---
-const modalEliminarUsuario = ref(null);
-const usuarioAEliminar = ref(null);
-
-function abrirModalEliminarUsuario(usuario) {
-  usuarioAEliminar.value = usuario;
-  modalEliminarUsuario.value?.abrirModal();
-}
-
-function confirmarEliminarUsuario() {
-  const indice = usuarios.findIndex((usuario) => usuario.id === usuarioAEliminar.value?.id);
-  if (indice !== -1) usuarios.splice(indice, 1);
-  modalEliminarUsuario.value?.cerrarModal();
 }
 
 function verDetalleRolDe(usuario) {
   emit('ver-detalle-rol', usuario.rol);
 }
+
+function buscarUsuarios() {
+  if (paginaActual.value !== 0) {
+    paginaActual.value = 0;
+  } else {
+    cargarUsuarios();
+  }
+}
+
+watch(busqueda, () => {
+  clearTimeout(temporizadorBusqueda);
+  temporizadorBusqueda = setTimeout(buscarUsuarios, 350);
+});
+
+watch(paginaActual, cargarUsuarios);
+
+onMounted(cargarUsuarios);
+onBeforeUnmount(() => clearTimeout(temporizadorBusqueda));
 </script>
 
 <template>
@@ -175,7 +143,7 @@ function verDetalleRolDe(usuario) {
           <div class="tarjeta-cuerpo">
             <p class="texto-color-secundario m-0">Administradores</p>
             <p class="h3 m-0">{{ totalAdministradores }}</p>
-            <p class="texto-color-secundario m-0">con acceso completo</p>
+            <p class="texto-color-secundario m-0">en el sistema</p>
           </div>
         </div>
       </div>
@@ -194,7 +162,7 @@ function verDetalleRolDe(usuario) {
       <div class="columna-10">
         <ClientOnly>
           <label for="buscador-usuarios">Buscar usuario</label>
-          <form class="campo-busqueda" style="height: 40px" @submit.prevent>
+          <form class="campo-busqueda" style="height: 40px" @submit.prevent="buscarUsuarios">
             <input
               id="buscador-usuarios"
               v-model="busqueda"
@@ -205,7 +173,8 @@ function verDetalleRolDe(usuario) {
             <button
               class="boton-primario boton-pictograma campo-busqueda-buscar"
               aria-label="Buscar"
-              type="button"
+              type="submit"
+              :disabled="store.cargandoUsuarios"
             >
               <span class="pictograma-buscar" aria-hidden="true" />
             </button>
@@ -213,13 +182,26 @@ function verDetalleRolDe(usuario) {
         </ClientOnly>
       </div>
       <div class="flex-vertical-final">
-        <button type="button" class="boton-primario" @click="abrirModalNuevoUsuario">
+        <button
+          type="button"
+          class="boton-primario"
+          disabled
+          title="Las identidades se crean en Keycloak"
+        >
           <span class="pictograma-agregar" aria-hidden="true" /> Nuevo usuario
         </button>
       </div>
     </div>
 
-    <div class="contenedor-tabla">
+    <p v-if="mensajeExito" class="alerta alerta-exito" role="status">{{ mensajeExito }}</p>
+    <p v-if="store.errorUsuarios" class="alerta alerta-error" role="alert">
+      {{ store.errorUsuarios }}
+      <button class="boton-secundario boton-chico" type="button" @click="cargarUsuarios">
+        Reintentar
+      </button>
+    </p>
+
+    <div class="contenedor-tabla" :aria-busy="store.cargandoUsuarios">
       <table class="tabla-expandida">
         <caption>
           Directorio de usuarios
@@ -235,56 +217,79 @@ function verDetalleRolDe(usuario) {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="usuario in usuariosFiltrados" :key="usuario.id">
-            <td>{{ usuario.nombre }}</td>
-            <td>{{ usuario.correo }}</td>
-            <td>
-              <span class="p-1 borde-redondeado-8" :class="claseRol(usuario.rol)">
-                {{ usuario.rol }}
-              </span>
-            </td>
-            <td>{{ textoUltimoAcceso(usuario.diasAcceso) }}</td>
-            <td>
-              <button
-                class="boton-secundario boton-chico"
-                type="button"
-                @click="verDetalleRolDe(usuario)"
-              >
-                Ver detalle
-              </button>
-            </td>
-            <td>
-              <div class="flex-width flex" style="gap: 8px">
+          <tr v-if="store.cargandoUsuarios">
+            <td colspan="6" class="texto-centrado">Cargando usuarios…</td>
+          </tr>
+          <tr v-else-if="!usuarios.length && !store.errorUsuarios">
+            <td colspan="6" class="texto-centrado">No se encontraron usuarios.</td>
+          </tr>
+          <template v-else>
+            <tr v-for="usuario in usuarios" :key="usuario.id">
+              <td>{{ usuario.nombre }}</td>
+              <td>{{ usuario.correo }}</td>
+              <td>
+                <span class="p-1 borde-redondeado-8" :class="claseRol(usuario.rol)">
+                  {{ usuario.rol }}
+                </span>
+              </td>
+              <td>{{ textoUltimoAcceso(usuario.diasAcceso) }}</td>
+              <td>
                 <button
                   class="boton-secundario boton-chico"
                   type="button"
-                  @click="abrirModalEditarUsuario(usuario)"
+                  @click="verDetalleRolDe(usuario)"
                 >
-                  <span class="pictograma-editar" aria-hidden="true" /> Editar
+                  Ver detalle
                 </button>
-                <button
-                  class="boton-pictograma boton-secundario"
-                  aria-label="Eliminar usuario"
-                  type="button"
-                  @click="abrirModalEliminarUsuario(usuario)"
-                >
-                  <span class="pictograma-eliminar" aria-hidden="true" />
-                </button>
-              </div>
-            </td>
-          </tr>
+              </td>
+              <td>
+                <div class="flex-width flex" style="gap: 8px">
+                  <button
+                    class="boton-secundario boton-chico"
+                    type="button"
+                    :disabled="!usuario.editable"
+                    @click="abrirModalEditarUsuario(usuario)"
+                  >
+                    <span class="pictograma-editar" aria-hidden="true" /> Editar
+                  </button>
+                  <button
+                    class="boton-pictograma boton-secundario"
+                    aria-label="Eliminar usuario"
+                    type="button"
+                    disabled
+                    title="La desactivación de identidades se realiza en Keycloak"
+                  >
+                    <span class="pictograma-eliminar" aria-hidden="true" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </template>
         </tbody>
       </table>
     </div>
 
+    <UiPaginador
+      v-if="!store.cargandoUsuarios && totalPaginas > 1"
+      :pagina-parent="paginaActual"
+      :total-paginas="totalPaginas"
+      @cambio="paginaActual = $event"
+    />
+
     <ClientOnly>
       <SisdaiModal ref="modalUsuario">
         <template #encabezado>
-          <h2>{{ modoModalUsuario === 'crear' ? 'Nuevo usuario' : 'Editar permisos' }}</h2>
+          <h2>Editar permisos</h2>
         </template>
         <template #cuerpo>
           <label for="usuario-nombre">Nombre</label>
-          <input id="usuario-nombre" v-model="formularioUsuario.nombre" type="text" class="m-b-2" />
+          <input
+            id="usuario-nombre"
+            v-model="formularioUsuario.nombre"
+            type="text"
+            class="m-b-2"
+            disabled
+          />
 
           <label for="usuario-correo">Correo electrónico</label>
           <input
@@ -292,12 +297,16 @@ function verDetalleRolDe(usuario) {
             v-model="formularioUsuario.correo"
             type="email"
             class="m-b-2"
+            disabled
           />
 
           <label for="usuario-rol">Rol</label>
           <select id="usuario-rol" v-model="formularioUsuario.rol">
             <option v-for="rol in roles" :key="rol" :value="rol">{{ rol }}</option>
           </select>
+          <p v-if="errorAccion" class="alerta alerta-error m-t-2" role="alert">
+            {{ errorAccion }}
+          </p>
         </template>
         <template #pie>
           <button
@@ -307,36 +316,13 @@ function verDetalleRolDe(usuario) {
           >
             Cancelar
           </button>
-          <button class="boton-primario boton-chico" type="button" @click="guardarUsuario">
-            Guardar
-          </button>
-        </template>
-      </SisdaiModal>
-
-      <SisdaiModal ref="modalEliminarUsuario">
-        <template #encabezado>
-          <h2>Eliminar usuario</h2>
-        </template>
-        <template #cuerpo>
-          <p>
-            ¿Deseas eliminar a <strong>{{ usuarioAEliminar?.nombre }}</strong
-            >? Perderá acceso a la plataforma de inmediato.
-          </p>
-        </template>
-        <template #pie>
-          <button
-            class="boton-secundario boton-chico"
-            type="button"
-            @click="modalEliminarUsuario.cerrarModal()"
-          >
-            Cancelar
-          </button>
           <button
             class="boton-primario boton-chico"
             type="button"
-            @click="confirmarEliminarUsuario"
+            :disabled="store.guardandoPerfil"
+            @click="guardarUsuario"
           >
-            Eliminar
+            {{ store.guardandoPerfil ? 'Guardando…' : 'Guardar' }}
           </button>
         </template>
       </SisdaiModal>

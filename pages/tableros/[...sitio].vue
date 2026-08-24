@@ -27,6 +27,55 @@ const indicador = reactive({
   datos: null,
 });
 
+const capasWmsActivas = computed(() =>
+  (sitio.datos?.external_wms || []).filter(
+    (capa) => capa.at_start && capa.url && (capa.wms_or_tile === 'tile' || capa.wms_layers)
+  )
+);
+
+let canalActualizacionWms = null;
+
+async function recargarCapasWms() {
+  const siteId = sitio.datos?.id;
+
+  if (!siteId) return;
+
+  try {
+    const datosActualizados = await fetchSitio(siteId);
+
+    sitio.datos.external_wms = Array.isArray(datosActualizados?.external_wms)
+      ? datosActualizados.external_wms
+      : [];
+  } catch (error) {
+    console.error('No fue posible actualizar las capas WMS del tablero:', error);
+  }
+}
+
+function alRecibirActualizacionWms(event) {
+  if (String(event.data?.siteId) !== String(sitio.datos?.id)) return;
+
+  recargarCapasWms();
+}
+
+function alVolverAlTablero() {
+  recargarCapasWms();
+}
+
+onMounted(() => {
+  if ('BroadcastChannel' in window) {
+    canalActualizacionWms = new BroadcastChannel('sigic-tablero-wms');
+    canalActualizacionWms.addEventListener('message', alRecibirActualizacionWms);
+  }
+
+  window.addEventListener('focus', alVolverAlTablero);
+});
+
+onBeforeUnmount(() => {
+  canalActualizacionWms?.removeEventListener('message', alRecibirActualizacionWms);
+  canalActualizacionWms?.close();
+  window.removeEventListener('focus', alVolverAlTablero);
+});
+
 const estilosDinamicos = computed(() => {
   const config = sitio.datos?.configuration;
   if (!config) return {};
@@ -157,6 +206,20 @@ const indicadoresDelSubgrupo = computed(() => {
   return subgrupo?.indicators || [];
 });
 
+function alCambiarVisibilidadPestania() {
+  if (document.visibilityState === 'visible' && indicadorActivoId.value) {
+    cargarIndicador(indicadorActivoId.value, indicadorActivoNombre.value);
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
+
 watch(() => route.params.sitio, cargarSitio);
 cargarSitio();
 </script>
@@ -216,6 +279,7 @@ cargarSitio();
         :nombre="indicadorActivoNombre"
         :datos="indicador.datos"
         :cargando="indicador.cargando"
+        :capas-wms="capasWmsActivas"
       />
 
       <TablerosPiePagina :sitio="sitio.datos" />

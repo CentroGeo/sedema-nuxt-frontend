@@ -37,7 +37,6 @@ const {
   recalcularIndicador,
   previsualizarIndicador,
   fetchDatasetAttributes,
-  syncDatasetAttributes,
   urlCapaFeatures,
 } = useTableroApi();
 
@@ -47,6 +46,8 @@ const modal = ref(null);
 const guardando = ref(false);
 const recalculando = ref(false);
 const error = ref('');
+const modalGuardado = ref(null);
+const guardadoConExito = ref(false);
 
 const TIPOS_GRAFICA = [
   {
@@ -131,8 +132,6 @@ const cambiandoCapa = ref(false);
 const atributos = ref([]);
 const cargandoAtributos = ref(false);
 const errorAtributos = ref(false);
-const sincronizandoAtributos = ref(false);
-const errorSincronizacion = ref('');
 
 const mostrarSelectorCapa = computed(() => !capaSeleccionada.value || cambiandoCapa.value);
 
@@ -142,6 +141,9 @@ async function cargarAtributos(pk) {
   try {
     const data = await fetchDatasetAttributes(pk);
     const dataset = data?.dataset ?? data;
+    if (dataset?.title && capaSeleccionada.value) {
+      capaSeleccionada.value.title = dataset.title;
+    }
     const attrs = dataset?.attribute_set ?? [];
     atributos.value = attrs.filter((a) => !GEO_ATTRS.has(a.attribute));
     return dataset;
@@ -161,7 +163,6 @@ async function alSeleccionarCapa(capa) {
   formulario.layer = capa.pk;
   if (!formulario.name) formulario.name = capa.title || '';
   cambiandoCapa.value = false;
-  errorSincronizacion.value = '';
 
   // Los campos pertenecen al esquema de la capa anterior: dejarlos puestos
   // produciría un recálculo contra columnas inexistentes.
@@ -174,33 +175,6 @@ async function alSeleccionarCapa(capa) {
 
   atributos.value = [];
   await cargarAtributos(capa.pk);
-}
-
-async function sincronizarAtributos() {
-  if (!capaSeleccionada.value) return;
-  sincronizandoAtributos.value = true;
-  errorSincronizacion.value = '';
-  try {
-    const data = await syncDatasetAttributes(
-      capaSeleccionada.value.pk,
-      userData.value?.accessToken
-    );
-    if (data?.attributes?.length) {
-      atributos.value = data.attributes.filter((a) => !GEO_ATTRS.has(a.attribute));
-    } else if (data?.error === 'wfs_no_disponible') {
-      errorSincronizacion.value =
-        'El servicio WFS remoto no está disponible en este momento. ' +
-        'Inténtalo más tarde o contacta al administrador del recurso.';
-    } else {
-      errorSincronizacion.value =
-        data?.detail || 'No se encontraron atributos en el servicio remoto para esta capa.';
-    }
-  } catch {
-    errorSincronizacion.value =
-      'No se pudo conectar con el servidor. Verifica tu conexión e inténtalo de nuevo.';
-  } finally {
-    sincronizandoAtributos.value = false;
-  }
 }
 
 // ─── Previsualización ────────────────────────────────────────────────────────
@@ -561,7 +535,12 @@ async function guardar() {
     }
 
     emit(esEdicion.value ? 'guardado' : 'creado', { ...data, avisoRecalculo });
-    modal.value?.cerrar();
+    guardadoConExito.value = true;
+    modalGuardado.value?.abrir();
+    setTimeout(() => {
+      modalGuardado.value?.cerrar();
+      modal.value?.cerrar();
+    }, 1200);
   } catch (e) {
     error.value = e?.message || 'Error al guardar el indicador';
   } finally {
@@ -586,6 +565,20 @@ async function recalcularColores(id, token) {
     return e?.message || 'No se pudo conectar con el servidor para calcular los colores.';
   }
 }
+
+function alCambiarVisibilidadPestania() {
+  if (document.visibilityState === 'visible' && capaSeleccionada.value?.pk) {
+    cargarAtributos(capaSeleccionada.value.pk);
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
 </script>
 
 <template>
@@ -644,6 +637,10 @@ async function recalcularColores(id, token) {
                   Al cambiar la capa se limpian los campos y el indicador se recalcula por completo
                   al guardar.
                 </p>
+                <p class="formulario-ayuda m-b-1">
+                  Selecciona una capa local vectorial con atributos. Los servicios WMS se
+                  administran por separado en “Capas de referencia”.
+                </p>
                 <TablerosAdminSelectorCapa
                   :model-value="capaSeleccionada"
                   @update:model-value="alSeleccionarCapa"
@@ -663,27 +660,6 @@ async function recalcularColores(id, token) {
                 <p v-if="errorAtributos" class="formulario-ayuda color-error m-t-2">
                   No se pudieron cargar los campos de la capa.
                 </p>
-
-                <div
-                  v-if="!cargandoAtributos && !errorAtributos && !atributos.length"
-                  class="sin-atributos"
-                >
-                  <p class="formulario-ayuda">
-                    Este recurso no tiene atributos registrados. Puedes sincronizarlos desde el
-                    servicio de origen.
-                  </p>
-                  <button
-                    type="button"
-                    class="boton boton-secundario boton-chico"
-                    :disabled="sincronizandoAtributos"
-                    @click="sincronizarAtributos"
-                  >
-                    {{ sincronizandoAtributos ? 'Sincronizando...' : 'Sincronizar atributos' }}
-                  </button>
-                  <p v-if="errorSincronizacion" class="formulario-ayuda color-error">
-                    {{ errorSincronizacion }}
-                  </p>
-                </div>
 
                 <div class="seccion-titulo m-t-3">Campos</div>
                 <div class="form-grid-3">
@@ -1062,6 +1038,17 @@ async function recalcularColores(id, token) {
         </form>
       </template>
     </TablerosAdminModalBase>
+
+    <GeocontenidosSisdaiModal ref="modalGuardado" :permitir-cerrar="false">
+      <template #encabezado>
+        <h2 class="m-t-0">Indicador guardado</h2>
+      </template>
+
+      <p v-if="guardadoConExito" class="texto-color-exito">
+        <span class="pictograma-aprobado m-r-1" />
+        El indicador se guardó correctamente.
+      </p>
+    </GeocontenidosSisdaiModal>
   </ClientOnly>
 </template>
 

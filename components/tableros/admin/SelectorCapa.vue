@@ -66,7 +66,9 @@ async function cargarCapas() {
       pagina.value,
       userData.value?.accessToken,
       TAM_PAGINA,
-      categoriaSeleccionada.value?.identifier ?? ''
+      categoriaSeleccionada.value?.identifier ?? '',
+      'LOCAL',
+      'vector'
     );
     capas.value = data?.datasets ?? data?.results ?? [];
     totalCapas.value = data?.total ?? data?.count ?? capas.value.length;
@@ -124,12 +126,23 @@ function estaSeleccionada(capa) {
   return props.modelValue?.pk === capa.pk;
 }
 
+function alCambiarVisibilidadPestania() {
+  if (document.visibilityState === 'visible') {
+    cargarCategorias();
+    cargarCapas();
+  }
+}
+
 onMounted(async () => {
   await cargarCategorias();
   cargarCapas();
+  document.addEventListener('visibilitychange', alCambiarVisibilidadPestania);
 });
 
-onBeforeUnmount(() => clearTimeout(temporizadorBusqueda));
+onBeforeUnmount(() => {
+  clearTimeout(temporizadorBusqueda);
+  document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
 </script>
 
 <template>

@@ -112,9 +112,10 @@ const sigicOWS = `${config.public.baseURL}/catalogue/csw`;
 const isFilterActive = ref(false);
 
 async function fetchTotalByCategory(category) {
-  const preParams = params.value;
+  const preParams = { ...params.value };
   preParams['filter{category.identifier.in}'] = category;
   preParams['filter{complete_metadata}'] = 'true';
+  preParams['_t'] = String(Date.now());
   const url = buildUrl(`${config.public.geonodeApi}/sigic-resources`, preParams);
   const request = await gnoxyFetch(url);
   const res = await request.json();
@@ -439,6 +440,13 @@ watch(params, async () => {
   isLoading.value = false;
 });
 
+function alCambiarVisibilidadPestania() {
+  if (document.visibilityState === 'visible') {
+    storeResources.resetByType();
+    buildCategoriesDict();
+  }
+}
+
 onMounted(async () => {
   if (esRutaMapas.value) {
     await cargarListaMapas();
@@ -446,6 +454,11 @@ onMounted(async () => {
   }
   storeFilters.resetAll();
   storeFilters.buildQueryParams();
+  document.addEventListener('visibilitychange', alCambiarVisibilidadPestania);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', alCambiarVisibilidadPestania);
 });
 </script>
 

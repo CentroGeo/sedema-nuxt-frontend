@@ -28,6 +28,7 @@ function leyendaUrl(capa) {
     FORMAT: 'image/png',
     LAYER: capa.name,
     LEGEND_OPTIONS: 'forceLabels:on;fontAntiAliasing:true',
+    _t: String(Date.now()),
   });
   if (capa.style) params.set('STYLE', capa.style);
   return gnoxyUrl(`${props.geoserverUrl}/wms?${params.toString()}`);
@@ -49,9 +50,14 @@ function alternar() {
       </div>
       <p v-if="!capasConLeyenda.length" class="leyenda-vacia">Este mapa no tiene capas.</p>
       <ul v-else class="leyenda-lista">
-        <li v-for="capa in capasConLeyenda" :key="capa.id" class="leyenda-item">
+        <li
+          v-for="capa in capasConLeyenda"
+          :key="`leyenda-${capa.id}-${capa.style || 'def'}`"
+          class="leyenda-item"
+        >
           <span class="leyenda-titulo">{{ capa.dataset_title || capa.name }}</span>
           <img
+            :key="`img-${capa.id}-${capa.style || 'def'}`"
             :src="leyendaUrl(capa)"
             :alt="`Leyenda de ${capa.dataset_title || capa.name}`"
             loading="lazy"

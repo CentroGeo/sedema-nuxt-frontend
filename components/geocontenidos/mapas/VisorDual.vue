@@ -12,8 +12,7 @@ const props = defineProps({
     default: () => [],
   },
 });
-
-const emit = defineEmits(['vista']);
+const emit = defineEmits(['vista', 'estado-capa']);
 
 function emitirVista({ acercamiento, centro }) {
   if (!Array.isArray(centro) || centro.length < 2) return;
@@ -27,13 +26,6 @@ function emitirVista({ acercamiento, centro }) {
 const config = useRuntimeConfig();
 const { gnoxyFetch } = useGnoxyUrl();
 
-// Teselas: capas públicas se piden directo a GeoServer (sin el proxy Nitro) →
-// más rápido. Las privadas van por gnoxy (inyecta auth).
-// Nota: el fetch directo requiere CORS habilitado en GeoServer.
-const fetchDirecto = (url) => fetch(url);
-function consultaCapa(capa) {
-  return capa.dataset_is_published === true ? fetchDirecto : gnoxyFetch;
-}
 const mapasStore = useMapasStore();
 
 const mapaIzqRef = ref(null);
@@ -110,6 +102,34 @@ const baseLayerUrl = computed(() => baseLayerUrls[baseLayerActual.value] || base
 
 const wmsFuente = computed(() => `${config.public.geoserverUrl}/wms?`);
 
+function esCapaRemota(capa) {
+  return String(capa.dataset_sourcetype || '').toUpperCase() === 'REMOTE';
+}
+
+function nombreCapaWms(capa) {
+  return capa.wms_layer_name || capa.name;
+}
+
+function fuenteCapaWms(capa) {
+  if (esCapaRemota(capa) && capa.wms_url) {
+    return capa.wms_url;
+  }
+
+  return wmsFuente.value;
+}
+
+// Las capas remotas utilizan gnoxy para evitar restricciones CORS.
+// Las capas locales públicas conservan la petición directa a GeoServer.
+const fetchDirecto = (url) => fetch(url);
+
+function consultaCapa(capa) {
+  if (esCapaRemota(capa)) {
+    return gnoxyFetch;
+  }
+
+  return capa.dataset_is_published === true ? fetchDirecto : gnoxyFetch;
+}
+
 const vistaInicial = {
   centro: [props.mapa.center_lat, props.mapa.center_long],
   acercamiento: props.mapa.zoom,
@@ -164,14 +184,27 @@ const capasDer = computed(() => capasOrdenadas.value.filter((l) => l.map_positio
           <template v-for="capa in capasIzq" :key="`izq-${capa.id}`">
             <SisdaiCapaWms
               v-if="capa.layer_type === 'wms'"
-              :capa="capa.name"
-              :fuente="wmsFuente"
+              :capa="nombreCapaWms(capa)"
+              :fuente="fuenteCapaWms(capa)"
               :consulta="consultaCapa(capa)"
               :estilo="capa.style || undefined"
               :opacidad="capa.opacity"
               :visible="capa.visible"
               :posicion="capa.stack_order"
               :mosaicos="true"
+              @al-iniciar-carga="
+                emit('estado-capa', {
+                  id: capa.id,
+                  estado: 'loading',
+                })
+              "
+              @al-finalizar-carga="
+                (cargaExitosa) =>
+                  emit('estado-capa', {
+                    id: capa.id,
+                    estado: cargaExitosa ? 'success' : 'error',
+                  })
+              "
             />
 
             <GeocontenidosMapasCapaTeselada
@@ -186,10 +219,8 @@ const capasDer = computed(() => capasOrdenadas.value.filter((l) => l.map_positio
               :posicion="capa.stack_order"
             />
           </template>
-
           <slot name="izquierdo" />
         </SisdaiMapa>
-        <GeocontenidosMapasControlInfo :titulo="mapa.name" />
         <GeocontenidosMapasControlCapaBase v-model="baseLayerActual" />
         <GeocontenidosMapasLeyendaMapa
           :capas="capasIzq"
@@ -213,14 +244,27 @@ const capasDer = computed(() => capasOrdenadas.value.filter((l) => l.map_positio
           <template v-for="capa in capasDer" :key="`der-${capa.id}`">
             <SisdaiCapaWms
               v-if="capa.layer_type === 'wms'"
-              :capa="capa.name"
-              :fuente="wmsFuente"
+              :capa="nombreCapaWms(capa)"
+              :fuente="fuenteCapaWms(capa)"
               :consulta="consultaCapa(capa)"
               :estilo="capa.style || undefined"
               :opacidad="capa.opacity"
               :visible="capa.visible"
               :posicion="capa.stack_order"
               :mosaicos="true"
+              @al-iniciar-carga="
+                emit('estado-capa', {
+                  id: capa.id,
+                  estado: 'loading',
+                })
+              "
+              @al-finalizar-carga="
+                (cargaExitosa) =>
+                  emit('estado-capa', {
+                    id: capa.id,
+                    estado: cargaExitosa ? 'success' : 'error',
+                  })
+              "
             />
 
             <GeocontenidosMapasCapaTeselada
@@ -235,7 +279,6 @@ const capasDer = computed(() => capasOrdenadas.value.filter((l) => l.map_positio
               :posicion="capa.stack_order"
             />
           </template>
-
           <slot name="derecho" />
         </SisdaiMapa>
         <GeocontenidosMapasControlCapaBase v-model="baseLayerActual" />

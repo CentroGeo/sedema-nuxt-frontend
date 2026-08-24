@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 
 const props = defineProps({
   capas: {
@@ -15,22 +15,60 @@ const props = defineProps({
 const { gnoxyUrl } = useGnoxyUrl();
 
 const abierto = ref(false);
+const erroresLeyenda = reactive({});
 
-// Capas con nombre, ordenadas de arriba hacia abajo (igual que se dibujan).
+// Capas con identificador WMS, ordenadas de arriba hacia abajo.
 const capasConLeyenda = computed(() =>
-  [...props.capas].filter((c) => c.name).sort((a, b) => b.stack_order - a.stack_order)
+  [...props.capas]
+    .filter((capa) => capa.wms_layer_name || capa.name)
+    .sort((a, b) => b.stack_order - a.stack_order)
 );
+
+function esCapaRemota(capa) {
+  return String(capa.dataset_sourcetype || '').toUpperCase() === 'REMOTE';
+}
+
+function nombreCapaWms(capa) {
+  return capa.wms_layer_name || capa.name;
+}
+
+function fuenteCapaWms(capa) {
+  if (esCapaRemota(capa) && capa.wms_url) {
+    return capa.wms_url;
+  }
+
+  return `${props.geoserverUrl}/wms`;
+}
+
+function agregarParametros(url, params) {
+  const separador = url.includes('?') ? (url.endsWith('?') || url.endsWith('&') ? '' : '&') : '?';
+
+  return `${url}${separador}${params.toString()}`;
+}
 
 function leyendaUrl(capa) {
   const params = new URLSearchParams({
+    SERVICE: 'WMS',
     REQUEST: 'GetLegendGraphic',
     VERSION: '1.0.0',
     FORMAT: 'image/png',
-    LAYER: capa.name,
+    LAYER: nombreCapaWms(capa),
     LEGEND_OPTIONS: 'forceLabels:on;fontAntiAliasing:true',
   });
-  if (capa.style) params.set('STYLE', capa.style);
-  return gnoxyUrl(`${props.geoserverUrl}/wms?${params.toString()}`);
+
+  if (capa.style) {
+    params.set('STYLE', capa.style);
+  }
+
+  return gnoxyUrl(agregarParametros(fuenteCapaWms(capa), params));
+}
+
+function marcarErrorLeyenda(capa) {
+  erroresLeyenda[capa.id] = true;
+}
+
+function limpiarErrorLeyenda(capa) {
+  delete erroresLeyenda[capa.id];
 }
 
 function alternar() {
@@ -52,10 +90,16 @@ function alternar() {
         <li v-for="capa in capasConLeyenda" :key="capa.id" class="leyenda-item">
           <span class="leyenda-titulo">{{ capa.dataset_title || capa.name }}</span>
           <img
+            v-show="!erroresLeyenda[capa.id]"
             :src="leyendaUrl(capa)"
             :alt="`Leyenda de ${capa.dataset_title || capa.name}`"
             loading="lazy"
+            @load="limpiarErrorLeyenda(capa)"
+            @error="marcarErrorLeyenda(capa)"
           />
+          <p v-if="erroresLeyenda[capa.id]" class="leyenda-error">
+            El servicio no proporcionó una leyenda disponible.
+          </p>
         </li>
       </ul>
     </div>
@@ -164,6 +208,12 @@ function alternar() {
   max-width: 100%;
   height: auto;
   object-fit: contain;
+}
+
+.leyenda-error {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--texto-secundario);
 }
 
 .flex {

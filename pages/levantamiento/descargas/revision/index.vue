@@ -2,15 +2,7 @@
 definePageMeta({
   middleware: 'auth',
 });
-const { data } = useAuth();
-
 const storeLevantamiento = useLevantamientoStore();
-storeLevantamiento.obtenerTotalDescargasEnRevision(data.value?.user.email);
-const eliminarRevision = async (id) => {
-  await storeLevantamiento.eliminarDescargaEnRevision(id, data.value?.user.email);
-
-  await storeLevantamiento.obtenerTotalDescargasEnRevision(data.value?.user.email);
-};
 </script>
 <template>
   <UiLayoutPaneles :estado-colapable="storeLevantamiento.catalogoColapsado">
@@ -36,84 +28,11 @@ const eliminarRevision = async (id) => {
           ]"
         />
 
-        <div class="flex titulo-contenido-levantamiento">
-          <h2>Descargas en revisión</h2>
-          <UiNumeroElementos
-            :numero="storeLevantamiento.descargasEnRevision?.descargas?.length"
-            etiqueta="Descargas"
-          />
-        </div>
-        <div
-          v-if="!storeLevantamiento.existenDescargasEnRevision"
-          class="flex texto-centrado contenido-levantamiento"
-        >
-          <LevantamientoSolicitaUnaDescarga></LevantamientoSolicitaUnaDescarga>
-        </div>
-
-        <div v-else class="grid">
-          <div
-            v-for="descarga in storeLevantamiento.descargasEnRevision?.descargas"
-            :key="descarga.id"
-            class="columna-5 fondo-color-neutro p-3 borde-redondeado-20"
-          >
-            <div class="flex flex-contenido-separado encabezado-descarga m-b-3">
-              <span class="pictograma-capas pictograma-grande texto-color-acento"></span>
-              <p
-                class="borde borde-redondeado-12 p-x-1 p-y-minimo fondo-color-alerta texto-color-alerta borde-color-alerta m-0"
-              >
-                En revisión
-              </p>
-            </div>
-            <div class="m-b-3">
-              <div class="texto-color-secundario">Datos del proyecto:</div>
-              <div class="m-b-minimo texto-tamanio-4 nombre-proyecto">
-                <b>{{ descarga.nombre_descarga }}</b>
-              </div>
-            </div>
-            <div class="m-b-3 texto-tamanio-2 texto-color-secundario">
-              <span class="m-r-2">Solicitante:</span> {{ descarga.usuario_id }}
-            </div>
-            <div class="flex texto-tamanio-2 texto-color-secundario m-b-minimo">
-              <div class="columna-10">Formato:</div>
-              <div class="columna-6">***</div>
-            </div>
-            <div class="flex texto-tamanio-2 texto-color-secundario m-b-minimo">
-              <div class="columna-10">Fecha de solicitud:</div>
-              <div class="columna-6">
-                {{
-                  new Date(descarga.fecha_solicitud).toLocaleString('es-MX', {
-                    dateStyle: 'long',
-                    timeStyle: 'short',
-                  })
-                }}
-              </div>
-            </div>
-            <div class="flex texto-tamanio-2 texto-color-secundario m-b-3">
-              <div class="columna-10">Fecha de aprobación:</div>
-              <div class="columna-6">{{ descarga.fecha_aceptacion }}</div>
-            </div>
-            <div class="flex acciones-descarga">
-              <div class="columna-8">
-                <button
-                  class="boton-secundario boton-chico boton-accion-proyecto fondo-color-primario m-b-1"
-                  type="button"
-                  @click="eliminarRevision(descarga.id)"
-                >
-                  Eliminar
-                </button>
-              </div>
-              <div class="columna-8">
-                <button
-                  class="boton-primario boton-chico boton-accion-proyecto fondo-color-primario m-b-1"
-                  type="button"
-                  disabled
-                >
-                  Descargar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <LevantamientoPanelDescargasUsuario
+          estado="NO REVISADO"
+          titulo="Descargas en revisión"
+          mensaje-vacio="Las solicitudes pendientes aparecerán en esta sección."
+        />
       </main>
     </template>
   </UiLayoutPaneles>

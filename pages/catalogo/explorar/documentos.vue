@@ -33,7 +33,7 @@ function updateResources() {
     tipo_recurso: 'Documentos',
     categoria: d.category,
     actualizacion: d.last_updated,
-    acciones: 'Ver, Descargar',
+    acciones: 'Ver, Descargar, Metadatos XML',
     uuid: d.uuid,
     recurso_completo: d,
   }));

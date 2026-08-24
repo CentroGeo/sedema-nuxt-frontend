@@ -314,8 +314,8 @@ const modalRegresar = ref(null);
         <hr />
 
         <div v-if="editarUbicaAporte" class="contenedor m-b-1">
-          <div class="flex m-t-3">
-            <div class="columna-5">
+          <div class="flex m-t-3 contenedor-ubicacion">
+            <div class="columna-5 formulario-ubicacion">
               <h4 class="m-t-0">1. Ubica tu aporte</h4>
               <p>
                 Usa tu ubicación actual, escribe un lugar en el buscador o selecciona un punto en el
@@ -353,7 +353,7 @@ const modalRegresar = ref(null);
                 Siguiente
               </button>
             </div>
-            <div class="columna-11">
+            <div class="columna-11 mapa-ubicacion">
               <ClientOnly>
                 <SisdaiMapa
                   id="aportesmapa"
@@ -548,3 +548,101 @@ const modalRegresar = ref(null);
     </template>
   </UiLayoutPaneles>
 </template>
+
+<style lang="scss">
+.contenedor-ubicacion {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.formulario-ubicacion {
+  flex: 0 0 32%;
+}
+
+.mapa-ubicacion {
+  flex: 1;
+}
+@media (max-width: 1200px) {
+  .contenedor-ubicacion {
+    gap: 20px;
+  }
+
+  .formulario-ubicacion {
+    flex: 0 0 38%;
+  }
+}
+@media (max-width: 992px) {
+  .contenedor-ubicacion {
+    gap: 18px;
+  }
+
+  .formulario-ubicacion {
+    flex: 0 0 42%;
+  }
+
+  .gema {
+    height: 50vh !important;
+  }
+}
+@media (max-width: 767px) {
+  .contenedor-ubicacion {
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .formulario-ubicacion,
+  .mapa-ubicacion {
+    width: 100%;
+    max-width: 100%;
+    flex: none;
+  }
+
+  .formulario-ubicacion {
+    .boton-secundario,
+    .boton-primario {
+      width: 100%;
+      margin-top: 12px;
+    }
+
+    input,
+    textarea,
+    select {
+      width: 100%;
+    }
+  }
+
+  .gema {
+    width: 100% !important;
+    height: 45vh !important;
+  }
+}
+@media (max-width: 480px) {
+  .contenedor-ubicacion {
+    gap: 18px;
+  }
+
+  .gema {
+    height: 38vh !important;
+  }
+
+  .formulario-ubicacion {
+    h4 {
+      font-size: 1.25rem;
+    }
+
+    p {
+      font-size: 0.95rem;
+    }
+  }
+}
+@media (max-width: 360px) {
+  .gema {
+    height: 34vh !important;
+  }
+
+  .contenedor-ubicacion {
+    gap: 16px;
+  }
+}
+</style>

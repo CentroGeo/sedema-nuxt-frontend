@@ -16,11 +16,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  /**
-   * Overrides del editor. En el visor no se pasan y todo sale de `datos`, que es
-   * lo que devuelve `view-data`; en la previsualización del panel de
-   * administración permiten reflejar cambios aún no guardados.
-   */
+  capasWms: {
+    type: Array,
+    default: () => [],
+  },
   featuresUrl: {
     type: String,
     default: null,
@@ -114,7 +113,7 @@ watch(
 
     <TablerosLoader v-if="cargando" mensaje="Cargando indicador..." />
 
-    <template v-else-if="datos">
+    <template v-else-if="datos && (datos.map_values || datos.plot_values)">
       <TablerosCuadrosDatos
         v-if="datos.info_boxes?.length"
         :cuadros="datos.info_boxes"
@@ -133,6 +132,7 @@ watch(
             :use-filter="datos.use_filter"
             :filters="datos.filters"
             :rango-activo-color="rangoActivoColor"
+            :capas-wms="capasWms"
             :basemap="basemapEfectivo"
             :vista-configurada="vistaEfectiva"
             :features-url="featuresUrl"
@@ -154,6 +154,13 @@ watch(
         </div>
       </div>
     </template>
+
+    <div v-else-if="datos" class="tablero-indicador__vacio">
+      <p>
+        Este indicador no cuenta con datos disponibles (la capa asociada no se encuentra en la
+        plataforma).
+      </p>
+    </div>
 
     <div v-else class="tablero-indicador__vacio">
       <p>Selecciona un indicador para visualizarlo.</p>

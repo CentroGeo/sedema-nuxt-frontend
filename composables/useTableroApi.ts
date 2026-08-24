@@ -88,6 +88,24 @@ export function useTableroApi() {
     togglePublic: (id: number, token?: string | null) =>
       jsonRequest(`${baseUrl}/sites/${id}/toggle-public/`, 'POST', {}, token),
 
+    // ---------- Capas de referencia del tablero ----------
+    fetchCapasWmsSitio: async (siteId: number | string) => {
+      const data = await fetchJson(`${baseUrl}/site-configs/${encodeURIComponent(siteId)}/`);
+      return Array.isArray(data?.reference_layers) ? data.reference_layers : [];
+    },
+
+    guardarCapasWmsSitio: (
+      siteId: number | string,
+      referenceLayers: unknown[],
+      token?: string | null
+    ) =>
+      jsonRequest(
+        `${baseUrl}/site-configs/${encodeURIComponent(siteId)}/`,
+        'PATCH',
+        { reference_layers: referenceLayers },
+        token
+      ),
+
     // ---------- GeoNode datasets ----------
     fetchDatasets: (search: string) =>
       fetchJson(
@@ -99,11 +117,16 @@ export function useTableroApi() {
       page: number = 1,
       token?: string | null,
       pageSize: number = 20,
-      category: string = ''
+      category: string = '',
+      sourceType: string = '',
+      subtype: string = ''
     ) => {
       const params = new URLSearchParams({ page_size: String(pageSize), page: String(page) });
       if (search) params.set('filter{title.icontains}', search);
       if (category) params.set('filter{category.identifier.in}', category);
+      if (sourceType) params.set('filter{sourcetype}', sourceType);
+      if (subtype) params.set('filter{subtype}', subtype);
+      params.set('_t', String(Date.now()));
       const url = `${config.public.geonodeApi}/datasets/?${params.toString()}`;
       if (token) {
         return gnoxyFetch(url, { headers: { Authorization: `Bearer ${token}` } }).then((r) =>
@@ -117,15 +140,6 @@ export function useTableroApi() {
       fetchJson(`${config.public.geonodeApi}/datasets/${id}/`),
 
     fetchCategorias: () => fetchJson(`${config.public.geonodeApi}/categories/?page_size=200`),
-
-    syncDatasetAttributes: (id: number, token?: string | null) =>
-      jsonRequest(
-        `${config.public.geonodeApi}/sigic-remote-datasets/${id}/sync-attributes/`,
-        'POST',
-        {},
-        token
-      ),
-
     // ---------- Site configuration ----------
     fetchConfigSitio: (siteId: number) => fetchJson(`${baseUrl}/site-configs/${siteId}/`),
 
@@ -226,7 +240,7 @@ export function useTableroApi() {
     fetchIndicador: (id: number) => fetchJson(`${baseUrl}/indicators/${id}/`),
 
     fetchDatosIndicador: (indicatorId: number) =>
-      fetchJson(`${baseUrl}/indicators/${indicatorId}/view-data/`),
+      fetchJson(`${baseUrl}/indicators/${indicatorId}/view-data/?t=${Date.now()}`),
 
     fetchInfoIndicador: (indicatorId: number) =>
       fetchJson(`${baseUrl}/indicators/${indicatorId}/info/`),

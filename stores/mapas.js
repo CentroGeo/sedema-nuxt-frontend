@@ -60,7 +60,7 @@ export const useMapasStore = defineStore('mapas', () => {
       `?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0` +
       `&LAYER=${name}&STYLE=${style}` +
       `&TILEMATRIXSET=EPSG:3857&TILEMATRIX=EPSG:3857:{z}&TILEROW={y}&TILECOL={x}` +
-      `&FORMAT=image/png`
+      `&FORMAT=image/png&_t=${Date.now()}`
     );
   }
 
@@ -91,6 +91,16 @@ export const useMapasStore = defineStore('mapas', () => {
     // El detalle ya trae las capas completas → una sola petición (1 RTT).
     activeLayers.value = mapData.layers ?? [];
     return true;
+  }
+  // Igual que cargarMapa pero sin isLoadingMap: la página usa esa bandera
+  // para desmontar toda la vista, así que no sirve para refrescar con algo
+  // (ej. el modal de capas) ya abierto encima.
+  async function refrescarMapa(id) {
+    const mapData = await fetchMap(id);
+    if (!mapData) return null;
+    activeMap.value = mapData;
+    activeLayers.value = mapData.layers ?? [];
+    return activeMap.value;
   }
 
   async function crearMapa(body) {
@@ -218,6 +228,7 @@ export const useMapasStore = defineStore('mapas', () => {
     buildWmtsUrl,
     cargarMapas,
     cargarMapa,
+    refrescarMapa,
     crearMapa,
     actualizarMapa,
     eliminarMapa,

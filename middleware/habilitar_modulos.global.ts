@@ -137,10 +137,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // Rutas propias de esta instancia que no existen upstream y por lo tanto no
   // tienen módulo ni submódulo al que asociarse. Siguen dependiendo de las
   // banderas de entorno, igual que antes de adoptar la configuración remota.
+  // El constructor de páginas ya no está aquí: upstream lo movió a
+  // /administracion/constructor-paginas, que va guardado por el middleware `admin`.
   const flags = useRuntimeConfig().public;
   const reglasBanderas: Record<string, boolean> = {
     '/acerca-de': Boolean(flags.enableAcercaDe),
-    '/landing-builder': Boolean(flags.enableAuth && flags.enableLandingBuilder),
   };
 
   for (const [ruta, habilitada] of Object.entries(reglasBanderas)) {

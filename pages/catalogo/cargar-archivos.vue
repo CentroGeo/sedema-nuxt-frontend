@@ -1,7 +1,7 @@
 <script setup>
 import { useAuth, useRuntimeConfig } from '#imports';
 import { useCatalogoStore } from '@/stores/catalogo';
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { convertirBytes } from '~/utils/catalogo';
 import { LIMITE_CARGA_ARCHIVOS_MIB } from '#shared/utils/limiteCargaArchivos';
 
@@ -21,7 +21,8 @@ const { data } = useAuth();
 const { gnoxyFetch } = useGnoxyUrl();
 const { uploadFile, getQuota, pollJob, importToGeonode } = useDataImporter();
 
-const base_files = ['.geojson', '.gpkg', '.zip'];
+// Extensiones espaciales base soportadas (vectoriales y ráster como GeoTIFF)
+const base_files = ['.geojson', '.gpkg', '.zip', '.tif', '.tiff', '.geotiff'];
 const docs_files = ['.txt', '.pdf'];
 const sld_files = ['.sld'];
 const xml_files = ['.xml'];
@@ -66,6 +67,50 @@ watch(
 );
 
 const EXTENSIONES_AVISABLES = new Set(['sld', 'xml']);
+
+// El GDAL de GeoNode (3.4) rechaza GeoPackage 1.3/1.4 (los escriben QGIS/GDAL
+// recientes). Bajar user_version a 1.2 no altera los datos: son los bytes 60-63
+// del header SQLite, sin suma de verificación.
+async function normalizarVersionGpkg(file) {
+  if (!file.name.toLowerCase().endsWith('.gpkg')) return file;
+  const buffer = await file.arrayBuffer();
+  if (buffer.byteLength < 64) return file;
+  const vista = new DataView(buffer);
+  const cabecera = new TextDecoder().decode(new Uint8Array(buffer, 0, 15));
+  if (cabecera !== 'SQLite format 3') return file;
+  if (vista.getUint32(60) <= 10200) return file;
+  vista.setUint32(60, 10200);
+  return new File([buffer], file.name, { type: file.type });
+}
+
+// Mensajes que ve la persona usuaria cuando falla el procesamiento de una capa.
+// La causa se clasifica a partir del log del importador; los dos caminos de carga
+// (respuesta directa del servidor y monitoreo desde el cliente) usan esta misma
+// tabla para que el mensaje no dependa de cuánto tardó el procesamiento.
+const PATRON_NOMBRE_DE_CAPA = /Error layer:|RQ1|Layer names must/i;
+const PATRON_CRS = /\bCRS\b|\bSRS\b|coordinate reference|projection|proyecci/i;
+
+function mensajeErrorProcesamiento(log) {
+  const texto = log || '';
+  if (PATRON_NOMBRE_DE_CAPA.test(texto)) {
+    return (
+      'El nombre interno de la capa no es válido: debe iniciar con letra y usar solo minúsculas, ' +
+      'números y guiones bajos (sin mayúsculas, guiones ni espacios). Renombra la capa dentro ' +
+      'del archivo y vuelve a intentarlo.'
+    );
+  }
+  if (PATRON_CRS.test(texto)) {
+    return (
+      'El archivo no declara un sistema de coordenadas reconocible. Asígnale uno ' +
+      '(idealmente EPSG:4326) y vuelve a subirlo.'
+    );
+  }
+  return 'No fue posible procesar tu archivo. Puede estar dañado o contener geometrías no válidas.';
+}
+
+function conDetalleTecnico(mensaje, log) {
+  return log ? `${mensaje} — Detalle técnico: ${log}` : mensaje;
+}
 
 async function limpiarZipShapefile(file) {
   if (!file.name.toLowerCase().endsWith('.zip')) return { file, excluidos: [] };
@@ -151,7 +196,13 @@ async function guardarArchivo(files) {
   const archivosRaw = Array.from(files || []);
 
   // Limpiar ZIPs de INEGI (y similares) que traen archivos extra no reconocidos por GeoNode
-  const archivosLimpios = await Promise.all(archivosRaw.map((f) => limpiarZipShapefile(f)));
+  // y normalizar GeoPackage 1.3/1.4 a 1.2 para el GDAL del servidor
+  const archivosLimpios = await Promise.all(
+    archivosRaw.map(async (f) => {
+      const { file, excluidos } = await limpiarZipShapefile(f);
+      return { file: await normalizarVersionGpkg(file), excluidos };
+    })
+  );
   const excluidosPorArchivo = new Map(
     archivosLimpios.map(({ file, excluidos }) => [file, excluidos])
   );
@@ -311,18 +362,25 @@ async function guardarArchivo(files) {
       // Evaluar respuesta
       if (!result.success) {
         archivo.estatus = 'error_carga';
-        archivo.mensaje = result.message || 'Error en procesamiento';
+        // result.detail solo viene del caso 'failed': trae el log del importador
+        archivo.mensaje = result.detail
+          ? conDetalleTecnico(mensajeErrorProcesamiento(result.detail), result.detail)
+          : result.message || 'Error en procesamiento';
       } else if (result.execution_id) {
         // Caso: capa base, procesando en GeoNode
         archivo.estatus = 'procesando';
         archivo.mensaje = 'Procesando capa en GeoNode...';
         monitorLayerImport(result.execution_id, archivo);
       } else if (result.url) {
+        const idRecurso = result.url.split('/').slice(-1)[0];
+        if (base_files.includes('.' + file.name.split('.').slice(-1)[0])) {
+          await finalizarCargaDataset(archivo, idRecurso);
+        }
         // Caso: documento cargado
         archivo.IdRutaArchivo = result.url.split('/').slice(-1)[0];
         // Se recupera la información necesaria para cada tipo de archivo
         let tipo;
-        if (base_files.includes('.' + file.name.split('.').slice(-1)[0])) {
+        if (base_files.some((end) => file.name.toLowerCase().endsWith(end))) {
           const request_geonode = await gnoxyFetch(
             `${configEnv.public.geonodeUrl}/api/v2/datasets/${archivo.IdRutaArchivo}`
           );
@@ -330,25 +388,37 @@ async function guardarArchivo(files) {
           tipo = isGeometricExtension(res_geonode.dataset.extent) ? 'dataLayer' : 'dataTable';
           if (tipo === 'dataLayer') {
             archivo.tipo_recurso = tipo;
-            const request_geoserver = await gnoxyFetch(
-              `${configEnv.public.geonodeUrl}/gs/ows?service=WFS&version=1.1.0&request=GetFeature&typeName=${res_geonode.dataset.alternate}&resultType=hits`
-            );
             const proyeccion = res_geonode?.dataset?.srid;
-            const res_geoserver = await request_geoserver.text();
-            const match = res_geoserver.match(/numberOfFeatures="(\d+)"/);
-            archivo.numero_geometrias = match ? parseInt(match[1], 10) : null;
             archivo.proyeccion = proyeccion;
+            // Para archivos ráster (GeoTIFF, etc.) se omite la consulta WFS de conteo de geometrías ya que no son capas vectoriales
+            const esRaster =
+              res_geonode?.dataset?.subtype === 'raster' ||
+              ['.tif', '.tiff', '.geotiff'].some((end) => file.name.toLowerCase().endsWith(end));
+            if (!esRaster && res_geonode?.dataset?.alternate) {
+              try {
+                const request_geoserver = await gnoxyFetch(
+                  `${configEnv.public.geonodeUrl}/gs/ows?service=WFS&version=1.1.0&request=GetFeature&typeName=${res_geonode.dataset.alternate}&resultType=hits`
+                );
+                const res_geoserver = await request_geoserver.text();
+                const match = res_geoserver.match(/numberOfFeatures="(\d+)"/);
+                archivo.numero_geometrias = match ? parseInt(match[1], 10) : null;
+              } catch (e) {
+                console.warn('No se pudo obtener el conteo de geometrías WFS:', e);
+              }
+            } else {
+              archivo.numero_geometrias = null;
+            }
           } else if (tipo === 'dataTable') {
             archivo.tipo_recurso = tipo;
           }
         } else {
-          tipo = 'document';
-          archivo.tipo_recurso = tipo;
+          // Caso: documento cargado
+          archivo.IdRutaArchivo = idRecurso;
+          archivo.tipo_recurso = 'document';
+          archivo.estatus = 'carga_finalizada';
+          archivo.mensaje = 'Archivo cargado correctamente';
+          statusOk.value = true;
         }
-        // Se actualizan las banderas de carga
-        archivo.estatus = 'carga_finalizada';
-        archivo.mensaje = 'Archivo cargado correctamente';
-        statusOk.value = true;
       } else {
         archivo.estatus = 'error_carga';
         archivo.mensaje = 'Respuesta inesperada del servidor';
@@ -492,37 +562,100 @@ async function importarMetadatosXML(archivo, file) {
   }
 }
 
-// Polling para monitorear la importación de capas base
+// Consulta los datos del dataset recién creado y marca la tarjeta como finalizada
+async function finalizarCargaDataset(archivo, idRecurso) {
+  if (idRecurso) archivo.IdRutaArchivo = String(idRecurso);
+  try {
+    const request_geonode = await gnoxyFetch(
+      `${configEnv.public.geonodeUrl}/api/v2/datasets/${archivo.IdRutaArchivo}`
+    );
+    const res_geonode = await request_geonode.json();
+    const tipo = isGeometricExtension(res_geonode.dataset.extent) ? 'dataLayer' : 'dataTable';
+    archivo.tipo_recurso = tipo;
+    if (tipo === 'dataLayer') {
+      const request_geoserver = await gnoxyFetch(
+        `${configEnv.public.geonodeUrl}/gs/ows?service=WFS&version=1.1.0&request=GetFeature&typeName=${res_geonode.dataset.alternate}&resultType=hits`
+      );
+      archivo.proyeccion = res_geonode?.dataset?.srid;
+      const res_geoserver = await request_geoserver.text();
+      const match = res_geoserver.match(/numberOfFeatures="(\d+)"/);
+      archivo.numero_geometrias = match ? parseInt(match[1], 10) : null;
+    }
+  } catch (e) {
+    console.error('Error consultando el dataset creado:', e);
+  }
+  archivo.estatus = 'carga_finalizada';
+  archivo.mensaje =
+    archivo.tipo_recurso === 'dataLayer'
+      ? 'Capa cargada correctamente'
+      : archivo.tipo_recurso === 'dataTable'
+        ? 'Tabla cargada correctamente'
+        : 'Archivo cargado correctamente';
+  statusOk.value = true;
+  await actualizarCuota();
+}
+
+// Polling para monitorear la importación de capas base.
+// GeoNode 4.4 responde /api/v2/executionrequest/{id} envuelto en {"request": {...}}
+// con estados en minúsculas: ready | running | failed | finished.
+const monitoresActivos = new Set();
+
+onBeforeUnmount(() => {
+  monitoresActivos.forEach((id) => clearInterval(id));
+  monitoresActivos.clear();
+});
+
 async function monitorLayerImport(executionId, archivo) {
-  //const token = ref(data.value?.accessToken);
   const startTime = Date.now();
+  const LIMITE_MONITOREO_MS = 10 * 60 * 1000;
+
   const interval = setInterval(async () => {
     try {
       const res = await gnoxyFetch(
         `${configEnv.public.geonodeUrl}/api/v2/executionrequest/${executionId}`
       );
-      const data = await res.json();
+      if (!res.ok) return; // error transitorio: se reintenta en el siguiente tick
 
-      if (data.status === 'SUCCESS') {
+      const json = await res.json();
+      const ejecucion = json?.request ?? json;
+
+      if (ejecucion?.status === 'finished') {
         clearInterval(interval);
-        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        archivo.estatus = 'carga_finalizada';
-        archivo.mensaje = `Procesado en ${elapsed}s`;
-        archivo.IdRutaArchivo = data.imported_resources?.[0]?.detail_url.split('/').slice(-1)[0];
+        monitoresActivos.delete(interval);
+        const idRecurso =
+          ejecucion.geonode_resource ??
+          ejecucion.output_params?.resources?.[0]?.id ??
+          ejecucion.output_params?.resources?.[0]?.pk;
+        await finalizarCargaDataset(archivo, idRecurso);
+        return;
       }
 
-      if (data.status === 'FAILED') {
+      if (ejecucion?.status === 'failed') {
         clearInterval(interval);
+        monitoresActivos.delete(interval);
         archivo.estatus = 'error_carga';
+        archivo.mensaje = conDetalleTecnico(
+          mensajeErrorProcesamiento(ejecucion.log),
+          ejecucion.log
+        );
+        await actualizarCuota();
+        return;
+      }
+
+      if (Date.now() - startTime > LIMITE_MONITOREO_MS) {
+        clearInterval(interval);
+        monitoresActivos.delete(interval);
+        archivo.estatus = 'procesando_fondo';
         archivo.mensaje =
-          'No fue posible procesar tu archivo. Verifica que use un sistema de coordenadas ' +
-          'compatible: EPSG:4326 (WGS 84) o EPSG:3857 (Web Mercator). ' +
-          'Si el problema persiste, convierte el archivo antes de subirlo.';
+          'Tu capa sigue en proceso. Aparecerá en "Mis archivos" al terminar; ' +
+          'puedes salir de esta página sin perder la carga.';
       }
     } catch (e) {
       console.error('Error consultando ejecución:', e);
     }
-  }, 2000);
+  }, 5000);
+
+  monitoresActivos.add(interval);
 }
 </script>
 
@@ -538,8 +671,8 @@ async function monitorLayerImport(executionId, archivo) {
           <h2>Carga archivo</h2>
           <p class="m-y-1">
             <b
-              >Formatos admitidos: GeoJSON, GeoPackage, Shapefile (ZIP o archivos sueltos), CSV,
-              XLSX, XLS, JSON, PDF, TXT, SLD y XML (ISO 19115).</b
+              >Formatos admitidos: GeoJSON, GeoPackage, Shapefile (ZIP o archivos sueltos), GeoTIFF
+              / Ráster (.tif, .tiff), CSV, XLSX, XLS, JSON, PDF, TXT, SLD y XML (ISO 19115).</b
             >
           </p>
           <p class="m-y-1">Tamaño máximo por archivo: {{ LIMITE_CARGA_ARCHIVOS_MIB }} MiB.</p>
@@ -600,6 +733,7 @@ async function monitorLayerImport(executionId, archivo) {
                 'fondo-color-neutro': [
                   'pendiente',
                   'procesando',
+                  'procesando_fondo',
                   'analizando_tabular',
                   'decision_tabular',
                   'esperando_nombre_estilo',

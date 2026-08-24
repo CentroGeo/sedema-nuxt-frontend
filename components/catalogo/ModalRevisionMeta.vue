@@ -1,7 +1,9 @@
 <script setup>
 import SisdaiModal from '@centrogeomx/sisdai-componentes/src/componentes/modal/SisdaiModal.vue';
+import { useDownloadResources } from '~/composables/useDownloadResources';
 import { dictIdiomas } from '~/utils/catalogo';
 import { categoriesInSpanish } from '~/utils/consulta';
+import { canDownloadMetadataXml, MENSAJE_METADATOS_INCOMPLETOS } from '~/utils/metadatos';
 const props = defineProps({
   reviewPk: {
     type: String,
@@ -14,10 +16,27 @@ const props = defineProps({
 });
 
 const { gnoxyFetch } = useGnoxyUrl();
+const { downloadMetadata } = useDownloadResources();
 const config = useRuntimeConfig();
 const isLoading = ref(false);
 const fetchFailed = ref(false);
 const resource = ref({});
+const rawResource = ref(null);
+const isDownloadingXml = ref(false);
+const xmlDownloadFailed = ref(false);
+const puedeDescargarXml = computed(() => canDownloadMetadataXml(rawResource.value));
+
+/** Descarga el XML de metadatos (ISO 19139) del recurso en revisión */
+async function descargarXml() {
+  if (!puedeDescargarXml.value || isDownloadingXml.value) {
+    return;
+  }
+  xmlDownloadFailed.value = false;
+  isDownloadingXml.value = true;
+  const status = await downloadMetadata(rawResource.value);
+  isDownloadingXml.value = false;
+  xmlDownloadFailed.value = status !== 'Ok';
+}
 const modalRevisionBasicos = ref(null);
 const modalRevisionLicencias = ref(null);
 const modalRevisionOpcionales = ref(null);
@@ -120,6 +139,8 @@ async function buildResourceInfo() {
     fetchFailed.value = true;
   } else {
     fetchFailed.value = false;
+    // Copia cruda para validar metadatos básicos y descargar el XML (uuid, sourcetype)
+    rawResource.value = data;
     resource.value['title'] = data.title;
     resource.value['sourcetype'] = data.sourcetype;
     resource.value['abstract'] = data.raw_abstract;
@@ -257,6 +278,32 @@ onMounted(async () => {
       </template>
       <!--Botones-->
       <template v-if="!isLoading && !fetchFailed" #pie>
+        <div v-if="rawResource && rawResource.sourcetype !== 'REMOTE'" class="flex m-t-3">
+          <div class="columna-16">
+            <span
+              v-globo-informacion:arriba="
+                puedeDescargarXml
+                  ? 'Descargar metadatos en XML (ISO 19139)'
+                  : MENSAJE_METADATOS_INCOMPLETOS
+              "
+              class="contenedor-boton-xml"
+            >
+              <button
+                type="button"
+                class="boton-secundario"
+                aria-label="Descargar metadatos XML"
+                :disabled="!puedeDescargarXml || isDownloadingXml"
+                @click="descargarXml"
+              >
+                <span class="pictograma-archivo-descargar" aria-hidden="true"></span>
+                {{ isDownloadingXml ? 'Descargando…' : 'Descargar XML' }}
+              </button>
+            </span>
+            <p v-if="xmlDownloadFailed" class="texto-color-error m-0">
+              No se pudo descargar el XML. Inténtalo de nuevo.
+            </p>
+          </div>
+        </div>
         <div class="flex flex-contenido-separado m-t-3">
           <div class="columna-8">
             <button
@@ -331,6 +378,32 @@ onMounted(async () => {
       </template>
       <template #pie>
         <!--Botones-->
+        <div v-if="rawResource && rawResource.sourcetype !== 'REMOTE'" class="flex m-t-3">
+          <div class="columna-16">
+            <span
+              v-globo-informacion:arriba="
+                puedeDescargarXml
+                  ? 'Descargar metadatos en XML (ISO 19139)'
+                  : MENSAJE_METADATOS_INCOMPLETOS
+              "
+              class="contenedor-boton-xml"
+            >
+              <button
+                type="button"
+                class="boton-secundario"
+                aria-label="Descargar metadatos XML"
+                :disabled="!puedeDescargarXml || isDownloadingXml"
+                @click="descargarXml"
+              >
+                <span class="pictograma-archivo-descargar" aria-hidden="true"></span>
+                {{ isDownloadingXml ? 'Descargando…' : 'Descargar XML' }}
+              </button>
+            </span>
+            <p v-if="xmlDownloadFailed" class="texto-color-error m-0">
+              No se pudo descargar el XML. Inténtalo de nuevo.
+            </p>
+          </div>
+        </div>
         <div class="flex flex-contenido-separado m-t-3">
           <div class="columna-8 texto-centrado">
             <button
@@ -413,6 +486,32 @@ onMounted(async () => {
 
       <!--Botones-->
       <template #pie>
+        <div v-if="rawResource && rawResource.sourcetype !== 'REMOTE'" class="flex m-t-3">
+          <div class="columna-16">
+            <span
+              v-globo-informacion:arriba="
+                puedeDescargarXml
+                  ? 'Descargar metadatos en XML (ISO 19139)'
+                  : MENSAJE_METADATOS_INCOMPLETOS
+              "
+              class="contenedor-boton-xml"
+            >
+              <button
+                type="button"
+                class="boton-secundario"
+                aria-label="Descargar metadatos XML"
+                :disabled="!puedeDescargarXml || isDownloadingXml"
+                @click="descargarXml"
+              >
+                <span class="pictograma-archivo-descargar" aria-hidden="true"></span>
+                {{ isDownloadingXml ? 'Descargando…' : 'Descargar XML' }}
+              </button>
+            </span>
+            <p v-if="xmlDownloadFailed" class="texto-color-error m-0">
+              No se pudo descargar el XML. Inténtalo de nuevo.
+            </p>
+          </div>
+        </div>
         <div class="flex flex-contenido-separado m-t-3">
           <div class="columna-8 texto-centrado">
             <button
@@ -497,6 +596,32 @@ onMounted(async () => {
       </template>
       <!--Botones-->
       <template #pie>
+        <div v-if="rawResource && rawResource.sourcetype !== 'REMOTE'" class="flex m-t-3">
+          <div class="columna-16">
+            <span
+              v-globo-informacion:arriba="
+                puedeDescargarXml
+                  ? 'Descargar metadatos en XML (ISO 19139)'
+                  : MENSAJE_METADATOS_INCOMPLETOS
+              "
+              class="contenedor-boton-xml"
+            >
+              <button
+                type="button"
+                class="boton-secundario"
+                aria-label="Descargar metadatos XML"
+                :disabled="!puedeDescargarXml || isDownloadingXml"
+                @click="descargarXml"
+              >
+                <span class="pictograma-archivo-descargar" aria-hidden="true"></span>
+                {{ isDownloadingXml ? 'Descargando…' : 'Descargar XML' }}
+              </button>
+            </span>
+            <p v-if="xmlDownloadFailed" class="texto-color-error m-0">
+              No se pudo descargar el XML. Inténtalo de nuevo.
+            </p>
+          </div>
+        </div>
         <div class="flex flex-contenido-separado m-t-3">
           <div class="columna-8 texto-centrado">
             <button
@@ -529,6 +654,9 @@ onMounted(async () => {
 </template>
 
 <style>
+.contenedor-boton-xml {
+  display: inline-block;
+}
 .modal-cuerpo p {
   overflow-wrap: break-word !important;
   word-break: break-all !important;
