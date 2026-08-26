@@ -10,6 +10,10 @@ function isTokenExpired(expiresAt?: number, offset = 60_000): boolean {
 export default NuxtAuthHandler({
   secret: process.env.NUXT_AUTH_SECRET,
 
+  pages: {
+    error: '/',
+  },
+
   providers: [
     // @ts-expect-error Use .default here for it to work during SSR.
     KeycloakProvider.default({
@@ -36,19 +40,25 @@ export default NuxtAuthHandler({
 
       if (isTokenExpired(token.expires_at as number)) {
         try {
-          const response = await fetch(
-            `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: new URLSearchParams({
-                client_id: process.env.KEYCLOAK_CLIENT_ID ?? '',
-                client_secret: process.env.KEYCLOAK_CLIENT_SECRET ?? '',
-                grant_type: 'refresh_token',
-                refresh_token: token.refreshToken as string,
-              }),
-            }
-          );
+          const tokenUrl =
+            process.env.KEYCLOAK_TOKEN_URL ??
+            `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`;
+
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 5000);
+
+          const response = await fetch(tokenUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              client_id: process.env.KEYCLOAK_CLIENT_ID ?? '',
+              client_secret: process.env.KEYCLOAK_CLIENT_SECRET ?? '',
+              grant_type: 'refresh_token',
+              refresh_token: token.refreshToken as string,
+            }),
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
 
           const refreshed = await response.json();
 
